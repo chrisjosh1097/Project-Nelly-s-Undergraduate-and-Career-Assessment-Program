@@ -33,7 +33,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_PRIVATE_KEY=PASTE_ESCAPED_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_HERE
 
 ADMIN_EMAILS=admin@example.com,counselor@example.com
 ENABLE_GEMINI_ENHANCEMENT=false
@@ -46,7 +46,7 @@ Only `NEXT_PUBLIC_*` values are exposed to the browser. Firebase Admin credentia
 1. Create a Firebase project.
 2. Enable Firestore.
 3. Deploy `firestore.rules`; direct client reads/writes to `submissions` are disabled.
-4. Create a Firebase service account and place `project_id`, `client_email`, and `private_key` in `.env.local`.
+4. Create a Firebase service account and place `project_id`, `client_email`, and the escaped `private_key` value in `.env.local`. Keep the key out of Git.
 
 Submissions are stored under one deterministic document ID per normalized email. The server checks and creates records inside a Firestore transaction, so one verified Google email can submit only once.
 
