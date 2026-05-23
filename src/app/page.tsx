@@ -19,12 +19,9 @@ export default function LandingPage() {
           <div className="mt-7 flex flex-wrap gap-3">
             <Link href="/login?next=/assessment">
               <Button>
-                Login untuk Mulai Tes
+                Mulai Tes Jurusan
                 <ArrowRight className="h-4 w-4" />
               </Button>
-            </Link>
-            <Link href="/login?next=/assessment">
-              <Button variant="secondary">Masuk dengan Google</Button>
             </Link>
           </div>
           <p className="mt-6 max-w-xl rounded-md border border-marigold/40 bg-marigold/15 p-4 text-sm leading-6 text-ink/75">

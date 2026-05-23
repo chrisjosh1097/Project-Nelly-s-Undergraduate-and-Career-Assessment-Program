@@ -1,20 +1,42 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Chrome, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Chrome, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/components/auth/AuthProvider";
+
+function friendlyLoginError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("auth/unauthorized-domain")) {
+    return "Domain Netlify belum ditambahkan di Firebase Authentication. Tambahkan projectnellyfutureassessment.netlify.app ke Authorized domains.";
+  }
+  if (message.includes("auth/operation-not-allowed")) {
+    return "Google Sign-In belum diaktifkan di Firebase Authentication.";
+  }
+  if (message.includes("auth/popup-closed-by-user")) {
+    return "Login dibatalkan sebelum selesai. Coba lagi dengan tombol Google.";
+  }
+  return "Login Google belum berhasil. Periksa konfigurasi Firebase Auth dan coba lagi.";
+}
 
 export function LoginPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/assessment";
   const { user, loading, configured, signIn } = useAuth();
+  const [error, setError] = useState("");
+  const [isSigningIn, setSigningIn] = useState(false);
 
   async function handleLogin() {
-    await signIn();
-    router.replace(next);
+    setError("");
+    setSigningIn(true);
+    try {
+      await signIn();
+    } catch (loginError) {
+      setError(friendlyLoginError(loginError));
+      setSigningIn(false);
+    }
   }
 
   useEffect(() => {
@@ -42,9 +64,15 @@ export function LoginPanel() {
           <p className="text-sm text-ink/65">Gunakan email Google terverifikasi sebelum mengisi assessment.</p>
         </div>
       </div>
-      <Button className="w-full" onClick={handleLogin} disabled={loading}>
+      {error ? (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-coral/25 bg-coral/10 p-3 text-sm leading-6 text-ink">
+          <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-coral" />
+          <span>{error}</span>
+        </div>
+      ) : null}
+      <Button className="w-full" onClick={handleLogin} disabled={loading || isSigningIn}>
         <Chrome className="h-4 w-4" />
-        Masuk dengan Google
+        {isSigningIn ? "Mengarahkan ke Google..." : "Masuk dengan Google"}
       </Button>
     </div>
   );

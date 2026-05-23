@@ -4,7 +4,7 @@ import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   type Auth,
   type User
@@ -34,13 +34,15 @@ export function getFirebaseClientApp(): FirebaseApp {
 }
 
 export function getFirebaseClientAuth(): Auth {
-  return getAuth(getFirebaseClientApp());
+  const auth = getAuth(getFirebaseClientApp());
+  auth.useDeviceLanguage();
+  return auth;
 }
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  return signInWithPopup(getFirebaseClientAuth(), provider);
+  return signInWithRedirect(getFirebaseClientAuth(), provider);
 }
 
 export async function signOutGoogle() {
