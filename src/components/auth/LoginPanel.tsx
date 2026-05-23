@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Chrome, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { completeRedirectSignIn } from "@/lib/firebase/client";
 
 function friendlyLoginError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -16,6 +17,12 @@ function friendlyLoginError(error: unknown) {
   }
   if (message.includes("auth/popup-closed-by-user")) {
     return "Login dibatalkan sebelum selesai. Coba lagi dengan tombol Google.";
+  }
+  if (message.includes("auth/web-storage-unsupported")) {
+    return "Browser memblokir penyimpanan login. Coba buka di browser utama dan izinkan cookie/storage.";
+  }
+  if (message.includes("auth/network-request-failed")) {
+    return "Koneksi ke Firebase gagal. Periksa internet atau coba refresh halaman.";
   }
   return "Login Google belum berhasil. Periksa konfigurasi Firebase Auth dan coba lagi.";
 }
@@ -44,6 +51,19 @@ export function LoginPanel() {
       router.replace(next);
     }
   }, [loading, next, router, user]);
+
+  useEffect(() => {
+    if (!configured) return;
+    let active = true;
+
+    completeRedirectSignIn().catch((redirectError) => {
+      if (active) setError(friendlyLoginError(redirectError));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [configured]);
 
   if (!configured) {
     return (

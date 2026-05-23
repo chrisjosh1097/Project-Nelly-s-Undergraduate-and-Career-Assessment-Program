@@ -4,6 +4,7 @@ import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithRedirect,
   signOut,
   type Auth,
@@ -43,6 +44,10 @@ export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   return signInWithRedirect(getFirebaseClientAuth(), provider);
+}
+
+export async function completeRedirectSignIn() {
+  return getRedirectResult(getFirebaseClientAuth());
 }
 
 export async function signOutGoogle() {
