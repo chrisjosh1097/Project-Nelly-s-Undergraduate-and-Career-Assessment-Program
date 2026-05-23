@@ -100,7 +100,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
           <div className="mb-5 rounded-md border border-coral/25 bg-coral/10 p-3 text-sm text-ink">{downloadError}</div>
         ) : null}
 
-        <div className="rounded-md border border-leaf/25 bg-[#EEF7EF] p-5 sm:p-7">
+        <div className="rounded-md border border-leaf/25 bg-[#FFF7ED] p-5 ring-1 ring-leaf/10 sm:p-7">
           <div className="flex flex-col justify-between gap-4 lg:flex-row">
             <div>
               <div className="flex flex-wrap gap-2">
@@ -119,10 +119,10 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink/55">Overall Fit</div>
                 <ScoreBar value={top.overallFitScore} />
               </div>
-              <div className="rounded-md bg-marigold/25 p-4 ring-1 ring-marigold/40">
-                <Wand2 className="h-5 w-5 text-[#7A4D0D]" />
-                <div className="mt-3 text-3xl font-black text-ink">{top.aiFutureResilienceScore}</div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink/55">AI Resilience</div>
+              <div className="rounded-md bg-moss p-4 text-white ring-1 ring-moss/20">
+                <Wand2 className="h-5 w-5 text-white" />
+                <div className="mt-3 text-3xl font-black text-white">{top.aiFutureResilienceScore}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/75">AI Resilience</div>
                 <ScoreBar value={top.aiFutureResilienceScore} tone="gold" />
               </div>
             </div>

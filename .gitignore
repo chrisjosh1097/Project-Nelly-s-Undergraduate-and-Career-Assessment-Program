@@ -9,3 +9,4 @@ coverage
 firebase-debug.log
 firestore-debug.log
 tsconfig.tsbuildinfo
+netlify-env-copy.txt

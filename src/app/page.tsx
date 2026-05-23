@@ -17,14 +17,14 @@ export default function LandingPage() {
             dan kesiapan masa depan.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/assessment">
+            <Link href="/login?next=/assessment">
               <Button>
-                Mulai Tes Jurusan
+                Login untuk Mulai Tes
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/login">
-              <Button variant="secondary">Login Google</Button>
+            <Link href="/login?next=/assessment">
+              <Button variant="secondary">Masuk dengan Google</Button>
             </Link>
           </div>
           <p className="mt-6 max-w-xl rounded-md border border-marigold/40 bg-marigold/15 p-4 text-sm leading-6 text-ink/75">
@@ -41,7 +41,7 @@ export default function LandingPage() {
               </div>
               <Badge tone="gold">AI resilience</Badge>
             </div>
-            <div className="rounded-md bg-[#EEF7EF] p-5">
+            <div className="rounded-md bg-[#FFF7ED] p-5 ring-1 ring-leaf/15">
               <div className="flex items-center gap-3">
                 <div className="grid h-12 w-12 place-items-center rounded-md bg-leaf text-white">
                   <Sparkles className="h-5 w-5" />
@@ -58,7 +58,7 @@ export default function LandingPage() {
                   <div className="text-xs font-semibold text-ink/55">Fit score</div>
                 </div>
                 <div className="rounded-md bg-white p-4">
-                  <LockKeyhole className="h-5 w-5 text-[#7A4D0D]" />
+                  <LockKeyhole className="h-5 w-5 text-moss" />
                   <div className="mt-3 text-3xl font-black text-ink">78</div>
                   <div className="text-xs font-semibold text-ink/55">AI resilience</div>
                 </div>

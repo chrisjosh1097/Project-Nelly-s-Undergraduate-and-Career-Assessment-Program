@@ -9,15 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#17201A",
-        leaf: "#28634F",
-        moss: "#6B8E5B",
-        skysoft: "#CFE8EF",
-        marigold: "#F4B860",
-        coral: "#D86F52"
+        ink: "#111111",
+        leaf: "#F97316",
+        moss: "#0F2A43",
+        skysoft: "#E9EEF6",
+        marigold: "#FFB020",
+        coral: "#DC2626"
       },
       boxShadow: {
-        soft: "0 18px 45px rgba(23, 32, 26, 0.10)"
+        soft: "0 18px 45px rgba(17, 17, 17, 0.10)"
       }
     }
   },

@@ -38,8 +38,8 @@ export function LoginPanel() {
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-ink">Login Google</h1>
-          <p className="text-sm text-ink/65">Gunakan email Google yang terverifikasi.</p>
+          <h1 className="text-xl font-bold text-ink">Login untuk mulai tes</h1>
+          <p className="text-sm text-ink/65">Gunakan email Google terverifikasi sebelum mengisi assessment.</p>
         </div>
       </div>
       <Button className="w-full" onClick={handleLogin} disabled={loading}>

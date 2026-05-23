@@ -282,7 +282,7 @@ export function AdminDashboard() {
 
       {selected ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
-          <div className="mx-auto max-w-5xl rounded-md bg-[#F8FAF4] p-4 shadow-soft">
+          <div className="mx-auto max-w-5xl rounded-md bg-white p-4 shadow-soft">
             <div className="mb-4 flex justify-end">
               <Button variant="secondary" onClick={() => setSelected(null)}>
                 Tutup

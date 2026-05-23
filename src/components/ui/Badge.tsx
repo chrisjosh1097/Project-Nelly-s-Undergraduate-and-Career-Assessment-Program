@@ -13,8 +13,8 @@ export function Badge({
   const tones = {
     neutral: "bg-black/5 text-ink",
     green: "bg-leaf/10 text-leaf",
-    gold: "bg-marigold/20 text-[#7A4D0D]",
-    blue: "bg-skysoft/70 text-[#24515B]",
+    gold: "bg-marigold/20 text-[#7C3B00]",
+    blue: "bg-skysoft text-moss",
     coral: "bg-coral/10 text-coral"
   };
 

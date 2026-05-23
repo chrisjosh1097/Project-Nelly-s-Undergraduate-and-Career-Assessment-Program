@@ -250,7 +250,7 @@ export function AssessmentForm() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-md bg-white p-6 shadow-soft">
             <div className="mb-4 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-md bg-marigold/25 text-[#7A4D0D]">
+              <div className="grid h-10 w-10 place-items-center rounded-md bg-leaf/10 text-leaf">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <h2 className="text-lg font-bold text-ink">Konfirmasi Submit</h2>
