@@ -184,7 +184,7 @@ export function AdminDashboard() {
           <Field label="Email admin">
             <Input
               value={loginEmail}
-              placeholder="chrisjosh1097@gmail.com"
+              placeholder="email admin"
               onChange={(event) => setLoginEmail(event.target.value)}
             />
           </Field>
