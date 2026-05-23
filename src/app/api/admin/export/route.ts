@@ -1,12 +1,12 @@
 import { csvEscape, jsonError } from "@/lib/api";
-import { verifyAdminRequest } from "@/lib/firebase/admin";
+import { verifyManualAdminRequest } from "@/lib/admin/session";
 import { listSubmissions } from "@/lib/submissions/store";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    await verifyAdminRequest(request);
+    verifyManualAdminRequest(request);
     const url = new URL(request.url);
     const submissions = await listSubmissions({
       school: url.searchParams.get("school") ?? undefined,
@@ -26,6 +26,8 @@ export async function GET(request: Request) {
       "email",
       "school",
       "className",
+      "gender",
+      "age",
       "schoolMajor",
       "favoriteSubjects",
       "favoriteActivities",
@@ -57,6 +59,8 @@ export async function GET(request: Request) {
         submission.email,
         submission.school,
         submission.className,
+        submission.answers.gender ?? "",
+        submission.answers.age ?? "",
         submission.answers.currentSchoolMajor,
         submission.answers.favoriteSubjects.join("; "),
         submission.answers.favoriteActivities.join("; "),

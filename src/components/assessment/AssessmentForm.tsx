@@ -11,6 +11,7 @@ import {
   collegePathPreferenceOptions,
   favoriteActivityOptions,
   favoriteSubjectOptions,
+  genderOptions,
   personalConstraintOptions,
   problemAreaOptions,
   schoolMajorOptions,
@@ -18,13 +19,14 @@ import {
   techComfortOptions,
   workStyleOptions
 } from "@/lib/assessment/options";
-import type { SchoolMajor, StudentAnswer, TechComfort, WorkStyle } from "@/lib/types";
+import type { Gender, SchoolMajor, StudentAnswer, TechComfort, WorkStyle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { studentAnswerSchema } from "@/lib/validation";
 
 type Step =
   | { key: keyof StudentAnswer; title: string; type: "text"; placeholder?: string }
   | { key: keyof StudentAnswer; title: string; type: "email" }
+  | { key: "profileDetails"; title: string; type: "profile" }
   | { key: keyof StudentAnswer; title: string; type: "textarea"; placeholder?: string }
   | { key: keyof StudentAnswer; title: string; type: "single"; options: readonly string[] }
   | { key: keyof StudentAnswer; title: string; type: "multi"; options: readonly string[] };
@@ -32,6 +34,7 @@ type Step =
 const steps: Step[] = [
   { key: "fullName", title: "Nama lengkap", type: "text", placeholder: "Nama sesuai data sekolah" },
   { key: "email", title: "Email Google verified", type: "email" },
+  { key: "profileDetails", title: "Profil tambahan", type: "profile" },
   { key: "school", title: "Asal sekolah", type: "text", placeholder: "Contoh: SMAN 1 Bandung" },
   { key: "className", title: "Kelas", type: "text", placeholder: "Contoh: XI IPA 2" },
   { key: "currentSchoolMajor", title: "Jurusan sekolah saat ini", type: "single", options: schoolMajorOptions },
@@ -61,6 +64,8 @@ function emptyAnswer(email = ""): StudentAnswer {
   return {
     fullName: "",
     email,
+    gender: "",
+    age: "",
     school: "",
     className: "",
     currentSchoolMajor: "IPA",
@@ -86,6 +91,7 @@ function stepGuidance(step: Step) {
   if (step.type === "multi") return "Boleh pilih lebih dari satu jawaban. Pilih minimal 1 yang paling menggambarkan kamu.";
   if (step.type === "single") return "Pilih 1 jawaban yang paling sesuai.";
   if (step.type === "email") return "Email otomatis dari akun Google yang sedang login dan tidak bisa diubah manual.";
+  if (step.type === "profile") return "Pilih gender dan isi umur. Data ini hanya untuk analytics admin, tidak mempengaruhi rekomendasi.";
   if (step.type === "textarea") return "Opsional. Tulis singkat saja kalau kamu sudah punya gambaran.";
   return "Isi sesuai data kamu. Pertanyaan ini wajib diisi.";
 }
@@ -150,6 +156,19 @@ export function AssessmentForm() {
   }
 
   function validateCurrentStep() {
+    if (step.type === "profile") {
+      const age = Number(answer.age);
+      if (!answer.gender) {
+        setError("Gender wajib dipilih.");
+        return false;
+      }
+      if (!/^\d{1,2}$/.test(answer.age.trim()) || age < 10 || age > 30) {
+        setError("Umur wajib diisi dengan angka yang realistis.");
+        return false;
+      }
+      setError("");
+      return true;
+    }
     const value = answer[step.key];
     if (step.type !== "textarea" && isEmptyValue(value)) {
       setError(`${step.title} wajib diisi.`);
@@ -289,13 +308,50 @@ function renderField(
   updateValue: (key: keyof StudentAnswer, value: StudentAnswer[keyof StudentAnswer]) => void,
   toggleArrayValue: (key: keyof StudentAnswer, value: string) => void
 ) {
-  const value = answer[step.key];
+  const value = step.type === "profile" ? "" : answer[step.key];
 
   if (step.type === "email") {
     return (
       <Field label={step.title}>
         <Input value={String(value)} readOnly aria-readonly />
       </Field>
+    );
+  }
+
+  if (step.type === "profile") {
+    return (
+      <div className="space-y-5">
+        <div>
+          <div className="mb-3 text-sm font-semibold text-ink">Gender</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {genderOptions.map((option) => {
+              const selected = answer.gender === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  className={cn(
+                    "flex min-h-12 items-center justify-between rounded-md border px-4 py-3 text-left text-sm font-semibold transition",
+                    selected ? "border-leaf bg-leaf/10 text-leaf" : "border-black/10 bg-white text-ink hover:bg-skysoft/35"
+                  )}
+                  onClick={() => updateValue("gender", option as Gender)}
+                >
+                  {option}
+                  {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <Field label="Umur">
+          <Input
+            inputMode="numeric"
+            value={answer.age}
+            placeholder="Contoh: 16"
+            onChange={(event) => updateValue("age", event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+          />
+        </Field>
+      </div>
     );
   }
 

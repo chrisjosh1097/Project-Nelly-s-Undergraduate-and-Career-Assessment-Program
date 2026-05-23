@@ -1,4 +1,6 @@
-import type { SchoolMajor, TechComfort, WorkStyle } from "@/lib/types";
+import type { Gender, SchoolMajor, TechComfort, WorkStyle } from "@/lib/types";
+
+export const genderOptions: Gender[] = ["Pria", "Wanita"];
 
 export const schoolMajorOptions: SchoolMajor[] = [
   "IPA",

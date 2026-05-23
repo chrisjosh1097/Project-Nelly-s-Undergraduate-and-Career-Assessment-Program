@@ -3,6 +3,7 @@ import {
   collegePathPreferenceOptions,
   favoriteActivityOptions,
   favoriteSubjectOptions,
+  genderOptions,
   personalConstraintOptions,
   problemAreaOptions,
   schoolMajorOptions,
@@ -10,7 +11,7 @@ import {
   techComfortOptions,
   workStyleOptions
 } from "@/lib/assessment/options";
-import type { SchoolMajor, TechComfort, WorkStyle } from "@/lib/types";
+import type { Gender, SchoolMajor, TechComfort, WorkStyle } from "@/lib/types";
 
 const boundedText = (label: string, max = 120) =>
   z
@@ -28,6 +29,14 @@ const optionArray = (options: readonly string[], label: string) =>
 export const studentAnswerSchema = z.object({
   fullName: boundedText("Nama lengkap", 100),
   email: z.string().trim().email("Email Google tidak valid."),
+  gender: z.enum(genderOptions as [Gender, ...Gender[]], {
+    required_error: "Gender wajib dipilih."
+  }),
+  age: z
+    .string({ required_error: "Umur wajib diisi." })
+    .trim()
+    .regex(/^\d{1,2}$/, "Umur harus berupa angka.")
+    .refine((value) => Number(value) >= 10 && Number(value) <= 30, "Umur harus realistis untuk siswa SMA/SMK."),
   school: boundedText("Asal sekolah", 120),
   className: boundedText("Kelas", 40),
   currentSchoolMajor: z.enum(schoolMajorOptions as [SchoolMajor, ...SchoolMajor[]]),

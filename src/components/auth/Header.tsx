@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -25,14 +25,7 @@ export function Header() {
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Keluar</span>
             </Button>
-          ) : (
-            <Link href="/login">
-              <Button variant="secondary">
-                <ShieldCheck className="h-4 w-4" />
-                Login
-              </Button>
-            </Link>
-          )}
+          ) : null}
           <Link
             href="/admin"
             className="hidden rounded-md px-2 py-1 text-xs font-medium text-moss/45 transition hover:bg-black/5 hover:text-moss sm:inline"

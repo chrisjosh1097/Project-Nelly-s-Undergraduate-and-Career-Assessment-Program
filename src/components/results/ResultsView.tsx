@@ -358,6 +358,28 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-md border border-black/10 bg-white p-5 shadow-soft lg:col-span-2">
+          <h2 className="text-xl font-bold text-ink">Panduan Membaca Skor</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-md bg-[#FFF7ED] p-4">
+              <h3 className="font-bold text-ink">Overall Fit Score</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/70">
+                <li>82-100: Sangat Cocok</li>
+                <li>70-81: Cocok</li>
+                <li>58-69: Cukup Cocok</li>
+                <li>0-57: Perlu Dipertimbangkan Lagi</li>
+              </ul>
+            </div>
+            <div className="rounded-md bg-moss p-4 text-white">
+              <h3 className="font-bold">AI Future Resilience Score</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-white/80">
+                <li>80-100: Tinggi</li>
+                <li>60-79: Sedang</li>
+                <li>0-59: Perlu Adaptasi Tinggi</li>
+              </ul>
+            </div>
+          </div>
+        </div>
         <div className="rounded-md border border-black/10 bg-white p-5 shadow-soft">
           <h2 className="text-xl font-bold text-ink">Apa arti skor ketahanan terhadap AI?</h2>
           <p className="mt-3 text-sm leading-7 text-ink/70">

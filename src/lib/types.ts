@@ -23,6 +23,8 @@ export type TechComfort =
   | "Kurang nyaman"
   | "Belum pernah mencoba";
 
+export type Gender = "Pria" | "Wanita";
+
 export type SubmissionStatus = "processing" | "completed" | "failed";
 
 export type FitLabel =
@@ -39,6 +41,8 @@ export type AIFutureResilienceLabel =
 export interface StudentAnswer {
   fullName: string;
   email: string;
+  gender: Gender | "";
+  age: string;
   school: string;
   className: string;
   currentSchoolMajor: SchoolMajor;
@@ -57,6 +61,8 @@ export interface StudentAnswer {
 export interface NormalizedStudentAnswer {
   fullName: string;
   email: string;
+  gender: Gender | "";
+  age: string;
   school: string;
   className: string;
   currentSchoolMajor: SchoolMajor;

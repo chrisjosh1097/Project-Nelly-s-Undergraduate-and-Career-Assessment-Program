@@ -14,6 +14,8 @@ function answer(overrides: Partial<StudentAnswer>): StudentAnswer {
   return {
     fullName: "Siswa Contoh",
     email: "siswa@example.com",
+    gender: "Pria",
+    age: "16",
     school: "SMAN 1 Contoh",
     className: "XI",
     currentSchoolMajor: "IPA",

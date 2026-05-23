@@ -33,8 +33,7 @@ export default function LandingPage() {
           <div className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-sm font-bold text-ink">Preview Hasil</div>
-                <div className="text-xs text-ink/55">Top 10 deterministic scoring</div>
+                <div className="text-sm font-bold text-ink">Contoh Hasil</div>
               </div>
               <Badge tone="gold">AI resilience</Badge>
             </div>

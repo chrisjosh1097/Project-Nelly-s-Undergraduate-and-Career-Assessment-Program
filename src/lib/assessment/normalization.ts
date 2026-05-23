@@ -122,6 +122,8 @@ export function normalizeStudentAnswer(answer: StudentAnswer): NormalizedStudent
   return {
     fullName: answer.fullName,
     email: answer.email,
+    gender: answer.gender,
+    age: answer.age,
     school: answer.school,
     className: answer.className,
     currentSchoolMajor: answer.currentSchoolMajor,

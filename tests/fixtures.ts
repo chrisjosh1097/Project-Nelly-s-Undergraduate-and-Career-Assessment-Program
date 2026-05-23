@@ -5,6 +5,8 @@ import { submissionIdForEmail } from "@/lib/submissions/store";
 export const techAnswer: StudentAnswer = {
   fullName: "Nelly Siswa",
   email: "nelly@example.com",
+  gender: "Wanita",
+  age: "16",
   school: "SMAN 1 Contoh",
   className: "XI IPA 2",
   currentSchoolMajor: "IPA",

@@ -36,6 +36,9 @@ FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=PASTE_ESCAPED_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_HERE
 
 ADMIN_EMAILS=admin@example.com,counselor@example.com
+ADMIN_LOGIN_EMAIL=admin@example.com
+ADMIN_LOGIN_PASSWORD=change-this-password
+ADMIN_SESSION_SECRET=change-this-random-session-secret
 ENABLE_GEMINI_ENHANCEMENT=false
 ```
 
@@ -55,7 +58,7 @@ Submissions are stored under one deterministic document ID per normalized email.
 1. Enable Firebase Authentication.
 2. Enable Google provider.
 3. Add local and deployed domains to Firebase Auth authorized domains.
-4. Set `ADMIN_EMAILS` to a comma-separated list for dashboard access.
+4. Set `ADMIN_LOGIN_EMAIL`, `ADMIN_LOGIN_PASSWORD`, and `ADMIN_SESSION_SECRET` for the manual admin dashboard login.
 
 ## Running Checks
 

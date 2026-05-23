@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Download, Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { ResultsView } from "@/components/results/ResultsView";
-import { useAuth } from "@/components/auth/AuthProvider";
 import type { Submission } from "@/lib/types";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 
@@ -56,14 +54,39 @@ function average(values: number[]) {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
+function BarChart({ title, rows }: { title: string; rows: { label: string; count: number }[] }) {
+  const max = Math.max(...rows.map((row) => row.count), 1);
+  return (
+    <div className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
+      <h2 className="font-bold text-ink">{title}</h2>
+      <div className="mt-4 space-y-3">
+        {rows.map((row) => (
+          <div key={row.label}>
+            <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-ink/65">
+              <span>{row.label}</span>
+              <span>{row.count}</span>
+            </div>
+            <div className="h-3 rounded-full bg-black/10">
+              <div className="h-3 rounded-full bg-leaf" style={{ width: `${Math.max((row.count / max) * 100, 6)}%` }} />
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 ? <p className="text-sm text-ink/50">Belum ada data.</p> : null}
+      </div>
+    </div>
+  );
+}
+
 export function AdminDashboard() {
-  const router = useRouter();
-  const { user, loading, getToken } = useAuth();
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selected, setSelected] = useState<Submission | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [needsLogin, setNeedsLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [isLoggingIn, setLoggingIn] = useState(false);
 
   const query = useMemo(() => buildQuery(filters), [filters]);
   const analytics = useMemo(() => {
@@ -75,27 +98,28 @@ export function AdminDashboard() {
       avgAi: average(topRecommendations.map((recommendation) => recommendation.aiFutureResilienceScore)),
       topMajors: topCounts(topRecommendations.map((recommendation) => recommendation.majorName)),
       topClusters: topCounts(topRecommendations.map((recommendation) => recommendation.cluster)),
+      gender: topCounts(submissions.map((submission) => submission.answers.gender ?? "Belum ada data"), 5),
+      age: topCounts(submissions.map((submission) => submission.answers.age ?? "Belum ada data"), 10),
       constraints: topCounts(submissions.flatMap((submission) => submission.answers.personalConstraints)),
       activities: topCounts(submissions.flatMap((submission) => submission.answers.favoriteActivities)),
       skills: topCounts(submissions.flatMap((submission) => submission.answers.skillStrengths))
     };
   }, [submissions]);
 
-  useEffect(() => {
-    if (!loading && !user) router.replace("/login?next=/admin");
-  }, [loading, router, user]);
-
   async function loadSubmissions(nextQuery = query) {
-    if (!user) return;
     setIsLoading(true);
     setError("");
     try {
-      const token = await getToken();
       const response = await fetch(`/api/admin/submissions${nextQuery}`, {
-        headers: { authorization: `Bearer ${token}` }
+        credentials: "include"
       });
       const data = await response.json();
+      if (response.status === 401) {
+        setNeedsLogin(true);
+        return;
+      }
       if (!response.ok) throw new Error(data.error ?? "Gagal memuat submission.");
+      setNeedsLogin(false);
       setSubmissions(data.submissions);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Gagal memuat submission.");
@@ -105,14 +129,41 @@ export function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (user) void loadSubmissions();
+    void loadSubmissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
+
+  async function loginAdmin() {
+    setLoggingIn(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Login admin gagal.");
+      setNeedsLogin(false);
+      setLoginPassword("");
+      await loadSubmissions("");
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Login admin gagal.");
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
+  async function logoutAdmin() {
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+    setNeedsLogin(true);
+    setSubmissions([]);
+  }
 
   async function exportCsv() {
-    const token = await getToken();
     const response = await fetch(`/api/admin/export${query}`, {
-      headers: { authorization: `Bearer ${token}` }
+      credentials: "include"
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -121,8 +172,37 @@ export function AdminDashboard() {
     downloadBlob(await response.blob(), "project-nelly-submissions.csv");
   }
 
-  if (loading || !user) {
-    return <div className="rounded-md border border-black/10 bg-white p-6 text-sm text-ink/70">Memuat admin...</div>;
+  if (needsLogin) {
+    return (
+      <div className="mx-auto max-w-md rounded-md border border-black/10 bg-white p-6 shadow-soft">
+        <Badge tone="green">Admin</Badge>
+        <h1 className="mt-3 text-2xl font-bold text-ink">Login Admin</h1>
+        <p className="mt-2 text-sm leading-6 text-ink/65">
+          Masukkan email dan password admin untuk membuka dashboard analytics.
+        </p>
+        <div className="mt-6 space-y-4">
+          <Field label="Email admin">
+            <Input
+              value={loginEmail}
+              placeholder="chrisjosh1097@gmail.com"
+              onChange={(event) => setLoginEmail(event.target.value)}
+            />
+          </Field>
+          <Field label="Password">
+            <Input
+              type="password"
+              value={loginPassword}
+              placeholder="Password admin"
+              onChange={(event) => setLoginPassword(event.target.value)}
+            />
+          </Field>
+          {error ? <div className="rounded-md border border-coral/30 bg-coral/10 p-3 text-sm text-ink">{error}</div> : null}
+          <Button className="w-full" onClick={loginAdmin} disabled={isLoggingIn}>
+            {isLoggingIn ? "Memeriksa..." : "Masuk Dashboard"}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -136,6 +216,9 @@ export function AdminDashboard() {
         <Button onClick={exportCsv}>
           <Download className="h-4 w-4" />
           Export CSV
+        </Button>
+        <Button variant="secondary" onClick={logoutAdmin}>
+          Logout Admin
         </Button>
       </div>
 
@@ -202,8 +285,10 @@ export function AdminDashboard() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
+        <BarChart title="Count Gender" rows={analytics.gender} />
+        <BarChart title="Count Umur" rows={analytics.age} />
+        <BarChart title="Top Rekomendasi" rows={analytics.topMajors} />
         {[
-          ["Top 10 jurusan", analytics.topMajors],
           ["Top 10 cluster", analytics.topClusters],
           ["Constraint umum", analytics.constraints],
           ["Aktivitas umum", analytics.activities],
@@ -237,6 +322,8 @@ export function AdminDashboard() {
                 <th className="px-4 py-3">Tanggal</th>
                 <th className="px-4 py-3">Nama</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Gender</th>
+                <th className="px-4 py-3">Umur</th>
                 <th className="px-4 py-3">Sekolah</th>
                 <th className="px-4 py-3">Kelas</th>
                 <th className="px-4 py-3">Jurusan sekolah</th>
@@ -257,6 +344,8 @@ export function AdminDashboard() {
                     {submission.fullName}
                   </td>
                   <td className="px-4 py-3 text-ink/70">{submission.email}</td>
+                  <td className="px-4 py-3 text-ink/70">{submission.answers.gender ?? "-"}</td>
+                  <td className="px-4 py-3 text-ink/70">{submission.answers.age ?? "-"}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.school}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.className}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.answers.currentSchoolMajor}</td>

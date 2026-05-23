@@ -211,6 +211,8 @@ export async function generateSubmissionPdf(submission: Submission) {
   drawSectionTitle(ctx, "Profil Siswa");
   drawKeyValue(ctx, "Nama", submission.fullName);
   drawKeyValue(ctx, "Email", submission.email);
+  drawKeyValue(ctx, "Gender", submission.answers.gender ?? "-");
+  drawKeyValue(ctx, "Umur", submission.answers.age ?? "-");
   drawKeyValue(ctx, "Sekolah", submission.school);
   drawKeyValue(ctx, "Kelas", submission.className);
   drawKeyValue(ctx, "Jurusan sekolah", submission.answers.currentSchoolMajor);
