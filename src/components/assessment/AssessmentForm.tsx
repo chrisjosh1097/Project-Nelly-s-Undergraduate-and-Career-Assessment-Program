@@ -82,6 +82,14 @@ function isEmptyValue(value: StudentAnswer[keyof StudentAnswer]) {
   return String(value ?? "").trim().length === 0;
 }
 
+function stepGuidance(step: Step) {
+  if (step.type === "multi") return "Boleh pilih lebih dari satu jawaban. Pilih minimal 1 yang paling menggambarkan kamu.";
+  if (step.type === "single") return "Pilih 1 jawaban yang paling sesuai.";
+  if (step.type === "email") return "Email otomatis dari akun Google yang sedang login dan tidak bisa diubah manual.";
+  if (step.type === "textarea") return "Opsional. Tulis singkat saja kalau kamu sudah punya gambaran.";
+  return "Isi sesuai data kamu. Pertanyaan ini wajib diisi.";
+}
+
 export function AssessmentForm() {
   const router = useRouter();
   const { user, loading, configured, getToken } = useAuth();
@@ -217,6 +225,7 @@ export function AssessmentForm() {
         <div>
           <Badge tone="blue">Pertanyaan {stepIndex + 1} dari {steps.length}</Badge>
           <h1 className="mt-3 text-2xl font-bold text-ink">{step.title}</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-ink/65">{stepGuidance(step)}</p>
         </div>
         <span className="text-sm font-semibold text-ink/60">{progress}%</span>
       </div>

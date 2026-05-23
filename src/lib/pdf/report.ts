@@ -7,6 +7,13 @@ const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 48;
 const TEXT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const INK = rgb(0.07, 0.07, 0.07);
+const MUTED = rgb(0.35, 0.35, 0.35);
+const ORANGE = rgb(0.98, 0.45, 0.09);
+const ORANGE_DARK = rgb(0.72, 0.25, 0.03);
+const ORANGE_SOFT = rgb(1, 0.95, 0.9);
+const NAVY = rgb(0.06, 0.16, 0.26);
+const LINE = rgb(0.9, 0.86, 0.8);
 
 interface PdfContext {
   pdf: PDFDocument;
@@ -68,7 +75,7 @@ function drawText(
       y: ctx.y,
       size,
       font,
-      color: options.color ?? rgb(0.1, 0.13, 0.11)
+      color: options.color ?? INK
     });
     ctx.y -= lineHeight;
   }
@@ -76,8 +83,16 @@ function drawText(
 }
 
 function drawSectionTitle(ctx: PdfContext, title: string) {
-  ctx.y -= 8;
-  drawText(ctx, title, { size: 14, bold: true, color: rgb(0.12, 0.34, 0.27), gap: 8 });
+  ensureSpace(ctx, 34);
+  ctx.y -= 10;
+  ctx.page.drawRectangle({
+    x: MARGIN - 10,
+    y: ctx.y - 5,
+    width: 5,
+    height: 18,
+    color: ORANGE
+  });
+  drawText(ctx, title, { size: 14, bold: true, color: NAVY, gap: 8 });
 }
 
 function drawKeyValue(ctx: PdfContext, label: string, value: string) {
@@ -91,7 +106,7 @@ function drawBulletList(ctx: PdfContext, items: string[], size = 10) {
 }
 
 function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResult, highlighted = false) {
-  const boxHeight = highlighted ? 150 : 70;
+  const boxHeight = highlighted ? 168 : 76;
   ensureSpace(ctx, boxHeight);
   const yTop = ctx.y + 8;
   ctx.page.drawRectangle({
@@ -99,22 +114,22 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
     y: yTop - boxHeight,
     width: TEXT_WIDTH + 20,
     height: boxHeight,
-    color: highlighted ? rgb(0.9, 0.96, 0.92) : rgb(0.97, 0.98, 0.97),
-    borderColor: highlighted ? rgb(0.15, 0.39, 0.31) : rgb(0.8, 0.86, 0.82),
+    color: highlighted ? ORANGE_SOFT : rgb(0.99, 0.99, 0.99),
+    borderColor: highlighted ? ORANGE : LINE,
     borderWidth: 1
   });
 
   drawText(ctx, `#${recommendation.rank} ${recommendation.majorName}`, {
     size: highlighted ? 17 : 12,
     bold: true,
-    color: rgb(0.12, 0.34, 0.27),
+    color: highlighted ? ORANGE_DARK : NAVY,
     gap: 2
   });
   drawText(ctx, recommendation.careerDirection, { size: 10, gap: 2 });
   drawText(
     ctx,
     `Fit: ${recommendation.overallFitScore}/100 (${recommendation.fitLabel}) | AI Future Resilience: ${recommendation.aiFutureResilienceScore}/100 (${recommendation.aiFutureResilienceLabel})`,
-    { size: 10, bold: highlighted, gap: 4 }
+    { size: 10, bold: highlighted, color: highlighted ? NAVY : INK, gap: 4 }
   );
   drawText(ctx, recommendation.reasonBullets[0] ?? "", { size: 9, gap: 2 });
   if (highlighted) {
@@ -165,26 +180,33 @@ export async function generateSubmissionPdf(submission: Submission) {
 
   ctx.page.drawRectangle({
     x: 0,
-    y: PAGE_HEIGHT - 170,
+    y: PAGE_HEIGHT - 190,
     width: PAGE_WIDTH,
-    height: 170,
-    color: rgb(0.9, 0.96, 0.92)
+    height: 190,
+    color: ORANGE
+  });
+  ctx.page.drawRectangle({
+    x: 0,
+    y: PAGE_HEIGHT - 205,
+    width: PAGE_WIDTH,
+    height: 15,
+    color: NAVY
   });
 
   drawText(ctx, "Project Nelly 101", {
     size: 16,
     bold: true,
-    color: rgb(0.12, 0.34, 0.27),
+    color: rgb(1, 1, 1),
     gap: 8
   });
   drawText(ctx, "Laporan Rekomendasi Jurusan & Karier", {
     size: 24,
     bold: true,
-    color: rgb(0.12, 0.34, 0.27),
+    color: rgb(1, 1, 1),
     gap: 8
   });
-  drawText(ctx, `${submission.fullName} | ${submission.school}`, { size: 12, bold: true, gap: 3 });
-  drawText(ctx, formatDateTime(submission.createdAt), { size: 10, gap: 26 });
+  drawText(ctx, `${submission.fullName} | ${submission.school}`, { size: 12, bold: true, color: rgb(1, 1, 1), gap: 3 });
+  drawText(ctx, formatDateTime(submission.createdAt), { size: 10, color: rgb(1, 1, 1), gap: 34 });
 
   drawSectionTitle(ctx, "Profil Siswa");
   drawKeyValue(ctx, "Nama", submission.fullName);
@@ -255,7 +277,14 @@ export async function generateSubmissionPdf(submission: Submission) {
       y: 24,
       size: 8,
       font,
-      color: rgb(0.35, 0.39, 0.36)
+      color: MUTED
+    });
+    page.drawRectangle({
+      x: MARGIN,
+      y: 38,
+      width: TEXT_WIDTH,
+      height: 1,
+      color: LINE
     });
   }
 
