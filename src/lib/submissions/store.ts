@@ -25,6 +25,27 @@ export async function getSubmissionByEmail(email: string) {
   return snapshotToSubmission(snapshot);
 }
 
+export async function deleteSubmissionByEmail(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const ref = collection().doc(submissionIdForEmail(normalizedEmail));
+  const snapshot = await ref.get();
+
+  if (!snapshot.exists) {
+    return {
+      deleted: false,
+      email: normalizedEmail,
+      id: ref.id
+    };
+  }
+
+  await ref.delete();
+  return {
+    deleted: true,
+    email: normalizedEmail,
+    id: ref.id
+  };
+}
+
 export async function createOrGetSubmission(answer: StudentAnswer) {
   const normalizedEmail = normalizeEmail(answer.email);
   const normalizedAnswer: StudentAnswer = { ...answer, email: normalizedEmail };

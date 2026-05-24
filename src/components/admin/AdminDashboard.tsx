@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Filter, Search } from "lucide-react";
+import { Download, Filter, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
@@ -87,6 +87,9 @@ export function AdminDashboard() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [isLoggingIn, setLoggingIn] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isResettingAttempt, setIsResettingAttempt] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
 
   const query = useMemo(() => buildQuery(filters), [filters]);
   const analytics = useMemo(() => {
@@ -170,6 +173,48 @@ export function AdminDashboard() {
       throw new Error(data.error ?? "Export gagal.");
     }
     downloadBlob(await response.blob(), "project-nelly-submissions.csv");
+  }
+
+  async function resetSubmissionAttempt(targetEmail = resetEmail) {
+    const email = targetEmail.trim().toLowerCase();
+    if (!email) {
+      setResetMessage("Masukkan email siswa yang attempt-nya ingin dihapus.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Hapus attempt untuk ${email}? Setelah dihapus, siswa bisa submit ulang.`);
+    if (!confirmed) return;
+
+    setIsResettingAttempt(true);
+    setError("");
+    setResetMessage("");
+    try {
+      const response = await fetch("/api/admin/submissions/reset", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email })
+      });
+      const data = (await response.json().catch(() => ({}))) as { deleted?: boolean; email?: string; error?: string };
+      if (response.status === 401) {
+        setNeedsLogin(true);
+        return;
+      }
+      if (!response.ok) throw new Error(data.error ?? "Gagal menghapus attempt.");
+
+      setResetMessage(
+        data.deleted
+          ? `Attempt ${data.email ?? email} sudah dihapus. Siswa bisa mengisi ulang.`
+          : `Submission untuk ${data.email ?? email} tidak ditemukan.`
+      );
+      setResetEmail("");
+      if (selected?.email.toLowerCase() === email) setSelected(null);
+      await loadSubmissions();
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "Gagal menghapus attempt.");
+    } finally {
+      setIsResettingAttempt(false);
+    }
   }
 
   if (needsLogin) {
@@ -270,6 +315,34 @@ export function AdminDashboard() {
         </div>
       </section>
 
+      <section className="rounded-md border border-coral/20 bg-white p-4 shadow-soft">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-2 flex items-center gap-2 font-bold text-ink">
+              <Trash2 className="h-4 w-4 text-coral" />
+              Hapus Attempt Siswa
+            </div>
+            <p className="text-sm leading-6 text-ink/65">
+              Gunakan ini jika siswa salah isi atau perlu mengulang. Submission lama akan dihapus dari database sehingga email tersebut bisa submit lagi.
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+            <Input
+              type="email"
+              value={resetEmail}
+              placeholder="email siswa"
+              onChange={(event) => setResetEmail(event.target.value)}
+              className="sm:min-w-72"
+            />
+            <Button variant="danger" onClick={() => resetSubmissionAttempt()} disabled={isResettingAttempt}>
+              <Trash2 className="h-4 w-4" />
+              {isResettingAttempt ? "Menghapus..." : "Hapus Attempt"}
+            </Button>
+          </div>
+        </div>
+        {resetMessage ? <p className="mt-3 text-sm font-semibold text-ink/70">{resetMessage}</p> : null}
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
           ["Total submissions", analytics.total],
@@ -357,9 +430,18 @@ export function AdminDashboard() {
                   <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.overallFitScore}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.aiFutureResilienceScore}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.status}</td>
-                  <td className="px-4 py-3">
+                  <td className="space-y-2 px-4 py-3">
                     <Button variant="secondary" onClick={() => setSelected(submission)}>
                       View
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => resetSubmissionAttempt(submission.email)}
+                      disabled={isResettingAttempt}
+                      title="Hapus attempt agar siswa bisa submit ulang"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Hapus
                     </Button>
                   </td>
                 </tr>
