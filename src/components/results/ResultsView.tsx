@@ -175,25 +175,26 @@ async function createInstagramCardBlob(submission: Submission) {
   ctx.fillStyle = "#333333";
   ctx.font = "500 27px Arial";
   let reasonY = scoreY + 232;
-  for (const reason of top.reasonBullets.slice(0, 3)) {
+  for (const reason of top.reasonBullets.slice(0, 1)) {
     ctx.fillStyle = "#F97316";
     ctx.fillText("•", 115, reasonY);
     ctx.fillStyle = "#333333";
-    reasonY = drawWrappedCanvasText(ctx, reason, 145, reasonY, 790, 36, 2) + 8;
+    reasonY = drawWrappedCanvasText(ctx, reason, 145, reasonY, 790, 36, 3) + 8;
   }
 
-  drawRoundedRect(ctx, 70, 965, 940, 205, 28);
+  const alternativeY = 935;
+  drawRoundedRect(ctx, 70, alternativeY, 940, 220, 28);
   ctx.fillStyle = "#FFF7ED";
   ctx.fill();
   ctx.fillStyle = "#111111";
   ctx.font = "800 30px Arial";
-  ctx.fillText("Alternatif yang juga layak dipertimbangkan", 115, 1028);
+  ctx.fillText("Alternatif yang juga layak dipertimbangkan", 115, alternativeY + 62);
   ctx.font = "700 28px Arial";
   alternatives.forEach((recommendation, index) => {
     ctx.fillStyle = "#F97316";
-    ctx.fillText(`#${recommendation.rank}`, 115, 1082 + index * 42);
+    ctx.fillText(`#${recommendation.rank}`, 115, alternativeY + 116 + index * 42);
     ctx.fillStyle = "#111111";
-    ctx.fillText(recommendation.majorName, 175, 1082 + index * 42);
+    ctx.fillText(recommendation.majorName, 175, alternativeY + 116 + index * 42);
   });
 
   ctx.fillStyle = "#FFFFFF";

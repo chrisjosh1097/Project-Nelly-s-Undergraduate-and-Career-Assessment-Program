@@ -23,7 +23,7 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-2">
           <Link href={assessmentHref} className="hidden text-sm font-semibold text-ink/75 hover:text-ink sm:inline">
-            Tes Jurusan
+            Hasil Test
           </Link>
           {loading ? null : user ? (
             <Button variant="ghost" onClick={signOut} title="Keluar">
