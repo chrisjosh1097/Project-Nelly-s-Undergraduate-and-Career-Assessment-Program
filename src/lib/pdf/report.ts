@@ -49,9 +49,26 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
   return lines;
 }
 
+function drawWatermark(page: PDFPage, logo?: PDFImage) {
+  if (!logo) return;
+
+  const watermarkWidth = PAGE_WIDTH * 0.9;
+  const aspectRatio = logo.height / logo.width;
+  const watermarkHeight = watermarkWidth * aspectRatio;
+
+  page.drawImage(logo, {
+    x: (PAGE_WIDTH - watermarkWidth) / 2,
+    y: (PAGE_HEIGHT - watermarkHeight) / 2,
+    width: watermarkWidth,
+    height: watermarkHeight,
+    opacity: 0.24
+  });
+}
+
 function addPage(ctx: PdfContext) {
   ctx.page = ctx.pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   ctx.y = PAGE_HEIGHT - MARGIN;
+  drawWatermark(ctx.page, ctx.logo);
 }
 
 async function loadLogo(pdf: PDFDocument) {
@@ -116,16 +133,18 @@ function drawBulletList(ctx: PdfContext, items: string[], size = 10) {
 function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResult, highlighted = false) {
   const boxHeight = highlighted ? 168 : 76;
   ensureSpace(ctx, boxHeight);
-  const yTop = ctx.y + 8;
-  ctx.page.drawRectangle({
-    x: MARGIN - 10,
-    y: yTop - boxHeight,
-    width: TEXT_WIDTH + 20,
-    height: boxHeight,
-    color: rgb(1, 1, 1),
-    borderColor: highlighted ? ORANGE : LINE,
-    borderWidth: 1
-  });
+  if (!highlighted) {
+    const yTop = ctx.y + 8;
+    ctx.page.drawRectangle({
+      x: MARGIN - 10,
+      y: yTop - boxHeight,
+      width: TEXT_WIDTH + 20,
+      height: boxHeight,
+      color: rgb(1, 1, 1),
+      borderColor: LINE,
+      borderWidth: 1
+    });
+  }
 
   drawText(ctx, `#${recommendation.rank} ${recommendation.majorName}`, {
     size: highlighted ? 17 : 12,
@@ -187,6 +206,7 @@ export async function generateSubmissionPdf(submission: Submission) {
     bold,
     logo
   };
+  drawWatermark(ctx.page, logo);
 
   drawText(ctx, "Project Nelly 101", {
     size: 16,
@@ -269,14 +289,6 @@ export async function generateSubmissionPdf(submission: Submission) {
   );
 
   for (const page of pdf.getPages()) {
-    if (logo) {
-      page.drawImage(logo, {
-        x: PAGE_WIDTH - MARGIN - 74,
-        y: PAGE_HEIGHT - MARGIN - 54,
-        width: 74,
-        height: 54
-      });
-    }
     page.drawText("Project Nelly 101 Series", {
       x: MARGIN,
       y: 24,
