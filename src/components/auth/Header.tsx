@@ -13,8 +13,13 @@ export function Header() {
     <header className="sticky top-0 z-30 border-b border-black/10 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 font-bold text-ink">
-          <span className="grid h-9 w-9 place-items-center rounded-md bg-leaf text-white">N</span>
-          <span>Project Nelly</span>
+          <span className="grid h-12 w-32 place-items-center overflow-hidden bg-white">
+            <img
+              src="/brand/project-nelly-logo-cropped.png"
+              alt="Project Nelly"
+              className="h-12 w-32 object-contain"
+            />
+          </span>
         </Link>
         <nav className="flex items-center gap-2">
           <Link href={assessmentHref} className="hidden text-sm font-semibold text-ink/75 hover:text-ink sm:inline">

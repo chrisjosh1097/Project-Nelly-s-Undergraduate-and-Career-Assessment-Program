@@ -1,4 +1,6 @@
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import type { RecommendationResult, Submission } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
@@ -11,9 +13,9 @@ const INK = rgb(0.07, 0.07, 0.07);
 const MUTED = rgb(0.35, 0.35, 0.35);
 const ORANGE = rgb(0.98, 0.45, 0.09);
 const ORANGE_DARK = rgb(0.72, 0.25, 0.03);
-const ORANGE_SOFT = rgb(1, 0.95, 0.9);
 const NAVY = rgb(0.06, 0.16, 0.26);
 const LINE = rgb(0.9, 0.86, 0.8);
+const LOGO_PATH = join(process.cwd(), "public", "brand", "project-nelly-logo-cropped.png");
 
 interface PdfContext {
   pdf: PDFDocument;
@@ -21,6 +23,7 @@ interface PdfContext {
   y: number;
   font: PDFFont;
   bold: PDFFont;
+  logo?: PDFImage;
 }
 
 function sanitize(value: string) {
@@ -49,6 +52,11 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
 function addPage(ctx: PdfContext) {
   ctx.page = ctx.pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   ctx.y = PAGE_HEIGHT - MARGIN;
+}
+
+async function loadLogo(pdf: PDFDocument) {
+  if (!existsSync(LOGO_PATH)) return undefined;
+  return pdf.embedPng(readFileSync(LOGO_PATH));
 }
 
 function ensureSpace(ctx: PdfContext, height: number) {
@@ -114,7 +122,7 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
     y: yTop - boxHeight,
     width: TEXT_WIDTH + 20,
     height: boxHeight,
-    color: highlighted ? ORANGE_SOFT : rgb(0.99, 0.99, 0.99),
+    color: rgb(1, 1, 1),
     borderColor: highlighted ? ORANGE : LINE,
     borderWidth: 1
   });
@@ -170,43 +178,30 @@ export async function generateSubmissionPdf(submission: Submission) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const logo = await loadLogo(pdf);
   const ctx: PdfContext = {
     pdf,
     page: pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]),
     y: PAGE_HEIGHT - MARGIN,
     font,
-    bold
+    bold,
+    logo
   };
-
-  ctx.page.drawRectangle({
-    x: 0,
-    y: PAGE_HEIGHT - 190,
-    width: PAGE_WIDTH,
-    height: 190,
-    color: ORANGE
-  });
-  ctx.page.drawRectangle({
-    x: 0,
-    y: PAGE_HEIGHT - 205,
-    width: PAGE_WIDTH,
-    height: 15,
-    color: NAVY
-  });
 
   drawText(ctx, "Project Nelly 101", {
     size: 16,
     bold: true,
-    color: rgb(1, 1, 1),
+    color: ORANGE,
     gap: 8
   });
   drawText(ctx, "Laporan Rekomendasi Jurusan & Karier", {
     size: 24,
     bold: true,
-    color: rgb(1, 1, 1),
+    color: NAVY,
     gap: 8
   });
-  drawText(ctx, `${submission.fullName} | ${submission.school}`, { size: 12, bold: true, color: rgb(1, 1, 1), gap: 3 });
-  drawText(ctx, formatDateTime(submission.createdAt), { size: 10, color: rgb(1, 1, 1), gap: 34 });
+  drawText(ctx, `${submission.fullName} | ${submission.school}`, { size: 12, bold: true, color: INK, gap: 3 });
+  drawText(ctx, formatDateTime(submission.createdAt), { size: 10, color: MUTED, gap: 34 });
 
   drawSectionTitle(ctx, "Profil Siswa");
   drawKeyValue(ctx, "Nama", submission.fullName);
@@ -274,6 +269,14 @@ export async function generateSubmissionPdf(submission: Submission) {
   );
 
   for (const page of pdf.getPages()) {
+    if (logo) {
+      page.drawImage(logo, {
+        x: PAGE_WIDTH - MARGIN - 74,
+        y: PAGE_HEIGHT - MARGIN - 54,
+        width: 74,
+        height: 54
+      });
+    }
     page.drawText("Project Nelly 101 Series", {
       x: MARGIN,
       y: 24,

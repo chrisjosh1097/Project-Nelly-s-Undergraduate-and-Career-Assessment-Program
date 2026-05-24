@@ -74,7 +74,7 @@ describe("heuristic scoring engine", () => {
         techComfort: "Sangat nyaman"
       })
     );
-    const topIds = report.recommendations.slice(0, 5).map((recommendation) => recommendation.majorId);
+    const topIds = report.recommendations.map((recommendation) => recommendation.majorId);
     const topMajor = majors.find((major) => major.id === report.topRecommendation.majorId);
 
     expect(topMajor?.cluster).toBe("Technology & Data");
