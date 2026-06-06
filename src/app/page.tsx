@@ -25,7 +25,8 @@ export default function LandingPage() {
             </Link>
           </div>
           <p className="mt-6 max-w-xl rounded-md border border-marigold/40 bg-marigold/15 p-4 text-sm leading-6 text-ink/75">
-            Hasil ini bukan keputusan final, tetapi bahan refleksi untuk membantu kamu memilih jurusan dan arah karier.
+            <strong>Disclaimer: hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.</strong>{" "}
+            Gunakan sebagai bahan refleksi untuk membantu kamu memilih jurusan dan arah karier.
           </p>
         </div>
 

@@ -1,10 +1,11 @@
 import type { Major as KnowledgeMajor } from "../../../data";
-import type { RecommendationResult, StudentAnswer } from "@/lib/types";
-
-export interface EnhancedNarrative {
-  summary: string;
-  recommendationReasons: Record<string, string[]>;
-}
+import type {
+  CareerPersonalization,
+  EnhancedNarrative,
+  RecommendationReport,
+  RecommendationResult,
+  StudentAnswer
+} from "@/lib/types";
 
 export interface RecommendationNarrativeEnhancer {
   enhance(input: {
@@ -22,24 +23,311 @@ export class HeuristicTemplateNarrativeEnhancer implements RecommendationNarrati
     recommendations: RecommendationResult[];
   }): Promise<EnhancedNarrative> {
     const top = recommendations[0];
-    return {
+      return {
       summary: top
         ? `Rekomendasi utama untuk ${answers.fullName} adalah ${top.majorName} dengan skor kecocokan ${top.overallFitScore}/100.`
         : "Belum ada rekomendasi yang bisa ditampilkan.",
-      recommendationReasons: Object.fromEntries(recommendations.map((recommendation) => [recommendation.majorId, recommendation.reasonBullets]))
+      recommendationReasons: Object.fromEntries(recommendations.map((recommendation) => [recommendation.majorId, recommendation.reasonBullets])),
+      careerPersonalizations: Object.fromEntries(
+        recommendations.map((recommendation) => [
+          recommendation.majorId,
+          {
+            personalizedCareerDirection: recommendation.careerDirection,
+            nicheCareerPaths: recommendation.relatedCareers.slice(0, 3),
+            reason: `Arah karier ini masih selaras dengan jurusan ${recommendation.majorName} dan jawaban yang kamu isi.`,
+            cautions: []
+          }
+        ])
+      ),
+      source: "heuristic"
     };
   }
 }
 
 export class GeminiNarrativeEnhancer implements RecommendationNarrativeEnhancer {
-  async enhance(): Promise<EnhancedNarrative> {
+  async enhance({
+    answers,
+    recommendations
+  }: {
+    answers: StudentAnswer;
+    recommendations: RecommendationResult[];
+  }): Promise<EnhancedNarrative> {
     if (process.env.ENABLE_GEMINI_ENHANCEMENT !== "true") {
       throw new Error("Gemini enhancement is disabled for the MVP.");
     }
-    throw new Error(
-      "GeminiNarrativeEnhancer is a future extension point only. It must not change rankings, major IDs, scores, AI resilience, or scoring breakdowns."
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured.");
+    }
+
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [
+            {
+              text:
+                "Kamu adalah konselor jurusan untuk siswa SMA/SMK Indonesia. Kamu hanya boleh menulis ulang analisis naratif. Jangan mengubah ranking, majorId, skor, label, atau rekomendasi. Nada harus hangat, konstruktif, tidak menakut-nakuti tentang AI, dan semua teks dalam Bahasa Indonesia."
+            }
+          ]
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: buildGeminiPrompt(answers, recommendations) }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.35,
+          maxOutputTokens: 2600,
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Gemini request failed: ${response.status} ${detail.slice(0, 240)}`);
+    }
+
+    const data = (await response.json()) as GeminiGenerateContentResponse;
+    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("\n").trim();
+    if (!text) throw new Error("Gemini returned empty narrative.");
+
+    const parsed = parseGeminiNarrative(text);
+    return sanitizeGeminiNarrative(parsed, recommendations, model);
+  }
+}
+
+export async function enhanceRecommendationReport(
+  answers: StudentAnswer,
+  report: RecommendationReport
+): Promise<RecommendationReport> {
+  const enhancer =
+    process.env.ENABLE_GEMINI_ENHANCEMENT === "true"
+      ? new GeminiNarrativeEnhancer()
+      : new HeuristicTemplateNarrativeEnhancer();
+
+  try {
+    const narrative = await enhancer.enhance({
+      answers,
+      recommendations: report.recommendations
+    });
+
+    const recommendations = report.recommendations.map((recommendation) => ({
+      ...recommendation,
+      reasonBullets: narrative.recommendationReasons[recommendation.majorId] ?? recommendation.reasonBullets,
+      personalizedCareerDirection:
+        narrative.careerPersonalizations?.[recommendation.majorId]?.personalizedCareerDirection ??
+        recommendation.personalizedCareerDirection,
+      nicheCareerPaths: narrative.careerPersonalizations?.[recommendation.majorId]?.nicheCareerPaths ?? recommendation.nicheCareerPaths,
+      careerPersonalizationReason:
+        narrative.careerPersonalizations?.[recommendation.majorId]?.reason ?? recommendation.careerPersonalizationReason,
+      careerCautions: narrative.careerPersonalizations?.[recommendation.majorId]?.cautions ?? recommendation.careerCautions
+    }));
+
+    return {
+      ...report,
+      topRecommendation: recommendations[0],
+      recommendations,
+      narrativeVersion: narrative.source === "gemini" ? `gemini:${narrative.model ?? "unknown"}` : report.narrativeVersion,
+      narrative
+    };
+  } catch (error) {
+    console.warn("[WARN] Narrative enhancement failed, using heuristic template.", error);
+    const fallback = await new HeuristicTemplateNarrativeEnhancer().enhance({
+      answers,
+      recommendations: report.recommendations
+    });
+    return {
+      ...report,
+      narrative: fallback
+    };
+  }
+}
+
+interface GeminiGenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+}
+
+function buildGeminiPrompt(answers: StudentAnswer, recommendations: RecommendationResult[]) {
+    const compactRecommendations = recommendations.map((recommendation) => ({
+    rank: recommendation.rank,
+    majorId: recommendation.majorId,
+    majorName: recommendation.majorName,
+    cluster: recommendation.cluster,
+    careerDirection: recommendation.careerDirection,
+    relatedCareers: recommendation.relatedCareers.slice(0, 5),
+    overallFitScore: recommendation.overallFitScore,
+    fitLabel: recommendation.fitLabel,
+    aiFutureResilienceScore: recommendation.aiFutureResilienceScore,
+    aiFutureResilienceLabel: recommendation.aiFutureResilienceLabel,
+    existingReasons: recommendation.reasonBullets.slice(0, 4),
+    skillGaps: recommendation.skillGaps.slice(0, 4),
+    nextSteps: recommendation.recommendedNextSteps.slice(0, 4)
+  }));
+
+  return JSON.stringify(
+    {
+      task:
+        "Buat analisis personal untuk hasil rekomendasi jurusan. Ranking dan skor sudah final dari heuristic engine, jangan diubah. Tulis output JSON valid saja.",
+      outputSchema: {
+        summary: "1 paragraf singkat, 1-2 kalimat, personal untuk siswa.",
+        recommendationReasons:
+          "Object dengan key majorId. Untuk setiap majorId, isi 2-3 bullet alasan singkat. Jangan lebih dari 26 kata per bullet.",
+        careerPersonalizations:
+          "Object dengan key majorId untuk semua rekomendasi #1 sampai #10. Setiap item wajib punya personalizedCareerDirection, nicheCareerPaths tepat 3 item, reason 1 kalimat, dan cautions 0-2 item."
+      },
+      copyRules: [
+        "Jangan menyatakan hasil sebagai fakta mutlak.",
+        "Gunakan kalimat: berdasarkan jawaban yang kamu isi.",
+        "Jangan menulis pekerjaan akan hilang, jurusan tidak aman, atau AI akan menggantikan kamu.",
+        "Tekankan AI sebagai alat bantu dan skill manusia tetap penting.",
+        "Jangan menyebut bahwa kamu AI atau Gemini.",
+        "Jangan menambah jurusan baru dan jangan mengubah urutan.",
+        "Karier niche boleh lebih spesifik, tetapi harus tetap masuk akal untuk jurusan dan cluster yang diberikan.",
+        "Jangan menulis karier yang membutuhkan profesi berlisensi tanpa catatan jalur lanjut. Contoh: lawyer/advokat harus terkait jurusan hukum atau diberi konteks compliance/policy.",
+        "Untuk rekomendasi #2 sampai #10, tetap berikan tepat 3 nicheCareerPaths per rekomendasi."
+      ],
+      studentAnswers: {
+        name: answers.fullName,
+        school: answers.school,
+        className: answers.className,
+        schoolMajor: answers.currentSchoolMajor,
+        favoriteSubjects: answers.favoriteSubjects,
+        favoriteSubjectsOther: answers.favoriteSubjectsOther,
+        favoriteActivities: answers.favoriteActivities,
+        skillStrengths: answers.skillStrengths,
+        workStyle: answers.workStyle,
+        problemAreas: answers.problemAreas,
+        collegePathPreferences: answers.collegePathPreferences,
+        collegePathPreferenceOther: answers.collegePathPreferenceOther,
+        personalConstraints: answers.personalConstraints,
+        techComfort: answers.techComfort,
+        dreamProfession: answers.dreamProfession,
+        futureVision: answers.futureVision
+      },
+      recommendations: compactRecommendations
+    },
+    null,
+    2
+  );
+}
+
+function parseGeminiNarrative(text: string) {
+  try {
+    return JSON.parse(text) as Partial<EnhancedNarrative>;
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Gemini narrative is not valid JSON.");
+    return JSON.parse(match[0]) as Partial<EnhancedNarrative>;
+  }
+}
+
+function sanitizeSentence(value: unknown, fallback = "") {
+  return String(value ?? fallback)
+    .replace(/\s+/g, " ")
+    .replace(/pekerjaan ini akan hilang/gi, "cara kerja bidang ini akan berubah")
+    .replace(/AI akan menggantikan kamu/gi, "AI dapat menjadi alat bantu")
+    .replace(/jurusan ini tidak aman/gi, "bidang ini perlu adaptasi")
+    .trim()
+    .slice(0, 360);
+}
+
+function sanitizeShortLabel(value: unknown, fallback = "") {
+  return sanitizeSentence(value, fallback)
+    .replace(/[|{}[\]"`]/g, "")
+    .slice(0, 72);
+}
+
+function fallbackCareerPersonalization(recommendation: RecommendationResult): CareerPersonalization {
+  return {
+    personalizedCareerDirection: recommendation.careerDirection,
+    nicheCareerPaths: recommendation.relatedCareers.slice(0, 3),
+    reason: `Arah karier ini masih selaras dengan jurusan ${recommendation.majorName} dan jawaban yang kamu isi.`,
+    cautions: []
+  };
+}
+
+function sanitizeCareerPersonalization(
+  value: unknown,
+  recommendation: RecommendationResult
+): CareerPersonalization {
+  const fallback = fallbackCareerPersonalization(recommendation);
+  if (!value || typeof value !== "object") return fallback;
+
+  const raw = value as Partial<CareerPersonalization>;
+  const rawNicheCareers = Array.isArray(raw.nicheCareerPaths) ? raw.nicheCareerPaths : [];
+  const nicheCareerPaths = rawNicheCareers
+    .map((item) => sanitizeShortLabel(item))
+    .filter(Boolean)
+    .slice(0, 3);
+
+  const paddedNicheCareers = [...nicheCareerPaths, ...fallback.nicheCareerPaths]
+    .map((item) => sanitizeShortLabel(item))
+    .filter(Boolean)
+    .filter((item, index, items) => items.indexOf(item) === index)
+    .slice(0, 3);
+
+  const rawCautions = Array.isArray(raw.cautions) ? raw.cautions : [];
+
+  return {
+    personalizedCareerDirection: sanitizeSentence(raw.personalizedCareerDirection, fallback.personalizedCareerDirection).slice(0, 150),
+    nicheCareerPaths: paddedNicheCareers,
+    reason: sanitizeSentence(raw.reason, fallback.reason),
+    cautions: rawCautions.map((item) => sanitizeSentence(item)).filter(Boolean).slice(0, 2)
+  };
+}
+
+function sanitizeGeminiNarrative(
+  parsed: Partial<EnhancedNarrative>,
+  recommendations: RecommendationResult[],
+  model: string
+): EnhancedNarrative {
+  const recommendationReasons: Record<string, string[]> = {};
+  const careerPersonalizations: Record<string, CareerPersonalization> = {};
+  const rawReasons = parsed.recommendationReasons && typeof parsed.recommendationReasons === "object" ? parsed.recommendationReasons : {};
+  const rawCareerPersonalizations =
+    parsed.careerPersonalizations && typeof parsed.careerPersonalizations === "object" ? parsed.careerPersonalizations : {};
+
+  for (const recommendation of recommendations) {
+    const raw = rawReasons[recommendation.majorId];
+    const items = Array.isArray(raw) ? raw : [];
+    const sanitized = items
+      .map((item) => sanitizeSentence(item))
+      .filter(Boolean)
+      .slice(0, recommendation.rank === 1 ? 5 : 2);
+
+    recommendationReasons[recommendation.majorId] =
+      sanitized.length > 0 ? sanitized : recommendation.reasonBullets.slice(0, recommendation.rank === 1 ? 5 : 2);
+    careerPersonalizations[recommendation.majorId] = sanitizeCareerPersonalization(
+      rawCareerPersonalizations[recommendation.majorId],
+      recommendation
     );
   }
+
+  return {
+    summary: sanitizeSentence(
+      parsed.summary,
+      recommendations[0]
+        ? `Berdasarkan jawaban yang kamu isi, rekomendasi utama kamu adalah ${recommendations[0].majorName}.`
+        : "Berdasarkan jawaban yang kamu isi, hasil ini bisa menjadi bahan refleksi awal."
+    ),
+    recommendationReasons,
+    careerPersonalizations,
+    source: "gemini",
+    model
+  };
 }
 
 function joinPreview(items: string[], fallback: string) {

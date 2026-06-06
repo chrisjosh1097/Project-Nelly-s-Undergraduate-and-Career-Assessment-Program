@@ -130,6 +130,17 @@ function drawBulletList(ctx: PdfContext, items: string[], size = 10) {
   }
 }
 
+function careerDirectionFor(recommendation: RecommendationResult) {
+  return recommendation.personalizedCareerDirection || recommendation.careerDirection;
+}
+
+function nicheCareersFor(recommendation: RecommendationResult) {
+  return (recommendation.nicheCareerPaths && recommendation.nicheCareerPaths.length > 0
+    ? recommendation.nicheCareerPaths
+    : recommendation.relatedCareers
+  ).slice(0, 3);
+}
+
 function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResult, highlighted = false) {
   const boxHeight = highlighted ? 168 : 76;
   ensureSpace(ctx, boxHeight);
@@ -152,15 +163,18 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
     color: highlighted ? ORANGE_DARK : NAVY,
     gap: 2
   });
-  drawText(ctx, recommendation.careerDirection, { size: 10, gap: 2 });
+  drawText(ctx, careerDirectionFor(recommendation), { size: 10, gap: 2 });
   drawText(
     ctx,
     `Fit: ${recommendation.overallFitScore}/100 (${recommendation.fitLabel}) | AI Future Resilience: ${recommendation.aiFutureResilienceScore}/100 (${recommendation.aiFutureResilienceLabel})`,
     { size: 10, bold: highlighted, color: highlighted ? NAVY : INK, gap: 4 }
   );
   drawText(ctx, recommendation.reasonBullets[0] ?? "", { size: 9, gap: 2 });
+  drawText(ctx, `3 karier niche: ${nicheCareersFor(recommendation).join(", ")}`, { size: 9, gap: 2 });
   if (highlighted) {
-    drawText(ctx, `Karier terkait: ${recommendation.relatedCareers.join(", ")}`, { size: 9, gap: 2 });
+    if (recommendation.careerPersonalizationReason) {
+      drawText(ctx, recommendation.careerPersonalizationReason, { size: 9, gap: 2 });
+    }
     drawText(ctx, `Skill yang perlu ditingkatkan: ${recommendation.skillGaps.slice(0, 4).join(", ")}`, {
       size: 9,
       gap: 2
@@ -171,11 +185,11 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
 }
 
 function drawAlternativeTable(ctx: PdfContext, recommendations: RecommendationResult[]) {
-  drawText(ctx, "Rank | Jurusan | Fit | AI | Alasan singkat", { size: 9, bold: true, gap: 4 });
+  drawText(ctx, "Rank | Jurusan | Fit | AI | 3 karier niche | Alasan singkat", { size: 9, bold: true, gap: 4 });
   for (const recommendation of recommendations) {
     drawText(
       ctx,
-      `#${recommendation.rank} | ${recommendation.majorName} | ${recommendation.overallFitScore} | ${recommendation.aiFutureResilienceScore} | ${recommendation.reasonBullets[0] ?? recommendation.careerDirection}`,
+      `#${recommendation.rank} | ${recommendation.majorName} | ${recommendation.overallFitScore} | ${recommendation.aiFutureResilienceScore} | ${nicheCareersFor(recommendation).join("; ")} | ${recommendation.careerPersonalizationReason ?? recommendation.reasonBullets[0] ?? careerDirectionFor(recommendation)}`,
       { size: 8.5, gap: 2 }
     );
   }
@@ -188,8 +202,9 @@ export function buildSubmissionPdfTextSnapshot(submission: Submission) {
     submission.fullName,
     submission.school,
     submission.report.topRecommendation.majorName,
-    submission.report.topRecommendation.careerDirection,
-    "Laporan ini adalah alat bantu refleksi, bukan keputusan final. Diskusikan juga dengan orang tua, guru BK, mentor, atau pihak sekolah."
+    careerDirectionFor(submission.report.topRecommendation),
+    nicheCareersFor(submission.report.topRecommendation).join(", "),
+    "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final."
   ].join("\n");
 }
 
@@ -235,11 +250,17 @@ export async function generateSubmissionPdf(submission: Submission) {
 
   drawSectionTitle(ctx, "Ringkasan Jawaban");
   drawKeyValue(ctx, "Mata pelajaran disukai", submission.answers.favoriteSubjects.join(", "));
+  if (submission.answers.favoriteSubjectsOther) {
+    drawKeyValue(ctx, "Mata pelajaran lainnya", submission.answers.favoriteSubjectsOther);
+  }
   drawKeyValue(ctx, "Aktivitas disukai", submission.answers.favoriteActivities.join(", "));
   drawKeyValue(ctx, "Kekuatan utama", submission.answers.skillStrengths.join(", "));
   drawKeyValue(ctx, "Gaya kerja", submission.answers.workStyle);
   drawKeyValue(ctx, "Bidang masalah", submission.answers.problemAreas.join(", "));
   drawKeyValue(ctx, "Preferensi kuliah", submission.answers.collegePathPreferences.join(", "));
+  if (submission.answers.collegePathPreferenceOther) {
+    drawKeyValue(ctx, "Preferensi kuliah lainnya", submission.answers.collegePathPreferenceOther);
+  }
   drawKeyValue(ctx, "Pertimbangan pribadi", submission.answers.personalConstraints.join(", "));
   drawKeyValue(ctx, "Kenyamanan dengan teknologi dan AI", submission.answers.techComfort);
   drawKeyValue(ctx, "Profesi impian atau bidang penasaran", submission.answers.dreamProfession);
@@ -284,7 +305,12 @@ export async function generateSubmissionPdf(submission: Submission) {
   drawSectionTitle(ctx, "Disclaimer");
   drawText(
     ctx,
-    "Laporan ini adalah alat bantu refleksi, bukan keputusan final. Diskusikan juga dengan orang tua, guru BK, mentor, atau pihak sekolah.",
+    "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.",
+    { size: 10, bold: true }
+  );
+  drawText(
+    ctx,
+    "Gunakan laporan ini sebagai bahan diskusi dengan orang tua, guru BK, mentor, atau pihak sekolah.",
     { size: 10 }
   );
 

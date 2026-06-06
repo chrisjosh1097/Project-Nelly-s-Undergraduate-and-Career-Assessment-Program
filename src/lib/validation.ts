@@ -41,15 +41,33 @@ export const studentAnswerSchema = z.object({
   className: boundedText("Kelas", 40),
   currentSchoolMajor: z.enum(schoolMajorOptions as [SchoolMajor, ...SchoolMajor[]]),
   favoriteSubjects: optionArray(favoriteSubjectOptions, "mata pelajaran"),
+  favoriteSubjectsOther: z.string().trim().max(80, "Mata pelajaran lainnya terlalu panjang.").optional().default(""),
   favoriteActivities: optionArray(favoriteActivityOptions, "aktivitas"),
   skillStrengths: optionArray(skillStrengthOptions, "skill"),
   workStyle: z.enum(workStyleOptions as [WorkStyle, ...WorkStyle[]]),
   problemAreas: optionArray(problemAreaOptions, "tipe masalah"),
   collegePathPreferences: optionArray(collegePathPreferenceOptions, "preferensi jalur kuliah"),
+  collegePathPreferenceOther: z.string().trim().max(120, "Preferensi jalur kuliah lainnya terlalu panjang.").optional().default(""),
   personalConstraints: optionArray(personalConstraintOptions, "pertimbangan pribadi"),
   techComfort: z.enum(techComfortOptions as [TechComfort, ...TechComfort[]]),
   dreamProfession: z.string().trim().max(240, "Jawaban terlalu panjang.").optional().default(""),
   futureVision: z.string().trim().max(480, "Jawaban terlalu panjang.").optional().default("")
+}).superRefine((answer, ctx) => {
+  if (answer.favoriteSubjects.includes("Lainnya") && !answer.favoriteSubjectsOther.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["favoriteSubjectsOther"],
+      message: "Isi mata pelajaran lainnya."
+    });
+  }
+
+  if (answer.collegePathPreferences.includes("Lainnya") && !answer.collegePathPreferenceOther.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["collegePathPreferenceOther"],
+      message: "Isi preferensi jalur kuliah lainnya."
+    });
+  }
 });
 
 export type StudentAnswerInput = z.infer<typeof studentAnswerSchema>;

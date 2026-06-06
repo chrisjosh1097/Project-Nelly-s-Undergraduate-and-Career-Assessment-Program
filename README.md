@@ -1,6 +1,6 @@
 # Project Nelly 101
 
-Project Nelly 101 is a deployable web app for Indonesian SMA/SMK students to receive deterministic major and career recommendations. The MVP is fully heuristic: it does not call Gemini, OpenAI, or any paid AI API.
+Project Nelly 101 is a deployable web app for Indonesian SMA/SMK students to receive deterministic major and career recommendations. Ranking and scores remain fully heuristic. Gemini can optionally be enabled as a server-side narrative layer that rewrites the explanation only.
 
 ## Tech Stack
 
@@ -40,9 +40,11 @@ ADMIN_LOGIN_EMAIL=admin@example.com
 ADMIN_LOGIN_PASSWORD=change-this-password
 ADMIN_SESSION_SECRET=change-this-random-session-secret
 ENABLE_GEMINI_ENHANCEMENT=false
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
-Only `NEXT_PUBLIC_*` values are exposed to the browser. Firebase Admin credentials are used only in server route handlers.
+Only `NEXT_PUBLIC_*` values are exposed to the browser. Firebase Admin credentials and `GEMINI_API_KEY` are used only in server route handlers.
 
 ## Database Setup
 
@@ -190,14 +192,14 @@ npm run build
 
 The app also remains compatible with Vercel if you later choose that route.
 
-## Future Gemini Enhancement
+## Gemini Narrative Enhancement
 
-The MVP does not implement Gemini calls.
+Gemini is optional and disabled by default. Set `ENABLE_GEMINI_ENHANCEMENT=true` and provide `GEMINI_API_KEY` in Netlify environment variables to enable personalized narrative analysis during submit.
 
 Architecture is prepared through `RecommendationNarrativeEnhancer`:
 
-- Current: `HeuristicTemplateNarrativeEnhancer`
-- Future placeholder: `GeminiNarrativeEnhancer`
+- Default fallback: `HeuristicTemplateNarrativeEnhancer`
+- Optional: `GeminiNarrativeEnhancer`
 - Feature flag: `ENABLE_GEMINI_ENHANCEMENT=false`
 
-Future Gemini usage may only improve explanation text, tone, student-friendly narrative, or summary paragraphs. It must never change ranking, major IDs, scores, AI Future Resilience Score, or scoring breakdown.
+Gemini may only improve explanation text, tone, student-friendly narrative, or summary paragraphs. It must never change ranking, major IDs, scores, AI Future Resilience Score, or scoring breakdown. Generated narrative is stored with the submission so it is not regenerated every time a student opens the result.

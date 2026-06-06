@@ -85,7 +85,8 @@ export const collegePathPreferenceOptions = [
   "Kuliah dekat rumah",
   "Diploma/vokasi",
   "Sertifikasi/bootcamp",
-  "Belum tahu"
+  "Belum tahu",
+  "Lainnya"
 ];
 
 export const personalConstraintOptions = [

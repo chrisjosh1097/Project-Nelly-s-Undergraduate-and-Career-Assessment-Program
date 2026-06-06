@@ -70,11 +70,13 @@ function emptyAnswer(email = ""): StudentAnswer {
     className: "",
     currentSchoolMajor: "IPA",
     favoriteSubjects: [],
+    favoriteSubjectsOther: "",
     favoriteActivities: [],
     skillStrengths: [],
     workStyle: "Banyak bertemu orang",
     problemAreas: [],
     collegePathPreferences: [],
+    collegePathPreferenceOther: "",
     personalConstraints: [],
     techComfort: "Biasa saja",
     dreamProfession: "",
@@ -152,7 +154,13 @@ export function AssessmentForm() {
     const current = answer[key];
     if (!Array.isArray(current)) return;
     const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
-    updateValue(key, next as StudentAnswer[keyof StudentAnswer]);
+    setAnswer((currentAnswer) => ({
+      ...currentAnswer,
+      [key]: next,
+      ...(key === "favoriteSubjects" && value === "Lainnya" && current.includes(value) ? { favoriteSubjectsOther: "" } : {}),
+      ...(key === "collegePathPreferences" && value === "Lainnya" && current.includes(value) ? { collegePathPreferenceOther: "" } : {})
+    }));
+    setError("");
   }
 
   function validateCurrentStep() {
@@ -172,6 +180,18 @@ export function AssessmentForm() {
     const value = answer[step.key];
     if (step.type !== "textarea" && isEmptyValue(value)) {
       setError(`${step.title} wajib diisi.`);
+      return false;
+    }
+    if (step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya") && !answer.favoriteSubjectsOther.trim()) {
+      setError("Isi mata pelajaran lainnya.");
+      return false;
+    }
+    if (
+      step.key === "collegePathPreferences" &&
+      answer.collegePathPreferences.includes("Lainnya") &&
+      !answer.collegePathPreferenceOther.trim()
+    ) {
+      setError("Isi preferensi jalur kuliah lainnya.");
       return false;
     }
     setError("");
@@ -407,25 +427,48 @@ function renderField(
     );
   }
 
+  const showSubjectOther = step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya");
+  const showCollegeOther = step.key === "collegePathPreferences" && answer.collegePathPreferences.includes("Lainnya");
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {step.options.map((option) => {
-        const selected = Array.isArray(value) && value.includes(option);
-        return (
-          <button
-            key={option}
-            type="button"
-            className={cn(
-              "flex min-h-12 items-center justify-between rounded-md border px-4 py-3 text-left text-sm font-semibold transition",
-              selected ? "border-leaf bg-leaf/10 text-leaf" : "border-black/10 bg-white text-ink hover:bg-skysoft/35"
-            )}
-            onClick={() => toggleArrayValue(step.key, option)}
-          >
-            {option}
-            {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
-          </button>
-        );
-      })}
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {step.options.map((option) => {
+          const selected = Array.isArray(value) && value.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              className={cn(
+                "flex min-h-12 items-center justify-between rounded-md border px-4 py-3 text-left text-sm font-semibold transition",
+                selected ? "border-leaf bg-leaf/10 text-leaf" : "border-black/10 bg-white text-ink hover:bg-skysoft/35"
+              )}
+              onClick={() => toggleArrayValue(step.key, option)}
+            >
+              {option}
+              {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
+            </button>
+          );
+        })}
+      </div>
+      {showSubjectOther ? (
+        <Field label="Tulis mata pelajaran lainnya">
+          <Input
+            value={answer.favoriteSubjectsOther}
+            placeholder="Contoh: Geografi, Informatika, Agama, Bahasa Jepang"
+            onChange={(event) => updateValue("favoriteSubjectsOther", event.target.value)}
+          />
+        </Field>
+      ) : null}
+      {showCollegeOther ? (
+        <Field label="Tulis preferensi jalur kuliah lainnya">
+          <Input
+            value={answer.collegePathPreferenceOther}
+            placeholder="Contoh: sekolah kedinasan, kuliah sambil kerja, luar negeri"
+            onChange={(event) => updateValue("collegePathPreferenceOther", event.target.value)}
+          />
+        </Field>
+      ) : null}
     </div>
   );
 }

@@ -47,11 +47,13 @@ export interface StudentAnswer {
   className: string;
   currentSchoolMajor: SchoolMajor;
   favoriteSubjects: string[];
+  favoriteSubjectsOther: string;
   favoriteActivities: string[];
   skillStrengths: string[];
   workStyle: WorkStyle;
   problemAreas: string[];
   collegePathPreferences: string[];
+  collegePathPreferenceOther: string;
   personalConstraints: string[];
   techComfort: TechComfort;
   dreamProfession: string;
@@ -67,11 +69,13 @@ export interface NormalizedStudentAnswer {
   className: string;
   currentSchoolMajor: SchoolMajor;
   favoriteSubjectIds: string[];
+  favoriteSubjectsOther: string;
   interestIds: string[];
   skillIds: string[];
   workStyleId: string;
   problemAreaIds: string[];
   collegePreferenceIds: string[];
+  collegePathPreferenceOther: string;
   constraintIds: string[];
   techComfort: TechComfort;
   dreamProfession: string;
@@ -147,6 +151,10 @@ export interface RecommendationResult {
   majorName: string;
   cluster: string;
   careerDirection: string;
+  personalizedCareerDirection?: string;
+  nicheCareerPaths?: string[];
+  careerPersonalizationReason?: string;
+  careerCautions?: string[];
   relatedCareers: string[];
   overallFitScore: number;
   fitLabel: FitLabel;
@@ -160,6 +168,21 @@ export interface RecommendationResult {
   scoringBreakdown: ScoringBreakdown;
 }
 
+export interface CareerPersonalization {
+  personalizedCareerDirection: string;
+  nicheCareerPaths: string[];
+  reason: string;
+  cautions: string[];
+}
+
+export interface EnhancedNarrative {
+  summary: string;
+  recommendationReasons: Record<string, string[]>;
+  careerPersonalizations?: Record<string, CareerPersonalization>;
+  source: "heuristic" | "gemini";
+  model?: string;
+}
+
 export interface RecommendationReport {
   generatedAt: string;
   topRecommendation: RecommendationResult;
@@ -168,6 +191,7 @@ export interface RecommendationReport {
   narrativeVersion: string;
   ptnPtsVokasiAdvice?: string[];
   answerPatternNotes?: string[];
+  narrative?: EnhancedNarrative;
 }
 
 export interface Submission {

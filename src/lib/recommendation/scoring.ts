@@ -37,6 +37,10 @@ const FLEXIBLE_FALLBACK_MAJOR_IDS = [
   "desain_komunikasi_visual"
 ];
 
+const PURE_SCORE_TOP_COUNT = 6;
+const MAX_CLUSTER_REPETITION_IN_TOP_TEN = 6;
+const MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN = 3;
+
 const RELATED_WORK_STYLE_IDS: Record<string, string[]> = {
   people_facing: ["creative_flexible", "dynamic_field"],
   independent_analysis: ["structured_detail"],
@@ -426,6 +430,80 @@ function validRecommendation(recommendation: RecommendationResult) {
   return Boolean(recommendation.majorId && recommendation.majorName && recommendation.careerDirection);
 }
 
+type ScoredMajor = {
+  major: KnowledgeMajor;
+  recommendation: RecommendationResult;
+};
+
+function selectedCountBy(selected: Map<string, ScoredMajor>, selector: (item: ScoredMajor) => string) {
+  const counts = new Map<string, number>();
+  for (const item of selected.values()) {
+    const key = selector(item);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function canAddWithBreadth(
+  selected: Map<string, ScoredMajor>,
+  item: ScoredMajor,
+  maxClusterCount: number,
+  maxSubClusterCount: number
+) {
+  if (selected.has(item.major.id)) return false;
+  const clusterCounts = selectedCountBy(selected, (selectedItem) => selectedItem.major.cluster);
+  const subClusterCounts = selectedCountBy(selected, (selectedItem) => selectedItem.major.subCluster);
+
+  return (
+    (clusterCounts.get(item.major.cluster) ?? 0) < maxClusterCount &&
+    (subClusterCounts.get(item.major.subCluster) ?? 0) < maxSubClusterCount
+  );
+}
+
+function addScoredRecommendation(selected: Map<string, ScoredMajor>, item: ScoredMajor) {
+  if (!selected.has(item.major.id)) selected.set(item.major.id, item);
+}
+
+function selectRecommendationPool(scored: ScoredMajor[], answer: StudentAnswer) {
+  const selected = new Map<string, ScoredMajor>();
+  const strongMatches = scored.filter((item) => item.recommendation.overallFitScore >= 58);
+  const primaryPool = strongMatches.length > 0 ? strongMatches : scored;
+
+  for (const item of primaryPool) {
+    addScoredRecommendation(selected, item);
+    if (selected.size >= PURE_SCORE_TOP_COUNT) break;
+  }
+
+  for (const item of strongMatches) {
+    if (selected.size >= 10) break;
+    if (canAddWithBreadth(selected, item, MAX_CLUSTER_REPETITION_IN_TOP_TEN, MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN)) {
+      addScoredRecommendation(selected, item);
+    }
+  }
+
+  for (const item of strongMatches) {
+    if (selected.size >= 10) break;
+    if (canAddWithBreadth(selected, item, MAX_CLUSTER_REPETITION_IN_TOP_TEN + 2, MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN + 1)) {
+      addScoredRecommendation(selected, item);
+    }
+  }
+
+  for (const majorId of FLEXIBLE_FALLBACK_MAJOR_IDS) {
+    if (selected.size >= 10) break;
+    const fallback = knowledgeMajors.find((major) => major.id === majorId);
+    if (fallback && !selected.has(fallback.id)) {
+      addScoredRecommendation(selected, { major: fallback, recommendation: scoreMajor(answer, fallback) });
+    }
+  }
+
+  for (const item of scored) {
+    if (selected.size >= 10) break;
+    addScoredRecommendation(selected, item);
+  }
+
+  return Array.from(selected.values()).map((item) => item.recommendation);
+}
+
 export function generateRecommendations(answer: StudentAnswer): RecommendationReport {
   const scored = knowledgeMajors
     .map((major) => ({ major, recommendation: scoreMajor(answer, major) }))
@@ -442,26 +520,7 @@ export function generateRecommendations(answer: StudentAnswer): RecommendationRe
       return left.recommendation.majorName.localeCompare(right.recommendation.majorName, "id-ID");
     });
 
-  const byId = new Map<string, RecommendationResult>();
-  const strongMatches = scored.filter((item) => item.recommendation.overallFitScore >= 58);
-
-  for (const item of strongMatches) {
-    byId.set(item.recommendation.majorId, item.recommendation);
-    if (byId.size >= 10) break;
-  }
-
-  for (const majorId of FLEXIBLE_FALLBACK_MAJOR_IDS) {
-    if (byId.size >= 10) break;
-    const fallback = knowledgeMajors.find((major) => major.id === majorId);
-    if (fallback && !byId.has(fallback.id)) byId.set(fallback.id, scoreMajor(answer, fallback));
-  }
-
-  for (const item of scored) {
-    if (byId.size >= 10) break;
-    if (!byId.has(item.recommendation.majorId)) byId.set(item.recommendation.majorId, item.recommendation);
-  }
-
-  const recommendations = Array.from(byId.values())
+  const recommendations = selectRecommendationPool(scored, answer)
     .slice(0, 10)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
 

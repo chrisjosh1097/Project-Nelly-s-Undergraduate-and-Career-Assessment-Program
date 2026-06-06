@@ -18,14 +18,27 @@ function ScoreBar({ value, tone = "green" }: { value: number; tone?: "green" | "
   );
 }
 
+function careerDirectionFor(recommendation: RecommendationResult) {
+  return recommendation.personalizedCareerDirection || recommendation.careerDirection;
+}
+
+function nicheCareersFor(recommendation: RecommendationResult) {
+  return (recommendation.nicheCareerPaths && recommendation.nicheCareerPaths.length > 0
+    ? recommendation.nicheCareerPaths
+    : recommendation.relatedCareers
+  ).slice(0, 3);
+}
+
 function SmallRecommendationCard({ recommendation }: { recommendation: RecommendationResult }) {
+  const nicheCareers = nicheCareersFor(recommendation);
+
   return (
     <article className="rounded-md border border-black/10 bg-white p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <Badge tone="blue">#{recommendation.rank}</Badge>
           <h3 className="mt-2 font-bold text-ink">{recommendation.majorName}</h3>
-          <p className="mt-1 text-sm leading-5 text-ink/65">{recommendation.careerDirection}</p>
+          <p className="mt-1 text-sm leading-5 text-ink/65">{careerDirectionFor(recommendation)}</p>
         </div>
       </div>
       <div className="grid gap-3 text-sm sm:grid-cols-2">
@@ -38,7 +51,17 @@ function SmallRecommendationCard({ recommendation }: { recommendation: Recommend
           <ScoreBar value={recommendation.aiFutureResilienceScore} tone="gold" />
         </div>
       </div>
-      <p className="mt-3 text-sm leading-6 text-ink/70">{recommendation.reasonBullets[0]}</p>
+      <div className="mt-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">3 karier niche</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {nicheCareers.map((career) => (
+            <Badge key={career} tone="neutral">
+              {career}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      <p className="mt-3 text-sm leading-6 text-ink/70">{recommendation.careerPersonalizationReason ?? recommendation.reasonBullets[0]}</p>
     </article>
   );
 }
@@ -148,7 +171,7 @@ async function createInstagramCardBlob(submission: Submission) {
 
   ctx.fillStyle = "#333333";
   ctx.font = "500 30px Arial";
-  y = drawWrappedCanvasText(ctx, top.careerDirection, 115, y + 14, 830, 42, 3);
+  y = drawWrappedCanvasText(ctx, careerDirectionFor(top), 115, y + 14, 830, 42, 3);
 
   const scoreY = Math.max(y + 36, 580);
   drawRoundedRect(ctx, 115, scoreY, 255, 125, 22);
@@ -210,6 +233,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
   const { getToken } = useAuth();
   const [downloadError, setDownloadError] = useState("");
   const top = submission.report.topRecommendation;
+  const topNicheCareers = nicheCareersFor(top);
   const alternatives = submission.report.recommendations.slice(1);
   const advice = submission.report.ptnPtsVokasiAdvice ?? generatePtnPtsVokasiAdvice(submission.answers);
   const patternNotes = submission.report.answerPatternNotes ?? [];
@@ -283,7 +307,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
                 <Badge tone="blue">{top.cluster}</Badge>
               </div>
               <h2 className="mt-4 text-4xl font-black leading-tight text-ink sm:text-5xl">{top.majorName}</h2>
-              <p className="mt-3 max-w-3xl text-lg leading-8 text-ink/75">{top.careerDirection}</p>
+              <p className="mt-3 max-w-3xl text-lg leading-8 text-ink/75">{careerDirectionFor(top)}</p>
             </div>
             <div className="grid min-w-52 grid-cols-2 gap-3">
               <div className="rounded-md bg-white p-4">
@@ -315,14 +339,17 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
             </div>
             <div className="space-y-4">
               <div>
-                <h3 className="font-bold text-ink">Karier terkait</h3>
+                <h3 className="font-bold text-ink">3 karier niche</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {top.relatedCareers.map((career) => (
+                  {topNicheCareers.map((career) => (
                     <Badge key={career} tone="neutral">
                       {career}
                     </Badge>
                   ))}
                 </div>
+                {top.careerPersonalizationReason ? (
+                  <p className="mt-2 text-sm leading-6 text-ink/70">{top.careerPersonalizationReason}</p>
+                ) : null}
               </div>
               <div>
                 <h3 className="font-bold text-ink">Skill yang perlu ditingkatkan</h3>
@@ -422,7 +449,8 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
       </section>
 
       <section className="rounded-md border border-black/10 bg-white p-4 text-sm leading-6 text-ink/70">
-        Hasil ini bukan keputusan final. Gunakan sebagai bahan diskusi dengan orang tua, guru BK, mentor, atau pihak sekolah.
+        <strong>Disclaimer: hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.</strong>{" "}
+        Gunakan sebagai bahan diskusi dengan orang tua, guru BK, mentor, atau pihak sekolah.
       </section>
     </div>
   );

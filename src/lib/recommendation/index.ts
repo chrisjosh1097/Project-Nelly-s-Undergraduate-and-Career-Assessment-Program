@@ -12,7 +12,8 @@ export { majors, careers } from "../../../data";
 export {
   GeminiNarrativeEnhancer,
   HeuristicTemplateNarrativeEnhancer,
-  type EnhancedNarrative,
+  enhanceRecommendationReport,
   type RecommendationNarrativeEnhancer
 } from "@/lib/recommendation/narrative";
+export type { EnhancedNarrative } from "@/lib/types";
 export { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";

@@ -31,6 +31,20 @@ const careerSeeds: CareerSeed[] = [
   career("software_developer", "Pengembang Perangkat Lunak", "Technology & Data", ["informatika", "software_engineering", "teknologi_informasi"], ["technology", "logic", "problem_solving"], "tech_product_builder"),
   career("frontend_developer", "Frontend Developer", "Technology & Data", ["informatika", "software_engineering", "uiux_design_applied"], ["technology", "visual_design", "detail_orientation"], "tech_product_builder"),
   career("backend_developer", "Backend Developer", "Technology & Data", ["informatika", "software_engineering", "teknik_komputer"], ["technology", "logic", "detail_orientation"], "tech_product_builder"),
+  career(
+    "full_stack_developer",
+    "Full Stack Developer",
+    "Technology & Data",
+    ["informatika", "software_engineering", "teknologi_rekayasa_perangkat_lunak", "sistem_informasi", "teknologi_informasi", "matematika_terapan"],
+    ["technology", "logic", "problem_solving"],
+    "tech_product_builder",
+    [
+      "Membangun tampilan, API, database, dan integrasi aplikasi web.",
+      "Berkoordinasi dengan user, designer, dan tim produk agar aplikasi sesuai kebutuhan.",
+      "Menggunakan AI dan tools developer untuk mempercepat coding, testing, dan dokumentasi."
+    ],
+    ["communication", "teamwork", "detail_orientation"]
+  ),
   career("mobile_developer", "Mobile App Developer", "Technology & Data", ["informatika", "software_engineering", "teknologi_informasi"], ["technology", "logic", "problem_solving"], "tech_product_builder"),
   career("qa_engineer", "Quality Assurance Engineer", "Technology & Data", ["software_engineering", "teknologi_informasi", "sistem_informasi"], ["detail_orientation", "technology", "critical_thinking"], "tech_product_builder"),
   career("system_analyst", "Analis Sistem", "Technology & Data", ["sistem_informasi", "teknologi_informasi", "informatika"], ["communication", "logic", "problem_solving"], "tech_product_builder"),
@@ -40,7 +54,7 @@ const careerSeeds: CareerSeed[] = [
   career("ai_engineer", "AI Engineer", "Technology & Data", ["artificial_intelligence", "data_science", "informatika"], ["technology", "logic", "numeracy"], "data_ai_analytics"),
   career("machine_learning_engineer", "Machine Learning Engineer", "Technology & Data", ["artificial_intelligence", "data_science", "software_engineering"], ["technology", "numeracy", "problem_solving"], "data_ai_analytics"),
   career("cybersecurity_analyst", "Analis Keamanan Siber", "Technology & Data", ["cybersecurity", "teknik_komputer", "teknologi_informasi"], ["technology", "detail_orientation", "critical_thinking"], "cyber_risk_security"),
-  career("cloud_engineer", "Cloud Engineer", "Technology & Data", ["teknologi_informasi", "teknik_komputer", "informatika"], ["technology", "problem_solving", "discipline"], "tech_product_builder"),
+  career("cloud_engineer", "Cloud Engineer", "Technology & Data", ["teknologi_informasi", "teknik_komputer", "informatika", "sistem_informasi", "software_engineering", "network_cloud_operations", "matematika_terapan"], ["technology", "problem_solving", "discipline"], "tech_product_builder"),
   career("it_support_specialist", "Spesialis IT Support", "Technology & Data", ["teknologi_informasi", "teknik_komputer", "teknik_elektronika"], ["technology", "communication", "problem_solving"], "tech_product_builder"),
   career("network_engineer", "Network Engineer", "Technology & Data", ["teknik_komputer", "teknologi_informasi", "cybersecurity"], ["technology", "logic", "detail_orientation"], "cyber_risk_security"),
   career("product_manager", "Product Manager", "Technology & Data", ["sistem_informasi", "bisnis_digital", "informatika"], ["communication", "leadership", "critical_thinking"], "business_strategy"),

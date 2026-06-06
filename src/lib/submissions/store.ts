@@ -1,6 +1,7 @@
 import type { Submission, StudentAnswer } from "@/lib/types";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { generateRecommendations } from "@/lib/recommendation";
+import { enhanceRecommendationReport } from "@/lib/recommendation/narrative";
 import { normalizeEmail } from "@/lib/utils";
 
 const COLLECTION = "submissions";
@@ -51,7 +52,7 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
   const normalizedAnswer: StudentAnswer = { ...answer, email: normalizedEmail };
   const ref = collection().doc(submissionIdForEmail(normalizedEmail));
 
-  return getAdminDb().runTransaction(async (transaction) => {
+  const transactionResult = await getAdminDb().runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
     if (existing.exists) {
       return {
@@ -78,6 +79,20 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
     transaction.create(ref, submission);
     return { submission, created: true };
   });
+
+  if (!transactionResult.created) {
+    return transactionResult;
+  }
+
+  const enhancedReport = await enhanceRecommendationReport(normalizedAnswer, transactionResult.submission.report);
+  const updatedSubmission: Submission = {
+    ...transactionResult.submission,
+    report: enhancedReport,
+    updatedAt: new Date().toISOString()
+  };
+
+  await ref.set(updatedSubmission, { merge: true });
+  return { submission: updatedSubmission, created: true };
 }
 
 export interface SubmissionFilters {

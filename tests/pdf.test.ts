@@ -12,6 +12,6 @@ describe("PDF report generation", () => {
     expect(header).toBe("%PDF-");
     expect(bytes.byteLength).toBeGreaterThan(1500);
     expect(snapshot).toContain(submission.report.topRecommendation.majorName);
-    expect(snapshot).toContain("Laporan ini adalah alat bantu refleksi");
+    expect(snapshot).toContain("hanya analisis berdasarkan jawaban");
   });
 });
