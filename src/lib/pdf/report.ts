@@ -4,6 +4,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFP
 import type { RecommendationResult, Submission } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
+import { CAREER_MATCH_LABEL, shouldShowAlternativePathway } from "@/lib/recommendation/display";
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
@@ -172,7 +173,7 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
     { size: 10, bold: highlighted, color: highlighted ? NAVY : INK, gap: 4 }
   );
   drawText(ctx, recommendation.reasonBullets[0] ?? "", { size: 9, gap: 2 });
-  drawText(ctx, `3 karier niche: ${nicheCareersFor(recommendation).join(", ")}`, { size: 9, gap: 2 });
+  drawText(ctx, `${CAREER_MATCH_LABEL}: ${nicheCareersFor(recommendation).join(", ")}`, { size: 9, gap: 2 });
   if (highlighted) {
     if (recommendation.careerPersonalizationReason) {
       drawText(ctx, recommendation.careerPersonalizationReason, { size: 9, gap: 2 });
@@ -193,15 +194,23 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
   ctx.y -= highlighted ? 8 : 4;
 }
 
-function drawAlternativeTable(ctx: PdfContext, recommendations: RecommendationResult[]) {
-  const columns = [
-    { label: "#", width: 28 },
-    { label: "Jurusan", width: 90 },
-    { label: "Fit", width: 34 },
-    { label: "AI", width: 34 },
-    { label: "3 karier niche", width: 128 },
-    { label: "Arah singkat", width: TEXT_WIDTH - 28 - 90 - 34 - 34 - 128 }
-  ];
+function drawAlternativeTable(ctx: PdfContext, recommendations: RecommendationResult[], showPathwayAdvice: boolean) {
+  const columns = showPathwayAdvice
+    ? [
+        { label: "#", width: 28 },
+        { label: "Jurusan", width: 90 },
+        { label: "Fit", width: 34 },
+        { label: "AI", width: 34 },
+        { label: CAREER_MATCH_LABEL, width: 128 },
+        { label: "Arah singkat", width: TEXT_WIDTH - 28 - 90 - 34 - 34 - 128 }
+      ]
+    : [
+        { label: "#", width: 28 },
+        { label: "Jurusan", width: 108 },
+        { label: "Fit", width: 34 },
+        { label: "AI", width: 34 },
+        { label: CAREER_MATCH_LABEL, width: TEXT_WIDTH - 28 - 108 - 34 - 34 }
+      ];
   const fontSize = 7.4;
   const lineHeight = 10;
   const paddingX = 5;
@@ -241,19 +250,14 @@ function drawAlternativeTable(ctx: PdfContext, recommendations: RecommendationRe
 
   function drawRow(recommendation: RecommendationResult, rowIndex: number) {
     const pathwayText = recommendation.careerPathwayAdvice?.slice(0, 2).filter(Boolean).join(" ") ?? "";
-    const shortPathway =
-      pathwayText ||
-      recommendation.careerPersonalizationReason ||
-      recommendation.reasonBullets[0] ||
-      careerDirectionFor(recommendation);
-    const cells = [
+    const baseCells = [
       { text: `#${recommendation.rank}`, bold: true },
       { text: recommendation.majorName, bold: true },
       { text: String(recommendation.overallFitScore), bold: false },
       { text: String(recommendation.aiFutureResilienceScore), bold: false },
-      { text: nicheCareersFor(recommendation).join(", "), bold: false },
-      { text: shortPathway, bold: false }
+      { text: nicheCareersFor(recommendation).join(", "), bold: false }
     ];
+    const cells = showPathwayAdvice ? [...baseCells, { text: pathwayText, bold: false }] : baseCells;
     const lineSets = cells.map((cell, index) => cellLines(cell.text, columns[index].width, cell.bold));
     const rowHeight = Math.max(34, Math.max(...lineSets.map((lines) => lines.length)) * lineHeight + 12);
 
@@ -311,6 +315,7 @@ export function buildSubmissionPdfTextSnapshot(submission: Submission) {
     submission.school,
     submission.report.topRecommendation.majorName,
     careerDirectionFor(submission.report.topRecommendation),
+    CAREER_MATCH_LABEL,
     nicheCareersFor(submission.report.topRecommendation).join(", "),
     submission.report.topRecommendation.aspirationReflection ?? "",
     (submission.report.topRecommendation.careerPathwayAdvice ?? []).join(", "),
@@ -388,7 +393,11 @@ export async function generateSubmissionPdf(submission: Submission) {
   }
 
   drawSectionTitle(ctx, "Tabel Rekomendasi #2-#10");
-  drawAlternativeTable(ctx, submission.report.recommendations.slice(1));
+  const alternativeRecommendations = submission.report.recommendations.slice(1);
+  const showAlternativePathwayAdvice = alternativeRecommendations.some((recommendation) =>
+    shouldShowAlternativePathway(submission.report.narrative?.source, recommendation.careerPathwayAdvice)
+  );
+  drawAlternativeTable(ctx, alternativeRecommendations, showAlternativePathwayAdvice);
 
   drawSectionTitle(ctx, "AI Future Resilience Score");
   drawText(

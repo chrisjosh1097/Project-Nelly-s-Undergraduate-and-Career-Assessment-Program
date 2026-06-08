@@ -12,6 +12,8 @@ describe("PDF report generation", () => {
     expect(header).toBe("%PDF-");
     expect(bytes.byteLength).toBeGreaterThan(1500);
     expect(snapshot).toContain(submission.report.topRecommendation.majorName);
+    expect(snapshot).toContain("KARIR YANG SESUAI");
+    expect(snapshot).not.toContain("3 karier niche");
     expect(snapshot).toContain("hanya analisis berdasarkan jawaban");
   });
 });

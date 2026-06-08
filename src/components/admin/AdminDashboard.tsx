@@ -454,7 +454,10 @@ export function AdminDashboard() {
       {selected ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
           <div className="mx-auto max-w-5xl rounded-md bg-white p-4 shadow-soft">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="rounded-md bg-[#FFF7ED] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink/60">
+                Narrative source: {selected.report.narrative?.source ?? "heuristic"} | {selected.report.narrativeVersion}
+              </div>
               <Button variant="secondary" onClick={() => setSelected(null)}>
                 Tutup
               </Button>

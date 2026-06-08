@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import type { RecommendationResult, Submission } from "@/lib/types";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
+import { CAREER_MATCH_LABEL, shouldShowAlternativePathway } from "@/lib/recommendation/display";
 
 function ScoreBar({ value, tone = "green" }: { value: number; tone?: "green" | "gold" | "coral" }) {
   const color = tone === "green" ? "bg-leaf" : tone === "gold" ? "bg-marigold" : "bg-coral";
@@ -29,7 +30,13 @@ function nicheCareersFor(recommendation: RecommendationResult) {
   ).slice(0, 3);
 }
 
-function SmallRecommendationCard({ recommendation }: { recommendation: RecommendationResult }) {
+function SmallRecommendationCard({
+  recommendation,
+  showPathwayAdvice
+}: {
+  recommendation: RecommendationResult;
+  showPathwayAdvice: boolean;
+}) {
   const nicheCareers = nicheCareersFor(recommendation);
   const pathwayAdvice = recommendation.careerPathwayAdvice?.slice(0, 3) ?? [];
 
@@ -53,7 +60,7 @@ function SmallRecommendationCard({ recommendation }: { recommendation: Recommend
         </div>
       </div>
       <div className="mt-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">3 karier niche</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">{CAREER_MATCH_LABEL}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {nicheCareers.map((career) => (
             <Badge key={career} tone="neutral">
@@ -62,7 +69,7 @@ function SmallRecommendationCard({ recommendation }: { recommendation: Recommend
           ))}
         </div>
       </div>
-      {pathwayAdvice.length > 0 ? (
+      {showPathwayAdvice && pathwayAdvice.length > 0 ? (
         <div className="mt-3 rounded-md bg-[#FFF7ED] p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">Arah singkat</p>
           <ul className="mt-2 space-y-1.5 text-sm leading-6 text-ink/70">
@@ -71,9 +78,7 @@ function SmallRecommendationCard({ recommendation }: { recommendation: Recommend
             ))}
           </ul>
         </div>
-      ) : (
-        <p className="mt-3 text-sm leading-6 text-ink/70">{recommendation.careerPersonalizationReason ?? recommendation.reasonBullets[0]}</p>
-      )}
+      ) : null}
     </article>
   );
 }
@@ -249,6 +254,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
   const alternatives = submission.report.recommendations.slice(1);
   const advice = submission.report.ptnPtsVokasiAdvice ?? generatePtnPtsVokasiAdvice(submission.answers);
   const patternNotes = submission.report.answerPatternNotes ?? [];
+  const narrativeSource = submission.report.narrative?.source;
 
   async function download(endpoint: string, filename: string) {
     setDownloadError("");
@@ -366,7 +372,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
             </div>
             <div className="space-y-4">
               <div>
-                <h3 className="font-bold text-ink">3 karier niche</h3>
+                <h3 className="font-bold text-ink">{CAREER_MATCH_LABEL}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {topNicheCareers.map((career) => (
                     <Badge key={career} tone="neutral">
@@ -484,7 +490,11 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {alternatives.map((recommendation) => (
-            <SmallRecommendationCard key={recommendation.majorId} recommendation={recommendation} />
+            <SmallRecommendationCard
+              key={recommendation.majorId}
+              recommendation={recommendation}
+              showPathwayAdvice={shouldShowAlternativePathway(narrativeSource, recommendation.careerPathwayAdvice)}
+            />
           ))}
         </div>
       </section>
