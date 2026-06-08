@@ -57,11 +57,11 @@ export class GeminiNarrativeEnhancer implements RecommendationNarrativeEnhancer 
     }
 
     const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
-    const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 9000);
+    const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 25000);
     const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 5200);
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
-      signal: AbortSignal.timeout(Number.isFinite(timeoutMs) ? timeoutMs : 9000),
+      signal: AbortSignal.timeout(Number.isFinite(timeoutMs) ? timeoutMs : 25000),
       headers: {
         "content-type": "application/json",
         "x-goog-api-key": apiKey
@@ -268,6 +268,15 @@ function sanitizeShortLabel(value: unknown, fallback = "") {
     .slice(0, 72);
 }
 
+function truncateAtWord(value: string, maxLength: number) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= maxLength) return clean;
+  const sliced = clean.slice(0, maxLength + 1);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const trimmed = (lastSpace > maxLength * 0.65 ? sliced.slice(0, lastSpace) : clean.slice(0, maxLength)).trim();
+  return `${trimmed.replace(/[.,;:!?-]+$/, "")}...`;
+}
+
 function aspirationText(answers?: StudentAnswer) {
   if (!answers) return "";
   return [
@@ -297,9 +306,11 @@ function aspirationFlags(answers?: StudentAnswer) {
 function uniqueItems(items: string[], maxLength = 72) {
   return items
     .map((item) =>
-      sanitizeSentence(item)
-        .replace(/[|{}[\]"`]/g, "")
-        .slice(0, maxLength)
+      truncateAtWord(
+        sanitizeSentence(item)
+          .replace(/[|{}[\]"`]/g, ""),
+        maxLength
+      )
     )
     .filter(Boolean)
     .filter((item, index, allItems) => allItems.indexOf(item) === index);
@@ -316,6 +327,20 @@ function aspirationThemeSummary(answers?: StudentAnswer) {
   ].filter(Boolean);
 
   return themes.length > 0 ? themes.join(", ") : "arah masa depan yang kamu ceritakan";
+}
+
+function compactAspirationTheme(answers?: StudentAnswer) {
+  const flags = aspirationFlags(answers);
+  if (flags.hasRights && flags.hasEnvironment && flags.hasHelping) return "HAM, lingkungan, dan dampak sosial";
+  if (flags.hasRights && flags.hasEnvironment) return "HAM dan lingkungan";
+  if (flags.hasRights && flags.hasHelping) return "advokasi dan dampak sosial";
+  if (flags.hasEnvironment && flags.hasHelping) return "lingkungan dan komunitas";
+  if (flags.hasRights) return "HAM, hukum, atau kebijakan";
+  if (flags.hasEnvironment) return "lingkungan dan sustainability";
+  if (flags.hasEducation) return "pendidikan";
+  if (flags.hasHealth) return "kesehatan";
+  if (flags.hasHelping) return "membantu orang";
+  return "minat yang kamu ceritakan";
 }
 
 function aspirationNicheCareers(recommendation: RecommendationResult, answers?: StudentAnswer) {
@@ -408,69 +433,69 @@ function clusterPathwayAdviceFor(recommendation: RecommendationResult, answers?:
   const flags = aspirationFlags(answers);
   const cluster = recommendation.cluster.toLowerCase();
   const major = recommendation.majorName;
-  const theme = aspirationThemeSummary(answers);
+  const theme = compactAspirationTheme(answers);
   const nicheCareer = aspirationNicheCareers(recommendation, answers)[0] ?? recommendation.relatedCareers[0] ?? recommendation.careerDirection;
 
   if (cluster.includes("law") || cluster.includes("governance") || recommendation.majorId.includes("hukum")) {
     return [
-      `Arahkan ${major} ke peran seperti ${nicheCareer} dengan memilih isu HAM, lingkungan, regulasi, atau kebijakan publik sebagai fokus tugas.`,
-      "Cari pengalaman di legal aid, komunitas advokasi, debat, riset kebijakan, organisasi kampus, atau magang lembaga publik/NGO.",
-      "Buat portofolio berupa policy brief, tulisan opini, ringkasan regulasi, atau analisis kasus sederhana terkait isu yang kamu pedulikan."
+      `Arahkan ${major} ke ${nicheCareer} lewat fokus HAM, lingkungan, regulasi, atau kebijakan publik.`,
+      "Cari pengalaman legal aid, debat, organisasi advokasi, riset kebijakan, atau magang lembaga publik/NGO.",
+      "Buat portofolio policy brief, opini, ringkasan regulasi, atau analisis kasus sederhana."
     ];
   }
 
   if (cluster.includes("social") || cluster.includes("education")) {
     return [
-      `Gunakan ${major} untuk memahami manusia, komunitas, dan masalah sosial yang dekat dengan ${theme}.`,
-      "Cari pengalaman volunteer, riset lapangan kecil, mentoring, program komunitas, atau magang di NGO/sekolah/lembaga sosial.",
-      "Bangun portofolio dari dokumentasi program, refleksi kasus, survei kecil, atau proposal kegiatan sosial yang terukur."
+      `Gunakan ${major} untuk memahami komunitas dan masalah sosial yang dekat dengan ${theme}.`,
+      "Cari volunteer, riset lapangan kecil, mentoring, program komunitas, atau magang NGO/lembaga sosial.",
+      "Bangun portofolio dokumentasi program, survei kecil, refleksi kasus, atau proposal kegiatan."
     ];
   }
 
   if (cluster.includes("environment") || recommendation.majorId.includes("lingkungan")) {
     return [
-      `Arahkan ${major} ke isu ${theme} melalui proyek konservasi, sustainability, ESG, pangan, atau pengelolaan lingkungan.`,
-      "Cari pengalaman di komunitas lingkungan, kampanye iklim, riset lapangan, lab, program desa, atau magang sustainability.",
-      "Bangun portofolio berupa laporan observasi, peta masalah lingkungan, data sederhana, atau proposal solusi berbasis komunitas."
+      `Arahkan ${major} ke ${theme} lewat proyek konservasi, ESG, pangan, atau pengelolaan lingkungan.`,
+      "Cari pengalaman komunitas lingkungan, kampanye iklim, riset lapangan, lab, atau magang sustainability.",
+      "Bangun portofolio observasi, peta masalah lingkungan, data sederhana, atau proposal solusi."
     ];
   }
 
   if (cluster.includes("business") || cluster.includes("finance")) {
     return [
-      `Gunakan ${major} untuk masuk ke peran seperti ${nicheCareer} yang menghubungkan bisnis dengan dampak sosial atau sustainability.`,
-      "Cari proyek kewirausahaan sosial, CSR, ESG, fundraising, riset pasar komunitas, atau magang organisasi berdampak.",
-      "Bangun portofolio berupa campaign plan, business case, laporan dampak, dashboard sederhana, atau proposal program."
+      `Gunakan ${major} untuk masuk ke ${nicheCareer} yang menghubungkan bisnis dan dampak sosial.`,
+      "Cari proyek kewirausahaan sosial, CSR, ESG, fundraising, riset pasar komunitas, atau magang berdampak.",
+      "Bangun portofolio campaign plan, business case, laporan dampak, dashboard, atau proposal program."
     ];
   }
 
   if (cluster.includes("technology")) {
     return [
-      `Arahkan ${major} ke civic tech, data sosial, sustainability tech, atau produk digital yang membantu isu ${theme}.`,
-      "Cari proyek coding/data sederhana untuk NGO, kampanye publik, pemetaan masalah, dashboard, atau aplikasi edukasi.",
-      "Bangun portofolio GitHub, dashboard, prototype, analisis data, atau studi kasus produk yang menjawab masalah nyata."
+      `Arahkan ${major} ke civic tech, data sosial, atau produk digital untuk isu ${theme}.`,
+      "Cari proyek coding/data untuk NGO, kampanye publik, pemetaan masalah, dashboard, atau aplikasi edukasi.",
+      "Bangun portofolio GitHub, dashboard, prototype, analisis data, atau studi kasus produk."
     ];
   }
 
   if (cluster.includes("creative") || cluster.includes("media")) {
     return [
-      `Gunakan ${major} untuk mengangkat isu ${theme} lewat komunikasi visual, konten, kampanye publik, atau storytelling.`,
-      "Cari pengalaman membuat konten edukasi, kampanye sosial, dokumentasi komunitas, desain poster, video pendek, atau media sekolah.",
-      "Bangun portofolio berupa campaign deck, konten carousel, video, artikel, atau identitas visual untuk isu yang kamu pedulikan."
+      `Gunakan ${major} untuk mengangkat isu ${theme} lewat konten, kampanye publik, atau storytelling.`,
+      "Cari pengalaman konten edukasi, kampanye sosial, dokumentasi komunitas, poster, video pendek, atau media sekolah.",
+      "Bangun portofolio campaign deck, carousel, video, artikel, atau identitas visual isu sosial."
     ];
   }
 
   if (cluster.includes("health")) {
     return [
-      `Gunakan ${major} untuk membantu orang lewat edukasi kesehatan, layanan komunitas, riset, atau program pencegahan.`,
-      "Cari pengalaman relawan kesehatan, edukasi publik, organisasi sekolah, observasi program, atau kegiatan yang melatih empati.",
-      "Bangun portofolio berupa materi edukasi, ringkasan isu kesehatan, dokumentasi program, atau kampanye perilaku sehat."
+      `Gunakan ${major} untuk membantu orang lewat edukasi kesehatan, komunitas, riset, atau pencegahan.`,
+      "Cari pengalaman relawan kesehatan, edukasi publik, organisasi sekolah, atau observasi program.",
+      "Bangun portofolio materi edukasi, ringkasan isu kesehatan, dokumentasi program, atau kampanye sehat."
     ];
   }
 
   return [
-    `Gunakan ${major} untuk membangun dasar akademik yang relevan dengan ${theme}, lalu arahkan ke peran seperti ${nicheCareer}.`,
-    "Cari pengalaman organisasi, volunteer, proyek kecil, magang, atau komunitas yang dekat dengan isu yang kamu ceritakan.",
-    "Bangun portofolio dari tulisan, riset mini, karya, dokumentasi proyek, atau pengalaman praktik yang menunjukkan arah minatmu."
+    `Gunakan ${major} sebagai pintu masuk ke ${nicheCareer} yang dekat dengan ${theme}.`,
+    "Cari organisasi, volunteer, proyek kecil, magang, atau komunitas yang dekat dengan isu itu.",
+    "Bangun portofolio tulisan, riset mini, karya, dokumentasi proyek, atau pengalaman praktik."
   ];
 }
 
@@ -479,31 +504,31 @@ function pathwayAdviceFor(recommendation: RecommendationResult, answers?: Studen
   if (!flags.hasText) {
     return uniqueItems(
       [
-        `Gunakan jurusan ${recommendation.majorName} untuk mengubah ${profileSignalSummary(answers)} menjadi kemampuan yang lebih terarah.`,
-        `Cari proyek kecil, lomba, organisasi, magang, atau sertifikasi yang relevan dengan arah ${recommendation.careerDirection}.`,
-        "Bangun portofolio sederhana dari tugas, riset mini, karya, atau pengalaman praktik agar minatmu terlihat nyata."
+        `Gunakan ${recommendation.majorName} untuk mengubah ${profileSignalSummary(answers)} menjadi skill yang terarah.`,
+        `Cari proyek kecil, lomba, organisasi, magang, atau sertifikasi yang relevan dengan ${recommendation.careerDirection}.`,
+        "Bangun portofolio dari tugas, riset mini, karya, atau pengalaman praktik yang bisa ditunjukkan."
       ],
-      180
+      135
     ).slice(0, 3);
   }
 
   const steps = [
-    `Gunakan jurusan ${recommendation.majorName} untuk membangun dasar akademik yang relevan dengan ${aspirationThemeSummary(answers)}.`
+    `Gunakan ${recommendation.majorName} untuk membangun dasar yang relevan dengan ${compactAspirationTheme(answers)}.`
   ];
 
   if (flags.hasRights || flags.hasEnvironment || flags.hasHelping) {
-    return uniqueItems(clusterPathwayAdviceFor(recommendation, answers), 180).slice(0, 3);
+    return uniqueItems(clusterPathwayAdviceFor(recommendation, answers), 135).slice(0, 3);
   } else if (flags.hasEducation) {
-    steps.push("Cari pengalaman mengajar, mentoring, komunitas literasi, atau proyek edukasi kecil untuk menguji minatmu secara nyata.");
-    steps.push("Bangun portofolio materi belajar, modul, konten edukasi, atau dokumentasi kegiatan mengajar.");
+    steps.push("Cari pengalaman mengajar, mentoring, komunitas literasi, atau proyek edukasi kecil.");
+    steps.push("Bangun portofolio materi belajar, modul, konten edukasi, atau dokumentasi mengajar.");
   } else if (flags.hasHealth) {
-    steps.push("Cari pengalaman relawan kesehatan, edukasi publik, organisasi sekolah, atau kegiatan yang melatih empati dan komunikasi.");
-    steps.push("Bangun kebiasaan membaca isu kesehatan dan buat rangkuman edukatif sederhana sebagai portofolio awal.");
+    steps.push("Cari pengalaman relawan kesehatan, edukasi publik, atau kegiatan yang melatih empati.");
+    steps.push("Buat rangkuman edukatif sederhana tentang isu kesehatan sebagai portofolio awal.");
   } else {
     steps.push(...recommendation.recommendedNextSteps.slice(0, 2));
   }
 
-  return uniqueItems(steps, 180).slice(0, 3);
+  return uniqueItems(steps, 135).slice(0, 3);
 }
 
 function fallbackCareerPersonalization(recommendation: RecommendationResult, answers?: StudentAnswer): CareerPersonalization {
@@ -548,9 +573,9 @@ function sanitizeCareerPersonalization(
   const rawCautions = Array.isArray(raw.cautions) ? raw.cautions : [];
   const rawPathwayAdvice = Array.isArray(raw.pathwayAdvice) ? raw.pathwayAdvice : [];
   const pathwayAdvice = uniqueItems([
-    ...rawPathwayAdvice.map((item) => sanitizeSentence(item).slice(0, 180)),
+    ...rawPathwayAdvice.map((item) => truncateAtWord(sanitizeSentence(item), 135)),
     ...fallback.pathwayAdvice
-  ], 180).slice(0, 3);
+  ], 135).slice(0, 3);
 
   return {
     personalizedCareerDirection: sanitizeSentence(raw.personalizedCareerDirection, fallback.personalizedCareerDirection).slice(0, 150),

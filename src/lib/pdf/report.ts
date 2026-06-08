@@ -15,6 +15,8 @@ const ORANGE = rgb(0.98, 0.45, 0.09);
 const ORANGE_DARK = rgb(0.72, 0.25, 0.03);
 const NAVY = rgb(0.06, 0.16, 0.26);
 const LINE = rgb(0.9, 0.86, 0.8);
+const TABLE_HEADER_BG = rgb(1, 0.94, 0.88);
+const TABLE_ALT_BG = rgb(1, 0.98, 0.95);
 const LOGO_PATH = join(process.cwd(), "public", "brand", "project-nelly-logo-cropped.png");
 
 interface PdfContext {
@@ -61,7 +63,7 @@ function drawWatermark(page: PDFPage, logo?: PDFImage) {
     y: (PAGE_HEIGHT - watermarkHeight) / 2,
     width: watermarkWidth,
     height: watermarkHeight,
-    opacity: 0.24
+    opacity: 0.08
   });
 }
 
@@ -192,14 +194,113 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
 }
 
 function drawAlternativeTable(ctx: PdfContext, recommendations: RecommendationResult[]) {
-  drawText(ctx, "Rank | Jurusan | Fit | AI | 3 karier niche | Alasan singkat", { size: 9, bold: true, gap: 4 });
-  for (const recommendation of recommendations) {
-    drawText(
-      ctx,
-      `#${recommendation.rank} | ${recommendation.majorName} | ${recommendation.overallFitScore} | ${recommendation.aiFutureResilienceScore} | ${nicheCareersFor(recommendation).join("; ")} | ${recommendation.careerPersonalizationReason ?? recommendation.reasonBullets[0] ?? careerDirectionFor(recommendation)}`,
-      { size: 8.5, gap: 2 }
-    );
+  const columns = [
+    { label: "#", width: 28 },
+    { label: "Jurusan", width: 90 },
+    { label: "Fit", width: 34 },
+    { label: "AI", width: 34 },
+    { label: "3 karier niche", width: 128 },
+    { label: "Arah singkat", width: TEXT_WIDTH - 28 - 90 - 34 - 34 - 128 }
+  ];
+  const fontSize = 7.4;
+  const lineHeight = 10;
+  const paddingX = 5;
+  const headerHeight = 24;
+
+  function drawHeader() {
+    ensureSpace(ctx, headerHeight + 8);
+    let x = MARGIN;
+    const yTop = ctx.y;
+
+    for (const column of columns) {
+      ctx.page.drawRectangle({
+        x,
+        y: yTop - headerHeight,
+        width: column.width,
+        height: headerHeight,
+        color: TABLE_HEADER_BG,
+        borderColor: LINE,
+        borderWidth: 0.8
+      });
+      ctx.page.drawText(column.label, {
+        x: x + paddingX,
+        y: yTop - 15,
+        size: fontSize,
+        font: ctx.bold,
+        color: NAVY
+      });
+      x += column.width;
+    }
+
+    ctx.y -= headerHeight;
   }
+
+  function cellLines(text: string, width: number, bold = false) {
+    return wrapText(text, bold ? ctx.bold : ctx.font, fontSize, width - paddingX * 2);
+  }
+
+  function drawRow(recommendation: RecommendationResult, rowIndex: number) {
+    const pathwayText = recommendation.careerPathwayAdvice?.slice(0, 2).filter(Boolean).join(" ") ?? "";
+    const shortPathway =
+      pathwayText ||
+      recommendation.careerPersonalizationReason ||
+      recommendation.reasonBullets[0] ||
+      careerDirectionFor(recommendation);
+    const cells = [
+      { text: `#${recommendation.rank}`, bold: true },
+      { text: recommendation.majorName, bold: true },
+      { text: String(recommendation.overallFitScore), bold: false },
+      { text: String(recommendation.aiFutureResilienceScore), bold: false },
+      { text: nicheCareersFor(recommendation).join(", "), bold: false },
+      { text: shortPathway, bold: false }
+    ];
+    const lineSets = cells.map((cell, index) => cellLines(cell.text, columns[index].width, cell.bold));
+    const rowHeight = Math.max(34, Math.max(...lineSets.map((lines) => lines.length)) * lineHeight + 12);
+
+    if (ctx.y - rowHeight < MARGIN) {
+      addPage(ctx);
+      drawHeader();
+    }
+
+    let x = MARGIN;
+    const yTop = ctx.y;
+    const rowColor = rowIndex % 2 === 0 ? rgb(1, 1, 1) : TABLE_ALT_BG;
+
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      const column = columns[columnIndex];
+      ctx.page.drawRectangle({
+        x,
+        y: yTop - rowHeight,
+        width: column.width,
+        height: rowHeight,
+        color: rowColor,
+        borderColor: LINE,
+        borderWidth: 0.6
+      });
+
+      let textY = yTop - 13;
+      const font = cells[columnIndex].bold ? ctx.bold : ctx.font;
+      for (const line of lineSets[columnIndex]) {
+        ctx.page.drawText(line, {
+          x: x + paddingX,
+          y: textY,
+          size: fontSize,
+          font,
+          color: columnIndex === 0 ? ORANGE_DARK : INK
+        });
+        textY -= lineHeight;
+      }
+      x += column.width;
+    }
+
+    ctx.y -= rowHeight;
+  }
+
+  drawHeader();
+  for (let index = 0; index < recommendations.length; index += 1) {
+    drawRow(recommendations[index], index);
+  }
+  ctx.y -= 10;
 }
 
 export function buildSubmissionPdfTextSnapshot(submission: Submission) {
