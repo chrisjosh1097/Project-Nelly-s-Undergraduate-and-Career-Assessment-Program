@@ -357,10 +357,19 @@ function costAlternativeText() {
   return names ? `Alternatif serumpun yang bisa dibandingkan: ${names}.` : "";
 }
 
+function answerText(answer: StudentAnswer) {
+  return `${answer.dreamProfession} ${answer.futureVision}`
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildAnswerPatternNotes(answer: StudentAnswer) {
   const normalized = normalizeStudentAnswer(answer);
   const notes: string[] = [];
   const clearInterests = normalized.interestIds.filter((id) => id !== "other");
+  const text = answerText(answer);
 
   if (clearInterests.length <= 2) {
     notes.push("Jawabanmu masih cukup umum, jadi gunakan hasil ini sebagai titik awal eksplorasi.");
@@ -373,6 +382,15 @@ function buildAnswerPatternNotes(answer: StudentAnswer) {
   }
   if (techComfortLevel(answer.techComfort) < 0.35) {
     notes.push("Kamu belum terlalu nyaman dengan AI. Tidak apa-apa; mulai dari literasi digital dan penggunaan AI yang aman sebagai alat bantu.");
+  }
+  if (/\bham\b|hak asasi|keadilan|advokasi|memperjuangkan|hukum|kebijakan/.test(text)) {
+    notes.push("Aspirasi kamu menyebut isu HAM, keadilan, advokasi, atau kebijakan; ini ikut memberi sinyal ke jalur sosial, hukum, governance, dan public policy.");
+  }
+  if (/lingkungan|iklim|climate|sustainability|keberlanjutan|konservasi|hutan|limbah|alam/.test(text)) {
+    notes.push("Aspirasi kamu menyebut lingkungan; ini ikut memberi sinyal ke jalur lingkungan, sustainability, kebijakan publik, dan dampak sosial.");
+  }
+  if (/membantu|bantu|menolong|mendampingi|melayani|pelayanan/.test(text)) {
+    notes.push("Aspirasi kamu menyebut membantu orang; ini ikut memberi sinyal ke bidang yang banyak membutuhkan empati, komunikasi, dan kerja berdampak.");
   }
 
   return unique(notes);

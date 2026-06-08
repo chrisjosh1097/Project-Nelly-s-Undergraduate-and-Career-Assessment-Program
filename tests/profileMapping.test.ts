@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateRecommendations } from "@/lib/recommendation";
+import { enhanceRecommendationReport, generateRecommendations } from "@/lib/recommendation";
 import type { StudentAnswer } from "@/lib/types";
 import { majors } from "../data";
 
@@ -106,6 +106,48 @@ describe("student profile mapping audit", () => {
     const topIds = topIdsFor(profile);
     expect(["Law, Governance & International", "Social, Psychology & Education"]).toContain(topClusterFor(profile));
     expect(topIds).toEqual(expect.arrayContaining(["hukum", "administrasi_publik", "ilmu_politik"]));
+  });
+
+  it("uses future vision text about helping people, human rights, and environment as scoring and career personalization signals", async () => {
+    const previousGeminiFlag = process.env.ENABLE_GEMINI_ENHANCEMENT;
+    process.env.ENABLE_GEMINI_ENHANCEMENT = "false";
+    try {
+      const profile = answer({
+        currentSchoolMajor: "IPS",
+        favoriteSubjects: ["Sosiologi", "Sejarah", "Bahasa"],
+        favoriteActivities: ["Menulis/berbicara", "Membantu orang"],
+        skillStrengths: ["Komunikasi", "Public speaking", "Problem solving", "Empati"],
+        workStyle: "Banyak bertemu orang",
+        problemAreas: ["Sosial"],
+        collegePathPreferences: ["PTN di Jawa"],
+        futureVision: "Saya mau membantu orang, memperjuangkan HAM, dan menjaga lingkungan."
+      });
+
+      const report = generateRecommendations(profile);
+      const enhancedReport = await enhanceRecommendationReport(profile, report);
+      const topIds = report.recommendations.map((recommendation) => recommendation.majorId);
+      const notes = report.answerPatternNotes?.join(" ") ?? "";
+      const personalizationText = [
+        enhancedReport.topRecommendation.aspirationReflection,
+        ...(enhancedReport.topRecommendation.nicheCareerPaths ?? []),
+        ...(enhancedReport.topRecommendation.careerPathwayAdvice ?? [])
+      ].join(" ");
+
+      expect(["Law, Governance & International", "Social, Psychology & Education", "Agriculture, Food & Environment"]).toContain(
+        majorById.get(report.topRecommendation.majorId)?.cluster
+      );
+      expect(topIds).toEqual(expect.arrayContaining(["hukum", "administrasi_publik"]));
+      expect(notes).toContain("HAM");
+      expect(notes).toContain("lingkungan");
+      expect(personalizationText).toMatch(/HAM|lingkungan|NGO|Environmental|advokasi|kebijakan/i);
+      expect(enhancedReport.topRecommendation.careerPathwayAdvice?.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      if (previousGeminiFlag === undefined) {
+        delete process.env.ENABLE_GEMINI_ENHANCEMENT;
+      } else {
+        process.env.ENABLE_GEMINI_ENHANCEMENT = previousGeminiFlag;
+      }
+    }
   });
 
   it("maps SMK Teknik machines, physics, and fast employment to engineering and applied technical paths", () => {

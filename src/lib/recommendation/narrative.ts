@@ -31,12 +31,7 @@ export class HeuristicTemplateNarrativeEnhancer implements RecommendationNarrati
       careerPersonalizations: Object.fromEntries(
         recommendations.map((recommendation) => [
           recommendation.majorId,
-          {
-            personalizedCareerDirection: recommendation.careerDirection,
-            nicheCareerPaths: recommendation.relatedCareers.slice(0, 3),
-            reason: `Arah karier ini masih selaras dengan jurusan ${recommendation.majorName} dan jawaban yang kamu isi.`,
-            cautions: []
-          }
+          fallbackCareerPersonalization(recommendation, answers)
         ])
       ),
       source: "heuristic"
@@ -87,7 +82,7 @@ export class GeminiNarrativeEnhancer implements RecommendationNarrativeEnhancer 
         ],
         generationConfig: {
           temperature: 0.35,
-          maxOutputTokens: 2600,
+          maxOutputTokens: 3200,
           responseMimeType: "application/json"
         }
       })
@@ -103,7 +98,7 @@ export class GeminiNarrativeEnhancer implements RecommendationNarrativeEnhancer 
     if (!text) throw new Error("Gemini returned empty narrative.");
 
     const parsed = parseGeminiNarrative(text);
-    return sanitizeGeminiNarrative(parsed, recommendations, model);
+    return sanitizeGeminiNarrative(parsed, recommendations, model, answers);
   }
 }
 
@@ -122,36 +117,40 @@ export async function enhanceRecommendationReport(
       recommendations: report.recommendations
     });
 
-    const recommendations = report.recommendations.map((recommendation) => ({
-      ...recommendation,
-      reasonBullets: narrative.recommendationReasons[recommendation.majorId] ?? recommendation.reasonBullets,
-      personalizedCareerDirection:
-        narrative.careerPersonalizations?.[recommendation.majorId]?.personalizedCareerDirection ??
-        recommendation.personalizedCareerDirection,
-      nicheCareerPaths: narrative.careerPersonalizations?.[recommendation.majorId]?.nicheCareerPaths ?? recommendation.nicheCareerPaths,
-      careerPersonalizationReason:
-        narrative.careerPersonalizations?.[recommendation.majorId]?.reason ?? recommendation.careerPersonalizationReason,
-      careerCautions: narrative.careerPersonalizations?.[recommendation.majorId]?.cautions ?? recommendation.careerCautions
-    }));
-
-    return {
-      ...report,
-      topRecommendation: recommendations[0],
-      recommendations,
-      narrativeVersion: narrative.source === "gemini" ? `gemini:${narrative.model ?? "unknown"}` : report.narrativeVersion,
-      narrative
-    };
+    return applyNarrativeToReport(report, narrative);
   } catch (error) {
     console.warn("[WARN] Narrative enhancement failed, using heuristic template.", error);
     const fallback = await new HeuristicTemplateNarrativeEnhancer().enhance({
       answers,
       recommendations: report.recommendations
     });
-    return {
-      ...report,
-      narrative: fallback
-    };
+    return applyNarrativeToReport(report, fallback);
   }
+}
+
+function applyNarrativeToReport(report: RecommendationReport, narrative: EnhancedNarrative): RecommendationReport {
+  const recommendations = report.recommendations.map((recommendation) => {
+    const personalization = narrative.careerPersonalizations?.[recommendation.majorId];
+
+    return {
+      ...recommendation,
+      reasonBullets: narrative.recommendationReasons[recommendation.majorId] ?? recommendation.reasonBullets,
+      personalizedCareerDirection: personalization?.personalizedCareerDirection ?? recommendation.personalizedCareerDirection,
+      nicheCareerPaths: personalization?.nicheCareerPaths ?? recommendation.nicheCareerPaths,
+      careerPersonalizationReason: personalization?.reason ?? recommendation.careerPersonalizationReason,
+      aspirationReflection: personalization?.aspirationReflection ?? recommendation.aspirationReflection,
+      careerPathwayAdvice: personalization?.pathwayAdvice ?? recommendation.careerPathwayAdvice,
+      careerCautions: personalization?.cautions ?? recommendation.careerCautions
+    };
+  });
+
+  return {
+    ...report,
+    topRecommendation: recommendations[0],
+    recommendations,
+    narrativeVersion: narrative.source === "gemini" ? `gemini:${narrative.model ?? "unknown"}` : report.narrativeVersion,
+    narrative
+  };
 }
 
 interface GeminiGenerateContentResponse {
@@ -188,7 +187,7 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         recommendationReasons:
           "Object dengan key majorId. Untuk setiap majorId, isi 2-3 bullet alasan singkat. Jangan lebih dari 26 kata per bullet.",
         careerPersonalizations:
-          "Object dengan key majorId untuk semua rekomendasi #1 sampai #10. Setiap item wajib punya personalizedCareerDirection, nicheCareerPaths tepat 3 item, reason 1 kalimat, dan cautions 0-2 item."
+          "Object dengan key majorId untuk semua rekomendasi #1 sampai #10. Setiap item wajib punya personalizedCareerDirection, nicheCareerPaths tepat 3 item, reason 1 kalimat, aspirationReflection 1 kalimat, pathwayAdvice 2-3 item, dan cautions 0-2 item."
       },
       copyRules: [
         "Jangan menyatakan hasil sebagai fakta mutlak.",
@@ -199,6 +198,9 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         "Jangan menambah jurusan baru dan jangan mengubah urutan.",
         "Karier niche boleh lebih spesifik, tetapi harus tetap masuk akal untuk jurusan dan cluster yang diberikan.",
         "Jangan menulis karier yang membutuhkan profesi berlisensi tanpa catatan jalur lanjut. Contoh: lawyer/advokat harus terkait jurusan hukum atau diberi konteks compliance/policy.",
+        "Untuk rekomendasi #1, jika dreamProfession, futureVision, favoriteSubjectsOther, atau collegePathPreferenceOther terisi, aspirationReflection wajib menyebut minimal satu tema spesifik dari teks siswa.",
+        "Untuk rekomendasi #1, pathwayAdvice harus memberi arah awal menuju karier niche sesuai jurusan utama, misalnya organisasi, magang, portofolio, sertifikasi, riset kecil, atau mata kuliah pendukung.",
+        "Contoh karier niche seperti Environmental Lawyer, pegawai NGO/nonprofit, sustainability policy analyst, atau legal officer ESG boleh dipakai jika selaras dengan jurusan.",
         "Untuk rekomendasi #2 sampai #10, tetap berikan tepat 3 nicheCareerPaths per rekomendasi."
       ],
       studentAnswers: {
@@ -264,20 +266,170 @@ function sanitizeShortLabel(value: unknown, fallback = "") {
     .slice(0, 72);
 }
 
-function fallbackCareerPersonalization(recommendation: RecommendationResult): CareerPersonalization {
+function aspirationText(answers?: StudentAnswer) {
+  if (!answers) return "";
+  return [
+    answers.favoriteSubjectsOther,
+    answers.collegePathPreferenceOther,
+    answers.dreamProfession,
+    answers.futureVision
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function aspirationFlags(answers?: StudentAnswer) {
+  const text = aspirationText(answers).toLowerCase();
+
+  return {
+    hasText: text.length > 0,
+    hasHelping: /\b(membantu|bantu|menolong|mendampingi|melayani|pelayanan|berdampak|impact)\b/i.test(text),
+    hasRights: /(ham|hak asasi|keadilan|advokasi|memperjuangkan|hukum|legal|kebijakan|policy|regulasi)/i.test(text),
+    hasEnvironment: /(lingkungan|iklim|climate|sustainability|sustainable|keberlanjutan|konservasi|hutan|limbah|alam|esg)/i.test(text),
+    hasEducation: /(pendidikan|mengajar|guru|sekolah|anak|literasi)/i.test(text),
+    hasHealth: /(kesehatan|medis|rumah sakit|dokter|perawat|gizi|mental)/i.test(text)
+  };
+}
+
+function uniqueItems(items: string[], maxLength = 72) {
+  return items
+    .map((item) =>
+      sanitizeSentence(item)
+        .replace(/[|{}[\]"`]/g, "")
+        .slice(0, maxLength)
+    )
+    .filter(Boolean)
+    .filter((item, index, allItems) => allItems.indexOf(item) === index);
+}
+
+function aspirationThemeSummary(answers?: StudentAnswer) {
+  const flags = aspirationFlags(answers);
+  const themes = [
+    flags.hasHelping ? "membantu orang" : "",
+    flags.hasRights ? "HAM, keadilan, advokasi, atau kebijakan" : "",
+    flags.hasEnvironment ? "lingkungan dan keberlanjutan" : "",
+    flags.hasEducation ? "pendidikan" : "",
+    flags.hasHealth ? "kesehatan" : ""
+  ].filter(Boolean);
+
+  return themes.length > 0 ? themes.join(", ") : "arah masa depan yang kamu ceritakan";
+}
+
+function aspirationNicheCareers(recommendation: RecommendationResult, answers?: StudentAnswer) {
+  const flags = aspirationFlags(answers);
+  if (!flags.hasText) return [];
+
+  const id = recommendation.majorId;
+  const cluster = recommendation.cluster.toLowerCase();
+  const isLaw = id.includes("hukum") || id.includes("kriminologi");
+  const isGovernance =
+    id.includes("administrasi_publik") ||
+    id.includes("ilmu_politik") ||
+    id.includes("hubungan_internasional") ||
+    cluster.includes("governance");
+  const isEnvironment =
+    id.includes("lingkungan") ||
+    id.includes("kehutanan") ||
+    id.includes("agro") ||
+    id.includes("perikanan") ||
+    id.includes("peternakan") ||
+    cluster.includes("environment");
+  const isSocial =
+    id.includes("sosiologi") ||
+    id.includes("psikologi") ||
+    id.includes("kesejahteraan") ||
+    id.includes("bimbingan") ||
+    cluster.includes("social");
+  const isBusiness = cluster.includes("business") || cluster.includes("finance");
+  const isTechnology = cluster.includes("technology");
+
+  if (flags.hasRights && flags.hasEnvironment) {
+    if (isLaw) return ["Environmental Lawyer", "Legal Officer ESG", "Advokasi Kebijakan Lingkungan"];
+    if (isGovernance) return ["Policy Analyst Lingkungan", "Pegawai NGO/Nonprofit", "Program Officer Advokasi HAM dan Lingkungan"];
+    if (isEnvironment) return ["Environmental Policy Analyst", "Sustainability Program Officer", "ESG Community Specialist"];
+    if (isSocial) return ["NGO Program Officer", "Community Development Officer", "Social Impact Researcher"];
+    if (isBusiness) return ["ESG Program Officer", "CSR & Sustainability Specialist", "Social Impact Analyst"];
+    if (isTechnology) return ["Civic Tech Product Analyst", "Data Analyst untuk NGO", "Sustainability Tech Specialist"];
+    return ["Pegawai NGO/Nonprofit", "Sustainability Program Officer", "Community Impact Coordinator"];
+  }
+
+  if (flags.hasEnvironment) {
+    if (isLaw) return ["Legal Officer ESG", "Environmental Compliance Specialist", "Advokasi Kebijakan Lingkungan"];
+    if (isGovernance) return ["Policy Analyst Lingkungan", "Sustainability Policy Associate", "Program Officer Lingkungan"];
+    if (isEnvironment) return ["Sustainability Officer", "Environmental Field Officer", "Conservation Program Officer"];
+    if (isBusiness) return ["ESG Analyst", "CSR Program Officer", "Sustainable Business Analyst"];
+    if (isTechnology) return ["Climate Data Analyst", "Sustainability Tech Specialist", "Product Analyst Green Tech"];
+    return ["Sustainability Program Officer", "Pegawai NGO Lingkungan", "Community Impact Coordinator"];
+  }
+
+  if (flags.hasRights || flags.hasHelping) {
+    if (isLaw) return ["Legal Aid Officer", "Human Rights Advocacy Officer", "Policy Compliance Analyst"];
+    if (isGovernance) return ["Policy Analyst", "Pegawai NGO/Nonprofit", "Program Officer Advokasi Publik"];
+    if (isSocial) return ["Community Development Officer", "Social Impact Researcher", "NGO Program Officer"];
+    if (isTechnology) return ["Civic Tech Product Analyst", "Data Analyst untuk Program Sosial", "Digital Campaign Strategist"];
+    return ["Pegawai NGO/Nonprofit", "Program Officer Komunitas", "Social Impact Coordinator"];
+  }
+
+  if (flags.hasEducation) return ["Education Program Officer", "Learning Designer", "Community Education Facilitator"];
+  if (flags.hasHealth) return ["Health Program Officer", "Public Health Educator", "Community Health Coordinator"];
+
+  return [];
+}
+
+function aspirationReflectionFor(recommendation: RecommendationResult, answers?: StudentAnswer) {
+  if (!aspirationFlags(answers).hasText) return "";
+  return `Kamu menulis tentang ${aspirationThemeSummary(answers)}; melalui jurusan ${recommendation.majorName}, arah ini bisa dieksplorasi lewat karier yang menggabungkan ilmu jurusan, isu sosial, dan pengalaman lapangan.`;
+}
+
+function pathwayAdviceFor(recommendation: RecommendationResult, answers?: StudentAnswer) {
+  const flags = aspirationFlags(answers);
+  if (!flags.hasText) return recommendation.recommendedNextSteps.slice(0, 3);
+
+  const steps = [
+    `Gunakan jurusan ${recommendation.majorName} untuk membangun dasar akademik yang relevan dengan ${aspirationThemeSummary(answers)}.`
+  ];
+
+  if (flags.hasRights || flags.hasEnvironment || flags.hasHelping) {
+    steps.push("Cari pengalaman organisasi, volunteer, atau magang di NGO, komunitas sosial, lembaga advokasi, kampanye lingkungan, atau program public policy.");
+    steps.push("Bangun portofolio kecil seperti tulisan isu publik, riset mini, kampanye sosial, proyek komunitas, atau dokumentasi kegiatan advokasi.");
+  } else if (flags.hasEducation) {
+    steps.push("Cari pengalaman mengajar, mentoring, komunitas literasi, atau proyek edukasi kecil untuk menguji minatmu secara nyata.");
+    steps.push("Bangun portofolio materi belajar, modul, konten edukasi, atau dokumentasi kegiatan mengajar.");
+  } else if (flags.hasHealth) {
+    steps.push("Cari pengalaman relawan kesehatan, edukasi publik, organisasi sekolah, atau kegiatan yang melatih empati dan komunikasi.");
+    steps.push("Bangun kebiasaan membaca isu kesehatan dan buat rangkuman edukatif sederhana sebagai portofolio awal.");
+  } else {
+    steps.push(...recommendation.recommendedNextSteps.slice(0, 2));
+  }
+
+  return uniqueItems(steps, 180).slice(0, 3);
+}
+
+function fallbackCareerPersonalization(recommendation: RecommendationResult, answers?: StudentAnswer): CareerPersonalization {
+  const nicheCareerPaths = uniqueItems([
+    ...aspirationNicheCareers(recommendation, answers),
+    ...recommendation.relatedCareers.slice(0, 5)
+  ]).slice(0, 3);
+
   return {
     personalizedCareerDirection: recommendation.careerDirection,
-    nicheCareerPaths: recommendation.relatedCareers.slice(0, 3),
-    reason: `Arah karier ini masih selaras dengan jurusan ${recommendation.majorName} dan jawaban yang kamu isi.`,
+    nicheCareerPaths,
+    reason: aspirationFlags(answers).hasText
+      ? `Arah karier ini tetap mengikuti ranking heuristic, lalu diperkaya dari aspirasi yang kamu tulis agar lebih spesifik.`
+      : `Arah karier ini masih selaras dengan jurusan ${recommendation.majorName} dan jawaban yang kamu isi.`,
+    aspirationReflection: aspirationReflectionFor(recommendation, answers),
+    pathwayAdvice: pathwayAdviceFor(recommendation, answers),
     cautions: []
   };
 }
 
 function sanitizeCareerPersonalization(
   value: unknown,
-  recommendation: RecommendationResult
+  recommendation: RecommendationResult,
+  answers?: StudentAnswer
 ): CareerPersonalization {
-  const fallback = fallbackCareerPersonalization(recommendation);
+  const fallback = fallbackCareerPersonalization(recommendation, answers);
   if (!value || typeof value !== "object") return fallback;
 
   const raw = value as Partial<CareerPersonalization>;
@@ -294,11 +446,18 @@ function sanitizeCareerPersonalization(
     .slice(0, 3);
 
   const rawCautions = Array.isArray(raw.cautions) ? raw.cautions : [];
+  const rawPathwayAdvice = Array.isArray(raw.pathwayAdvice) ? raw.pathwayAdvice : [];
+  const pathwayAdvice = uniqueItems([
+    ...rawPathwayAdvice.map((item) => sanitizeSentence(item).slice(0, 180)),
+    ...fallback.pathwayAdvice
+  ], 180).slice(0, 3);
 
   return {
     personalizedCareerDirection: sanitizeSentence(raw.personalizedCareerDirection, fallback.personalizedCareerDirection).slice(0, 150),
     nicheCareerPaths: paddedNicheCareers,
     reason: sanitizeSentence(raw.reason, fallback.reason),
+    aspirationReflection: sanitizeSentence(raw.aspirationReflection, fallback.aspirationReflection).slice(0, 300),
+    pathwayAdvice,
     cautions: rawCautions.map((item) => sanitizeSentence(item)).filter(Boolean).slice(0, 2)
   };
 }
@@ -306,7 +465,8 @@ function sanitizeCareerPersonalization(
 function sanitizeGeminiNarrative(
   parsed: Partial<EnhancedNarrative>,
   recommendations: RecommendationResult[],
-  model: string
+  model: string,
+  answers: StudentAnswer
 ): EnhancedNarrative {
   const recommendationReasons: Record<string, string[]> = {};
   const careerPersonalizations: Record<string, CareerPersonalization> = {};
@@ -326,7 +486,8 @@ function sanitizeGeminiNarrative(
       sanitized.length > 0 ? sanitized : recommendation.reasonBullets.slice(0, recommendation.rank === 1 ? 5 : 2);
     careerPersonalizations[recommendation.majorId] = sanitizeCareerPersonalization(
       rawCareerPersonalizations[recommendation.majorId],
-      recommendation
+      recommendation,
+      answers
     );
   }
 

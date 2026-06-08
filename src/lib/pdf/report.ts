@@ -175,6 +175,13 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
     if (recommendation.careerPersonalizationReason) {
       drawText(ctx, recommendation.careerPersonalizationReason, { size: 9, gap: 2 });
     }
+    if (recommendation.aspirationReflection) {
+      drawText(ctx, `Arah dari aspirasi kamu: ${recommendation.aspirationReflection}`, { size: 9, gap: 2 });
+    }
+    if (recommendation.careerPathwayAdvice?.length) {
+      drawText(ctx, "Langkah menuju arah karier itu:", { size: 9, bold: true, gap: 1 });
+      drawBulletList(ctx, recommendation.careerPathwayAdvice.slice(0, 3), 9);
+    }
     drawText(ctx, `Skill yang perlu ditingkatkan: ${recommendation.skillGaps.slice(0, 4).join(", ")}`, {
       size: 9,
       gap: 2
@@ -204,6 +211,8 @@ export function buildSubmissionPdfTextSnapshot(submission: Submission) {
     submission.report.topRecommendation.majorName,
     careerDirectionFor(submission.report.topRecommendation),
     nicheCareersFor(submission.report.topRecommendation).join(", "),
+    submission.report.topRecommendation.aspirationReflection ?? "",
+    (submission.report.topRecommendation.careerPathwayAdvice ?? []).join(", "),
     "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final."
   ].join("\n");
 }
@@ -272,6 +281,10 @@ export async function generateSubmissionPdf(submission: Submission) {
   drawBulletList(ctx, submission.report.topRecommendation.reasonBullets.slice(0, 5), 9);
   drawText(ctx, "Next steps:", { size: 10, bold: true, gap: 2 });
   drawBulletList(ctx, submission.report.topRecommendation.recommendedNextSteps.slice(0, 5), 9);
+  if (submission.report.topRecommendation.careerPathwayAdvice?.length) {
+    drawText(ctx, "Arah menuju karier yang kamu ceritakan:", { size: 10, bold: true, gap: 2 });
+    drawBulletList(ctx, submission.report.topRecommendation.careerPathwayAdvice.slice(0, 3), 9);
+  }
 
   drawSectionTitle(ctx, "Tabel Rekomendasi #2-#10");
   drawAlternativeTable(ctx, submission.report.recommendations.slice(1));

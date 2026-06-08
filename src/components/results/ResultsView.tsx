@@ -296,6 +296,21 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
         {downloadError ? (
           <div className="mb-5 rounded-md border border-coral/25 bg-coral/10 p-3 text-sm text-ink">{downloadError}</div>
         ) : null}
+        {submission.answers.dreamProfession || submission.answers.futureVision ? (
+          <div className="mb-5 rounded-md border border-black/10 bg-white p-4 text-sm leading-6 text-ink/75">
+            <h2 className="font-bold text-ink">Aspirasi yang kamu tulis</h2>
+            {submission.answers.dreamProfession ? (
+              <p className="mt-2">
+                <span className="font-semibold">Bidang/profesi yang bikin penasaran:</span> {submission.answers.dreamProfession}
+              </p>
+            ) : null}
+            {submission.answers.futureVision ? (
+              <p className="mt-2">
+                <span className="font-semibold">Masa depan yang kamu inginkan:</span> {submission.answers.futureVision}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="rounded-md border border-leaf/25 bg-[#FFF7ED] p-5 ring-1 ring-leaf/10 sm:p-7">
           <div className="flex flex-col justify-between gap-4 lg:flex-row">
@@ -351,6 +366,21 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
                   <p className="mt-2 text-sm leading-6 text-ink/70">{top.careerPersonalizationReason}</p>
                 ) : null}
               </div>
+              {top.aspirationReflection || top.careerPathwayAdvice?.length ? (
+                <div className="rounded-md bg-white p-4">
+                  <h3 className="font-bold text-ink">Arah menuju karier yang kamu ceritakan</h3>
+                  {top.aspirationReflection ? (
+                    <p className="mt-2 text-sm leading-6 text-ink/70">{top.aspirationReflection}</p>
+                  ) : null}
+                  {top.careerPathwayAdvice?.length ? (
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
+                      {top.careerPathwayAdvice.map((step) => (
+                        <li key={step}>- {step}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
               <div>
                 <h3 className="font-bold text-ink">Skill yang perlu ditingkatkan</h3>
                 <div className="mt-2 flex flex-wrap gap-2">

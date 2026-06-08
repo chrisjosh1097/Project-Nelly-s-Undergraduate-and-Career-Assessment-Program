@@ -154,6 +154,8 @@ export interface RecommendationResult {
   personalizedCareerDirection?: string;
   nicheCareerPaths?: string[];
   careerPersonalizationReason?: string;
+  aspirationReflection?: string;
+  careerPathwayAdvice?: string[];
   careerCautions?: string[];
   relatedCareers: string[];
   overallFitScore: number;
@@ -172,6 +174,8 @@ export interface CareerPersonalization {
   personalizedCareerDirection: string;
   nicheCareerPaths: string[];
   reason: string;
+  aspirationReflection: string;
+  pathwayAdvice: string[];
   cautions: string[];
 }
 
