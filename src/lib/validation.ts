@@ -26,6 +26,15 @@ const optionArray = (options: readonly string[], label: string) =>
     .min(1, `Pilih minimal 1 ${label}.`)
     .max(options.length, `Pilihan ${label} tidak valid.`);
 
+const optionalText = (label: string, min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `${label} terlalu panjang.`)
+    .refine((value) => value.length === 0 || value.length >= min, `${label} minimal ${min} karakter jika diisi.`)
+    .optional()
+    .default("");
+
 export const studentAnswerSchema = z.object({
   fullName: boundedText("Nama lengkap", 100),
   email: z.string().trim().email("Email Google tidak valid."),
@@ -41,17 +50,17 @@ export const studentAnswerSchema = z.object({
   className: boundedText("Kelas", 40),
   currentSchoolMajor: z.enum(schoolMajorOptions as [SchoolMajor, ...SchoolMajor[]]),
   favoriteSubjects: optionArray(favoriteSubjectOptions, "mata pelajaran"),
-  favoriteSubjectsOther: z.string().trim().max(80, "Mata pelajaran lainnya terlalu panjang.").optional().default(""),
+  favoriteSubjectsOther: optionalText("Mata pelajaran lainnya", 2, 80),
   favoriteActivities: optionArray(favoriteActivityOptions, "aktivitas"),
   skillStrengths: optionArray(skillStrengthOptions, "skill"),
   workStyle: z.enum(workStyleOptions as [WorkStyle, ...WorkStyle[]]),
   problemAreas: optionArray(problemAreaOptions, "tipe masalah"),
   collegePathPreferences: optionArray(collegePathPreferenceOptions, "preferensi jalur kuliah"),
-  collegePathPreferenceOther: z.string().trim().max(120, "Preferensi jalur kuliah lainnya terlalu panjang.").optional().default(""),
+  collegePathPreferenceOther: optionalText("Preferensi jalur kuliah lainnya", 3, 120),
   personalConstraints: optionArray(personalConstraintOptions, "pertimbangan pribadi"),
   techComfort: z.enum(techComfortOptions as [TechComfort, ...TechComfort[]]),
-  dreamProfession: z.string().trim().max(240, "Jawaban terlalu panjang.").optional().default(""),
-  futureVision: z.string().trim().max(480, "Jawaban terlalu panjang.").optional().default("")
+  dreamProfession: optionalText("Profesi impian atau bidang yang kamu penasaran", 3, 240),
+  futureVision: optionalText("Cerita masa depan", 10, 480)
 }).superRefine((answer, ctx) => {
   if (answer.favoriteSubjects.includes("Lainnya") && !answer.favoriteSubjectsOther.trim()) {
     ctx.addIssue({

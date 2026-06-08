@@ -89,6 +89,12 @@ function isEmptyValue(value: StudentAnswer[keyof StudentAnswer]) {
   return String(value ?? "").trim().length === 0;
 }
 
+function optionalTextError(value: string, label: string, min: number) {
+  const trimmed = value.trim();
+  if (trimmed.length > 0 && trimmed.length < min) return `${label} minimal ${min} karakter jika diisi.`;
+  return "";
+}
+
 function stepGuidance(step: Step) {
   if (step.type === "multi") return "Boleh pilih lebih dari satu jawaban. Pilih minimal 1 yang paling menggambarkan kamu.";
   if (step.type === "single") return "Pilih 1 jawaban yang paling sesuai.";
@@ -182,17 +188,41 @@ export function AssessmentForm() {
       setError(`${step.title} wajib diisi.`);
       return false;
     }
-    if (step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya") && !answer.favoriteSubjectsOther.trim()) {
-      setError("Isi mata pelajaran lainnya.");
-      return false;
+    if (step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya")) {
+      if (!answer.favoriteSubjectsOther.trim()) {
+        setError("Isi mata pelajaran lainnya.");
+        return false;
+      }
+      const otherError = optionalTextError(answer.favoriteSubjectsOther, "Mata pelajaran lainnya", 2);
+      if (otherError) {
+        setError(otherError);
+        return false;
+      }
     }
-    if (
-      step.key === "collegePathPreferences" &&
-      answer.collegePathPreferences.includes("Lainnya") &&
-      !answer.collegePathPreferenceOther.trim()
-    ) {
-      setError("Isi preferensi jalur kuliah lainnya.");
-      return false;
+    if (step.key === "collegePathPreferences" && answer.collegePathPreferences.includes("Lainnya")) {
+      if (!answer.collegePathPreferenceOther.trim()) {
+        setError("Isi preferensi jalur kuliah lainnya.");
+        return false;
+      }
+      const otherError = optionalTextError(answer.collegePathPreferenceOther, "Preferensi jalur kuliah lainnya", 3);
+      if (otherError) {
+        setError(otherError);
+        return false;
+      }
+    }
+    if (step.key === "dreamProfession") {
+      const textError = optionalTextError(answer.dreamProfession, "Profesi impian atau bidang yang kamu penasaran", 3);
+      if (textError) {
+        setError(textError);
+        return false;
+      }
+    }
+    if (step.key === "futureVision") {
+      const textError = optionalTextError(answer.futureVision, "Cerita masa depan", 10);
+      if (textError) {
+        setError(textError);
+        return false;
+      }
     }
     setError("");
     return true;
