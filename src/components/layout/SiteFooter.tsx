@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 const links = [
-  { label: "Website", href: "https://projectnelly.com/" },
-  { label: "LinkedIn", href: "https://www.linkedin.com/company/project-nelly/" },
-  { label: "Instagram", href: "https://www.instagram.com/project.nelly/" }
+  { label: "Website", href: "https://projectnelly.com/", icon: "/social/web-logo.png" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/project-nelly/", icon: "/social/linkedin-logo.png" },
+  { label: "Instagram", href: "https://www.instagram.com/project.nelly/", icon: "/social/instagram-logo.png" }
 ];
 
 export function SiteFooter() {
@@ -29,9 +29,11 @@ export function SiteFooter() {
                 href={link.href}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-bold text-ink ring-1 ring-black/10 transition hover:bg-leaf hover:text-white"
+                aria-label={link.label}
+                title={link.label}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-white p-2 ring-1 ring-black/10 transition hover:bg-[#FFF7ED] hover:ring-orange-500/40"
               >
-                {link.label}
+                <img src={link.icon} alt="" className="h-7 w-7 object-contain" />
               </Link>
             ))}
           </div>

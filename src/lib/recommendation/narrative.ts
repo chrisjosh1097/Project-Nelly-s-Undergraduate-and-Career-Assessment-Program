@@ -187,7 +187,7 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         recommendationReasons:
           "Object dengan key majorId. Untuk setiap majorId, isi 2-3 bullet alasan singkat. Jangan lebih dari 26 kata per bullet.",
         careerPersonalizations:
-          "Object dengan key majorId untuk semua rekomendasi #1 sampai #10. Setiap item wajib punya personalizedCareerDirection, nicheCareerPaths tepat 3 item, reason 1 kalimat, aspirationReflection 1 kalimat, pathwayAdvice 2-3 item, dan cautions 0-2 item."
+          "Object dengan key majorId untuk semua rekomendasi #1 sampai #10. Setiap item wajib punya personalizedCareerDirection, nicheCareerPaths tepat 3 item, reason 1 kalimat, aspirationReflection 1 kalimat, pathwayAdvice tepat 3 item, dan cautions 0-2 item."
       },
       copyRules: [
         "Jangan menyatakan hasil sebagai fakta mutlak.",
@@ -201,6 +201,7 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         "Untuk rekomendasi #1, jika dreamProfession, futureVision, favoriteSubjectsOther, atau collegePathPreferenceOther terisi, aspirationReflection wajib menyebut minimal satu tema spesifik dari teks siswa.",
         "Untuk rekomendasi #1, pathwayAdvice harus memberi arah awal menuju karier niche sesuai jurusan utama, misalnya organisasi, magang, portofolio, sertifikasi, riset kecil, atau mata kuliah pendukung.",
         "Contoh karier niche seperti Environmental Lawyer, pegawai NGO/nonprofit, sustainability policy analyst, atau legal officer ESG boleh dipakai jika selaras dengan jurusan.",
+        "Untuk rekomendasi #2 sampai #10, pathwayAdvice tetap harus berisi tepat 3 poin singkat tentang cara mengarahkan jurusan itu ke cita-cita/minat siswa; jika aspirasi kosong, gunakan mata pelajaran, aktivitas, dan skill yang diisi.",
         "Untuk rekomendasi #2 sampai #10, tetap berikan tepat 3 nicheCareerPaths per rekomendasi."
       ],
       studentAnswers: {
@@ -382,9 +383,38 @@ function aspirationReflectionFor(recommendation: RecommendationResult, answers?:
   return `Kamu menulis tentang ${aspirationThemeSummary(answers)}; melalui jurusan ${recommendation.majorName}, arah ini bisa dieksplorasi lewat karier yang menggabungkan ilmu jurusan, isu sosial, dan pengalaman lapangan.`;
 }
 
+function profileSignalSummary(answers?: StudentAnswer) {
+  if (!answers) return "minat dan kekuatan yang kamu pilih";
+
+  const subjects = [...answers.favoriteSubjects.filter((item) => item !== "Lainnya"), answers.favoriteSubjectsOther].filter(Boolean);
+  const activities = answers.favoriteActivities.filter(Boolean);
+  const skills = answers.skillStrengths.filter(Boolean);
+
+  if (subjects.length > 0 && skills.length > 0) {
+    return `mata pelajaran seperti ${subjects.slice(0, 2).join(", ")} dan kekuatan seperti ${skills.slice(0, 2).join(", ")}`;
+  }
+  if (activities.length > 0 && skills.length > 0) {
+    return `aktivitas seperti ${activities.slice(0, 2).join(", ")} dan kekuatan seperti ${skills.slice(0, 2).join(", ")}`;
+  }
+  if (subjects.length > 0) return `mata pelajaran seperti ${subjects.slice(0, 3).join(", ")}`;
+  if (activities.length > 0) return `aktivitas seperti ${activities.slice(0, 3).join(", ")}`;
+  if (skills.length > 0) return `kekuatan seperti ${skills.slice(0, 3).join(", ")}`;
+
+  return "minat dan kekuatan yang kamu pilih";
+}
+
 function pathwayAdviceFor(recommendation: RecommendationResult, answers?: StudentAnswer) {
   const flags = aspirationFlags(answers);
-  if (!flags.hasText) return recommendation.recommendedNextSteps.slice(0, 3);
+  if (!flags.hasText) {
+    return uniqueItems(
+      [
+        `Gunakan jurusan ${recommendation.majorName} untuk mengubah ${profileSignalSummary(answers)} menjadi kemampuan yang lebih terarah.`,
+        `Cari proyek kecil, lomba, organisasi, magang, atau sertifikasi yang relevan dengan arah ${recommendation.careerDirection}.`,
+        "Bangun portofolio sederhana dari tugas, riset mini, karya, atau pengalaman praktik agar minatmu terlihat nyata."
+      ],
+      180
+    ).slice(0, 3);
+  }
 
   const steps = [
     `Gunakan jurusan ${recommendation.majorName} untuk membangun dasar akademik yang relevan dengan ${aspirationThemeSummary(answers)}.`
@@ -416,8 +446,8 @@ function fallbackCareerPersonalization(recommendation: RecommendationResult, ans
     personalizedCareerDirection: recommendation.careerDirection,
     nicheCareerPaths,
     reason: aspirationFlags(answers).hasText
-      ? `Arah karier ini tetap mengikuti ranking heuristic, lalu diperkaya dari aspirasi yang kamu tulis agar lebih spesifik.`
-      : `Arah karier ini masih selaras dengan jurusan ${recommendation.majorName} dan jawaban yang kamu isi.`,
+      ? `Jurusan ini masih bisa menjadi jalur menuju minat dan cita-cita yang kamu ceritakan, terutama lewat pilihan karier niche dan pengalaman pendukung.`
+      : `Jurusan ini selaras dengan minat, pelajaran, dan kekuatan yang kamu isi, lalu bisa diarahkan melalui langkah kecil yang konkret.`,
     aspirationReflection: aspirationReflectionFor(recommendation, answers),
     pathwayAdvice: pathwayAdviceFor(recommendation, answers),
     cautions: []

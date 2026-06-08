@@ -31,6 +31,7 @@ function nicheCareersFor(recommendation: RecommendationResult) {
 
 function SmallRecommendationCard({ recommendation }: { recommendation: RecommendationResult }) {
   const nicheCareers = nicheCareersFor(recommendation);
+  const pathwayAdvice = recommendation.careerPathwayAdvice?.slice(0, 3) ?? [];
 
   return (
     <article className="rounded-md border border-black/10 bg-white p-4">
@@ -61,7 +62,18 @@ function SmallRecommendationCard({ recommendation }: { recommendation: Recommend
           ))}
         </div>
       </div>
-      <p className="mt-3 text-sm leading-6 text-ink/70">{recommendation.careerPersonalizationReason ?? recommendation.reasonBullets[0]}</p>
+      {pathwayAdvice.length > 0 ? (
+        <div className="mt-3 rounded-md bg-[#FFF7ED] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">Arah singkat</p>
+          <ul className="mt-2 space-y-1.5 text-sm leading-6 text-ink/70">
+            {pathwayAdvice.map((step) => (
+              <li key={step}>- {step}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm leading-6 text-ink/70">{recommendation.careerPersonalizationReason ?? recommendation.reasonBullets[0]}</p>
+      )}
     </article>
   );
 }
@@ -469,7 +481,6 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
       <section>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-ink">Rekomendasi #2-#10</h2>
-          <Badge tone="neutral">Deterministic heuristic</Badge>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {alternatives.map((recommendation) => (
