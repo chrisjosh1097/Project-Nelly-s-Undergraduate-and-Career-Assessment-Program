@@ -1,4 +1,4 @@
-import { jsonError } from "@/lib/api";
+import { jsonError, readJsonBody } from "@/lib/api";
 import { verifyFirebaseRequest } from "@/lib/firebase/admin";
 import { createOrGetSubmission } from "@/lib/submissions/store";
 import { normalizeEmail } from "@/lib/utils";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const decoded = await verifyFirebaseRequest(request);
-    const payload = await request.json();
+    const payload = await readJsonBody(request, 24_000);
     const parsed = studentAnswerSchema.parse(payload);
     const tokenEmail = normalizeEmail(decoded.email!);
 

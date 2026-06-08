@@ -62,8 +62,10 @@ export class GeminiNarrativeEnhancer implements RecommendationNarrativeEnhancer 
     }
 
     const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+    const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 9000);
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
+      signal: AbortSignal.timeout(Number.isFinite(timeoutMs) ? timeoutMs : 9000),
       headers: {
         "content-type": "application/json",
         "x-goog-api-key": apiKey
@@ -200,28 +202,40 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         "Untuk rekomendasi #2 sampai #10, tetap berikan tepat 3 nicheCareerPaths per rekomendasi."
       ],
       studentAnswers: {
-        name: answers.fullName,
-        school: answers.school,
-        className: answers.className,
+        name: promptText(answers.fullName, 100),
+        school: promptText(answers.school, 120),
+        className: promptText(answers.className, 40),
         schoolMajor: answers.currentSchoolMajor,
-        favoriteSubjects: answers.favoriteSubjects,
-        favoriteSubjectsOther: answers.favoriteSubjectsOther,
-        favoriteActivities: answers.favoriteActivities,
-        skillStrengths: answers.skillStrengths,
+        favoriteSubjects: promptArray(answers.favoriteSubjects),
+        favoriteSubjectsOther: promptText(answers.favoriteSubjectsOther, 80),
+        favoriteActivities: promptArray(answers.favoriteActivities),
+        skillStrengths: promptArray(answers.skillStrengths),
         workStyle: answers.workStyle,
-        problemAreas: answers.problemAreas,
-        collegePathPreferences: answers.collegePathPreferences,
-        collegePathPreferenceOther: answers.collegePathPreferenceOther,
-        personalConstraints: answers.personalConstraints,
+        problemAreas: promptArray(answers.problemAreas),
+        collegePathPreferences: promptArray(answers.collegePathPreferences),
+        collegePathPreferenceOther: promptText(answers.collegePathPreferenceOther, 120),
+        personalConstraints: promptArray(answers.personalConstraints),
         techComfort: answers.techComfort,
-        dreamProfession: answers.dreamProfession,
-        futureVision: answers.futureVision
+        dreamProfession: promptText(answers.dreamProfession, 240),
+        futureVision: promptText(answers.futureVision, 480)
       },
       recommendations: compactRecommendations
     },
     null,
     2
   );
+}
+
+function promptText(value: unknown, maxLength: number) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function promptArray(values: unknown[], maxItems = 12, maxLength = 80) {
+  return values.map((value) => promptText(value, maxLength)).filter(Boolean).slice(0, maxItems);
 }
 
 function parseGeminiNarrative(text: string) {
