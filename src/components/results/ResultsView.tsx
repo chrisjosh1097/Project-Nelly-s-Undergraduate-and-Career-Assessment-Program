@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import type { RecommendationResult, Submission } from "@/lib/types";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
-import { CAREER_MATCH_LABEL, shouldShowAlternativePathway } from "@/lib/recommendation/display";
+import { CAREER_MATCH_LABEL, shouldShowAlternativePathway, studentStrengthHighlightsFor } from "@/lib/recommendation/display";
 
 function ScoreBar({ value, tone = "green" }: { value: number; tone?: "green" | "gold" | "coral" }) {
   const color = tone === "green" ? "bg-leaf" : tone === "gold" ? "bg-marigold" : "bg-coral";
@@ -255,6 +255,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
   const advice = submission.report.ptnPtsVokasiAdvice ?? generatePtnPtsVokasiAdvice(submission.answers);
   const patternNotes = submission.report.answerPatternNotes ?? [];
   const narrativeSource = submission.report.narrative?.source;
+  const studentStrengths = studentStrengthHighlightsFor(submission);
 
   async function download(endpoint: string, filename: string) {
     setDownloadError("");
@@ -369,6 +370,19 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
                   </li>
                 ))}
               </ul>
+              {studentStrengths.length > 0 ? (
+                <div className="mt-5 rounded-md bg-white p-4">
+                  <h3 className="font-bold text-ink">Kelebihan kamu</h3>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
+                    {studentStrengths.map((strength) => (
+                      <li key={strength} className="flex gap-2">
+                        <Sparkles className="mt-1 h-4 w-4 shrink-0 text-coral" />
+                        <span>{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
             <div className="space-y-4">
               <div>

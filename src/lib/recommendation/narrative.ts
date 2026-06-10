@@ -27,6 +27,7 @@ export class HeuristicTemplateNarrativeEnhancer implements RecommendationNarrati
       summary: top
         ? `Rekomendasi utama untuk ${answers.fullName} adalah ${top.majorName} dengan skor kecocokan ${top.overallFitScore}/100.`
         : "Belum ada rekomendasi yang bisa ditampilkan.",
+      studentStrengths: buildStudentStrengthHighlights(answers, top),
       recommendationReasons: Object.fromEntries(recommendations.map((recommendation) => [recommendation.majorId, recommendation.reasonBullets])),
       careerPersonalizations: Object.fromEntries(
         recommendations.map((recommendation) => [
@@ -185,6 +186,8 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         "Buat analisis personal untuk hasil rekomendasi jurusan. Ranking dan skor sudah final dari heuristic engine, jangan diubah. Tulis output JSON valid saja.",
       outputSchema: {
         summary: "1 paragraf singkat, 1-2 kalimat, personal untuk siswa.",
+        studentStrengths:
+          "Array tepat 3 poin singkat tentang kelebihan siswa berdasarkan jawaban yang diisi. Fokus pada kekuatan, minat, gaya belajar/kerja, dan potensi berkembang. Jangan berlebihan atau memberi label kepribadian mutlak.",
         recommendationReasons:
           "Object dengan key majorId. Untuk setiap majorId, isi 2-3 bullet alasan singkat. Jangan lebih dari 26 kata per bullet.",
         careerPersonalizations:
@@ -203,7 +206,8 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         "Untuk rekomendasi #1, pathwayAdvice harus memberi arah awal menuju karier niche sesuai jurusan utama, misalnya organisasi, magang, portofolio, sertifikasi, riset kecil, atau mata kuliah pendukung.",
         "Contoh karier niche seperti Environmental Lawyer, pegawai NGO/nonprofit, sustainability policy analyst, atau legal officer ESG boleh dipakai jika selaras dengan jurusan.",
         "Untuk rekomendasi #2 sampai #10, pathwayAdvice tetap harus berisi tepat 3 poin singkat tentang cara mengarahkan jurusan itu ke cita-cita/minat siswa; jika aspirasi kosong, gunakan mata pelajaran, aktivitas, dan skill yang diisi.",
-        "Untuk rekomendasi #2 sampai #10, tetap berikan tepat 3 nicheCareerPaths per rekomendasi."
+        "Untuk rekomendasi #2 sampai #10, tetap berikan tepat 3 nicheCareerPaths per rekomendasi.",
+        "studentStrengths harus menyebut kekuatan dari jawaban siswa, bukan pujian generik. Contoh: ketelitian, empati, logika, kerja praktik, komunikasi, rasa ingin tahu, konsistensi."
       ],
       studentAnswers: {
         name: promptText(answers.fullName, 100),
@@ -314,6 +318,58 @@ function uniqueItems(items: string[], maxLength = 72) {
     )
     .filter(Boolean)
     .filter((item, index, allItems) => allItems.indexOf(item) === index);
+}
+
+function readableList(items: string[], fallback: string) {
+  const values = items.map((item) => item.trim()).filter(Boolean).slice(0, 3);
+  if (values.length === 0) return fallback;
+  if (values.length === 1) return values[0];
+  if (values.length === 2) return `${values[0]} dan ${values[1]}`;
+  return `${values[0]}, ${values[1]}, dan ${values[2]}`;
+}
+
+function buildStudentStrengthHighlights(answers: StudentAnswer, top?: RecommendationResult) {
+  const selectedSkills = answers.skillStrengths.filter(Boolean);
+  const matchedSkills = top?.skillStrengthMatches ?? [];
+  const subjects = [...answers.favoriteSubjects.filter((item) => item !== "Lainnya"), answers.favoriteSubjectsOther].filter(Boolean);
+  const activities = answers.favoriteActivities.filter(Boolean);
+  const problemAreas = answers.problemAreas.filter(Boolean);
+  const strengths: string[] = [];
+
+  const skillText = readableList(matchedSkills.length > 0 ? matchedSkills : selectedSkills, "kekuatan utama yang kamu pilih");
+  strengths.push(`Kamu punya modal awal di ${skillText}, yang membantu kamu belajar dan memecahkan masalah dengan lebih terarah.`);
+
+  if (subjects.length > 0 || activities.length > 0) {
+    const signalText =
+      subjects.length > 0 && activities.length > 0
+        ? `${readableList(subjects, "mata pelajaran pilihanmu")} serta aktivitas seperti ${readableList(activities, "aktivitas pilihanmu")}`
+        : subjects.length > 0
+          ? readableList(subjects, "mata pelajaran pilihanmu")
+          : `aktivitas seperti ${readableList(activities, "aktivitas pilihanmu")}`;
+    strengths.push(`Minatmu pada ${signalText} memberi sinyal bahwa kamu bisa berkembang lewat latihan dan eksplorasi yang konsisten.`);
+  }
+
+  strengths.push(`Gaya kerja ${answers.workStyle.toLowerCase()} bisa menjadi kelebihan kalau kamu menggunakannya untuk membangun kebiasaan belajar dan portofolio.`);
+
+  if (problemAreas.length > 0) {
+    strengths.push(`Kamu tertarik membantu area seperti ${readableList(problemAreas, "masalah yang kamu pilih")}, jadi hasil ini bisa diarahkan ke proyek yang punya dampak nyata.`);
+  }
+
+  return uniqueItems(strengths, 150).slice(0, 3);
+}
+
+function sanitizeStudentStrengths(value: unknown, answers: StudentAnswer, top?: RecommendationResult) {
+  const fallback = buildStudentStrengthHighlights(answers, top);
+  const rawItems = Array.isArray(value) ? value : [];
+  const sanitized = uniqueItems(
+    rawItems.map((item) => truncateAtWord(sanitizeSentence(item), 150)),
+    150
+  ).slice(0, 3);
+
+  return [...sanitized, ...fallback]
+    .filter(Boolean)
+    .filter((item, index, items) => items.indexOf(item) === index)
+    .slice(0, 3);
 }
 
 function aspirationThemeSummary(answers?: StudentAnswer) {
@@ -623,6 +679,7 @@ function sanitizeGeminiNarrative(
         ? `Berdasarkan jawaban yang kamu isi, rekomendasi utama kamu adalah ${recommendations[0].majorName}.`
         : "Berdasarkan jawaban yang kamu isi, hasil ini bisa menjadi bahan refleksi awal."
     ),
+    studentStrengths: sanitizeStudentStrengths(parsed.studentStrengths, answers, recommendations[0]),
     recommendationReasons,
     careerPersonalizations,
     source: "gemini",

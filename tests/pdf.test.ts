@@ -13,6 +13,7 @@ describe("PDF report generation", () => {
     expect(bytes.byteLength).toBeGreaterThan(1500);
     expect(snapshot).toContain(submission.report.topRecommendation.majorName);
     expect(snapshot).toContain("KARIR YANG SESUAI");
+    expect(snapshot).toContain("Kelebihan kamu");
     expect(snapshot).not.toContain("3 karier niche");
     expect(snapshot).toContain("hanya analisis berdasarkan jawaban");
   });

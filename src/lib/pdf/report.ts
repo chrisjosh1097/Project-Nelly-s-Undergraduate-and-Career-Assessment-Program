@@ -4,7 +4,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFP
 import type { RecommendationResult, Submission } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
-import { CAREER_MATCH_LABEL, shouldShowAlternativePathway } from "@/lib/recommendation/display";
+import { CAREER_MATCH_LABEL, shouldShowAlternativePathway, studentStrengthHighlightsFor } from "@/lib/recommendation/display";
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
@@ -317,6 +317,8 @@ export function buildSubmissionPdfTextSnapshot(submission: Submission) {
     careerDirectionFor(submission.report.topRecommendation),
     CAREER_MATCH_LABEL,
     nicheCareersFor(submission.report.topRecommendation).join(", "),
+    "Kelebihan kamu",
+    studentStrengthHighlightsFor(submission).join(", "),
     submission.report.topRecommendation.aspirationReflection ?? "",
     (submission.report.topRecommendation.careerPathwayAdvice ?? []).join(", "),
     "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final."
@@ -385,6 +387,8 @@ export async function generateSubmissionPdf(submission: Submission) {
   drawRecommendation(ctx, submission.report.topRecommendation, true);
   drawText(ctx, "Kenapa cocok:", { size: 10, bold: true, gap: 2 });
   drawBulletList(ctx, submission.report.topRecommendation.reasonBullets.slice(0, 5), 9);
+  drawText(ctx, "Kelebihan kamu:", { size: 10, bold: true, gap: 2 });
+  drawBulletList(ctx, studentStrengthHighlightsFor(submission), 9);
   drawText(ctx, "Next steps:", { size: 10, bold: true, gap: 2 });
   drawBulletList(ctx, submission.report.topRecommendation.recommendedNextSteps.slice(0, 5), 9);
   if (submission.report.topRecommendation.careerPathwayAdvice?.length) {

@@ -181,6 +181,7 @@ export interface CareerPersonalization {
 
 export interface EnhancedNarrative {
   summary: string;
+  studentStrengths?: string[];
   recommendationReasons: Record<string, string[]>;
   careerPersonalizations?: Record<string, CareerPersonalization>;
   source: "heuristic" | "gemini";
