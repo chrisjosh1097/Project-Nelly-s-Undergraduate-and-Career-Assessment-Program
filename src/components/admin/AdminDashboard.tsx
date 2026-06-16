@@ -406,6 +406,7 @@ export function AdminDashboard() {
                 <th className="px-4 py-3">Fit</th>
                 <th className="px-4 py-3">AI</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Narasi</th>
                 <th className="px-4 py-3">Aksi</th>
               </tr>
             </thead>
@@ -430,6 +431,7 @@ export function AdminDashboard() {
                   <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.overallFitScore}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.aiFutureResilienceScore}</td>
                   <td className="px-4 py-3 text-ink/70">{submission.status}</td>
+                  <td className="px-4 py-3 text-ink/70">{submission.narrativeStatus ?? "skipped"}</td>
                   <td className="space-y-2 px-4 py-3">
                     <Button variant="secondary" onClick={() => setSelected(submission)}>
                       View
@@ -456,7 +458,9 @@ export function AdminDashboard() {
           <div className="mx-auto max-w-5xl rounded-md bg-white p-4 shadow-soft">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="rounded-md bg-[#FFF7ED] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink/60">
-                Narrative source: {selected.report.narrative?.source ?? "heuristic"} | {selected.report.narrativeVersion}
+                Narrative source: {selected.report.narrative?.source ?? "heuristic"} | {selected.report.narrativeVersion} | status:{" "}
+                {selected.narrativeStatus ?? "skipped"}
+                {selected.narrativeError ? ` | error: ${selected.narrativeError}` : ""}
               </div>
               <Button variant="secondary" onClick={() => setSelected(null)}>
                 Tutup

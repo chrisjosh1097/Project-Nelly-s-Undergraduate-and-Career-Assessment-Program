@@ -7,6 +7,54 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { Submission } from "@/lib/types";
 
+function isPersonalizedResultReady(submission: Submission) {
+  return submission.narrativeStatus === "completed" || submission.report.narrative?.source === "gemini";
+}
+
+function shouldPollPersonalizedResult(submission: Submission) {
+  return submission.narrativeStatus === "pending" || submission.narrativeStatus === "processing";
+}
+
+function ResultProcessingScreen({
+  alreadySubmitted,
+  status
+}: {
+  alreadySubmitted: boolean;
+  status: Submission["narrativeStatus"];
+}) {
+  const statusCopy =
+    status === "processing"
+      ? "Analisis personal sedang dibuat."
+      : status === "failed"
+        ? "Hasil personal belum selesai. Silakan cek lagi beberapa menit lagi atau hubungi admin."
+        : status === "skipped"
+          ? "Hasil personal belum aktif. Silakan hubungi admin."
+          : "Hasil kamu sudah masuk antrean.";
+
+  return (
+    <section className="rounded-md border border-black/10 bg-white p-6 shadow-soft sm:p-8">
+      <div className="flex items-start gap-4">
+        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED]">
+          <span className="h-3 w-3 animate-pulse rounded-full bg-coral" />
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-coral">Sedang diproses</p>
+          <h1 className="mt-2 text-2xl font-black text-ink">Hasil kamu sedang dipersonalisasi</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/70">
+            {statusCopy} Kamu bisa cek kembali halaman ini dalam beberapa menit. Jangan submit ulang, karena jawaban kamu
+            sudah tersimpan.
+          </p>
+          {alreadySubmitted ? (
+            <p className="mt-3 rounded-md bg-marigold/15 p-3 text-sm leading-6 text-ink/70">
+              Email Google ini sudah pernah submit. Begitu analisis personal selesai, hasil sebelumnya akan muncul di halaman ini.
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ResultLoader({ alreadySubmitted = false }: { alreadySubmitted?: boolean }) {
   const router = useRouter();
   const { user, loading, getToken } = useAuth();
@@ -18,6 +66,9 @@ export function ResultLoader({ alreadySubmitted = false }: { alreadySubmitted?: 
   }, [alreadySubmitted, loading, router, user]);
 
   useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     async function load() {
       if (!user) return;
       try {
@@ -27,13 +78,24 @@ export function ResultLoader({ alreadySubmitted = false }: { alreadySubmitted?: 
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error ?? "Hasil belum ditemukan.");
+        if (cancelled) return;
         setSubmission(data.submission);
+        setError("");
+
+        if (data.submission && shouldPollPersonalizedResult(data.submission)) {
+          timer = setTimeout(load, 3500);
+        }
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "Gagal memuat hasil.");
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Gagal memuat hasil.");
       }
     }
 
     void load();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [getToken, user]);
 
   if (loading || (!submission && !error)) {
@@ -49,6 +111,10 @@ export function ResultLoader({ alreadySubmitted = false }: { alreadySubmitted?: 
         </Button>
       </div>
     );
+  }
+
+  if (submission && !isPersonalizedResultReady(submission) && submission.narrativeStatus) {
+    return <ResultProcessingScreen alreadySubmitted={alreadySubmitted} status={submission.narrativeStatus} />;
   }
 
   return (

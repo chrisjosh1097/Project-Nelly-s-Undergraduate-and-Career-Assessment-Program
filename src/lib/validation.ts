@@ -20,11 +20,16 @@ const boundedText = (label: string, max = 120) =>
     .min(2, `${label} wajib diisi.`)
     .max(max, `${label} terlalu panjang.`);
 
-const optionArray = (options: readonly string[], label: string) =>
+export const assessmentMultiSelectLimits = {
+  favoriteSubjects: 3,
+  favoriteActivities: 3
+} as const;
+
+const optionArray = (options: readonly string[], label: string, maxSelections = options.length) =>
   z
     .array(z.enum(options as [string, ...string[]]))
     .min(1, `Pilih minimal 1 ${label}.`)
-    .max(options.length, `Pilihan ${label} tidak valid.`);
+    .max(maxSelections, `Pilih maksimal ${maxSelections} ${label}.`);
 
 const optionalText = (label: string, min: number, max: number) =>
   z
@@ -49,9 +54,9 @@ export const studentAnswerSchema = z.object({
   school: boundedText("Asal sekolah", 120),
   className: boundedText("Kelas", 40),
   currentSchoolMajor: z.enum(schoolMajorOptions as [SchoolMajor, ...SchoolMajor[]]),
-  favoriteSubjects: optionArray(favoriteSubjectOptions, "mata pelajaran"),
+  favoriteSubjects: optionArray(favoriteSubjectOptions, "mata pelajaran", assessmentMultiSelectLimits.favoriteSubjects),
   favoriteSubjectsOther: optionalText("Mata pelajaran lainnya", 2, 80),
-  favoriteActivities: optionArray(favoriteActivityOptions, "aktivitas"),
+  favoriteActivities: optionArray(favoriteActivityOptions, "aktivitas", assessmentMultiSelectLimits.favoriteActivities),
   skillStrengths: optionArray(skillStrengthOptions, "skill"),
   workStyle: z.enum(workStyleOptions as [WorkStyle, ...WorkStyle[]]),
   problemAreas: optionArray(problemAreaOptions, "tipe masalah"),

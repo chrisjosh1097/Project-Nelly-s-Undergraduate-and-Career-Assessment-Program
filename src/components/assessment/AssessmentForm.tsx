@@ -21,7 +21,7 @@ import {
 } from "@/lib/assessment/options";
 import type { Gender, SchoolMajor, StudentAnswer, TechComfort, WorkStyle } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { studentAnswerSchema } from "@/lib/validation";
+import { assessmentMultiSelectLimits, studentAnswerSchema } from "@/lib/validation";
 
 type Step =
   | { key: keyof StudentAnswer; title: string; type: "text"; placeholder?: string }
@@ -96,12 +96,22 @@ function optionalTextError(value: string, label: string, min: number) {
 }
 
 function stepGuidance(step: Step) {
-  if (step.type === "multi") return "Boleh pilih lebih dari satu jawaban. Pilih minimal 1 yang paling menggambarkan kamu.";
+  if (step.type === "multi") {
+    const limit = multiSelectLimitForKey(step.key);
+    if (limit) return `Pilih maksimal ${limit} jawaban yang paling menggambarkan kamu. Jangan pilih semua yang kamu bisa.`;
+    return "Boleh pilih lebih dari satu jawaban. Pilih minimal 1 yang paling menggambarkan kamu.";
+  }
   if (step.type === "single") return "Pilih 1 jawaban yang paling sesuai.";
   if (step.type === "email") return "Email otomatis dari akun Google yang sedang login dan tidak bisa diubah manual.";
   if (step.type === "profile") return "Pilih gender dan isi umur. Data ini hanya untuk analytics admin, tidak mempengaruhi rekomendasi.";
   if (step.type === "textarea") return "Opsional. Tulis singkat saja kalau kamu sudah punya gambaran.";
   return "Isi sesuai data kamu. Pertanyaan ini wajib diisi.";
+}
+
+function multiSelectLimitForKey(key: keyof StudentAnswer) {
+  if (key === "favoriteSubjects") return assessmentMultiSelectLimits.favoriteSubjects;
+  if (key === "favoriteActivities") return assessmentMultiSelectLimits.favoriteActivities;
+  return null;
 }
 
 export function AssessmentForm() {
@@ -159,6 +169,11 @@ export function AssessmentForm() {
   function toggleArrayValue(key: keyof StudentAnswer, value: string) {
     const current = answer[key];
     if (!Array.isArray(current)) return;
+    const limit = multiSelectLimitForKey(key);
+    if (!current.includes(value) && limit && current.length >= limit) {
+      setError(`Pilih maksimal ${limit} jawaban untuk bagian ini.`);
+      return;
+    }
     const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
     setAnswer((currentAnswer) => ({
       ...currentAnswer,
@@ -459,9 +474,16 @@ function renderField(
 
   const showSubjectOther = step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya");
   const showCollegeOther = step.key === "collegePathPreferences" && answer.collegePathPreferences.includes("Lainnya");
+  const maxSelections = multiSelectLimitForKey(step.key);
+  const selectedCount = Array.isArray(value) ? value.length : 0;
 
   return (
     <div className="space-y-4">
+      {maxSelections ? (
+        <div className="rounded-md bg-[#FFF7ED] px-3 py-2 text-sm font-semibold text-ink/70">
+          {selectedCount}/{maxSelections} dipilih
+        </div>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {step.options.map((option) => {
           const selected = Array.isArray(value) && value.includes(option);

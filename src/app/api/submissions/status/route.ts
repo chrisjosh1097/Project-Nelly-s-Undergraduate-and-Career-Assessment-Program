@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     }
     return Response.json({
       status: submission.status,
+      narrativeStatus: submission.narrativeStatus ?? "skipped",
       submissionId: submission.id,
       topRecommendation: submission.report?.topRecommendation ?? null
     });

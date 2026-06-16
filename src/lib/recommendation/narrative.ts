@@ -130,7 +130,29 @@ export async function enhanceRecommendationReport(
   }
 }
 
-function applyNarrativeToReport(report: RecommendationReport, narrative: EnhancedNarrative): RecommendationReport {
+export async function buildHeuristicNarrativeReport(
+  answers: StudentAnswer,
+  report: RecommendationReport
+): Promise<RecommendationReport> {
+  const narrative = await new HeuristicTemplateNarrativeEnhancer().enhance({
+    answers,
+    recommendations: report.recommendations
+  });
+  return applyNarrativeToReport(report, narrative);
+}
+
+export async function enhanceRecommendationReportWithGemini(
+  answers: StudentAnswer,
+  report: RecommendationReport
+): Promise<RecommendationReport> {
+  const narrative = await new GeminiNarrativeEnhancer().enhance({
+    answers,
+    recommendations: report.recommendations
+  });
+  return applyNarrativeToReport(report, narrative);
+}
+
+export function applyNarrativeToReport(report: RecommendationReport, narrative: EnhancedNarrative): RecommendationReport {
   const recommendations = report.recommendations.map((recommendation) => {
     const personalization = narrative.careerPersonalizations?.[recommendation.majorId];
 

@@ -27,6 +27,8 @@ export type Gender = "Pria" | "Wanita";
 
 export type SubmissionStatus = "processing" | "completed" | "failed";
 
+export type NarrativeStatus = "pending" | "processing" | "completed" | "failed" | "skipped";
+
 export type FitLabel =
   | "Sangat Cocok"
   | "Cocok"
@@ -206,6 +208,9 @@ export interface Submission {
   school: string;
   className: string;
   status: SubmissionStatus;
+  narrativeStatus?: NarrativeStatus;
+  narrativeUpdatedAt?: string;
+  narrativeError?: string;
   answers: StudentAnswer;
   report: RecommendationReport;
   createdAt: string;

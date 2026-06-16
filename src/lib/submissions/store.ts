@@ -1,7 +1,8 @@
 import type { Submission, StudentAnswer } from "@/lib/types";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { generateRecommendations } from "@/lib/recommendation";
-import { enhanceRecommendationReport } from "@/lib/recommendation/narrative";
+import { buildHeuristicNarrativeReport } from "@/lib/recommendation/narrative";
+import { enqueueGeminiNarrativeJob, initialNarrativeStatus, isGeminiQueueEnabled } from "@/lib/recommendation/geminiQueue";
 import { normalizeEmail } from "@/lib/utils";
 
 const COLLECTION = "submissions";
@@ -62,7 +63,7 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
     }
 
     const now = new Date().toISOString();
-    const report = generateRecommendations(normalizedAnswer);
+    const report = await buildHeuristicNarrativeReport(normalizedAnswer, generateRecommendations(normalizedAnswer));
     const submission: Submission = {
       id: ref.id,
       email: normalizedEmail,
@@ -70,6 +71,8 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
       school: normalizedAnswer.school,
       className: normalizedAnswer.className,
       status: "completed",
+      narrativeStatus: initialNarrativeStatus(),
+      narrativeUpdatedAt: now,
       answers: normalizedAnswer,
       report,
       createdAt: now,
@@ -84,15 +87,34 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
     return transactionResult;
   }
 
-  const enhancedReport = await enhanceRecommendationReport(normalizedAnswer, transactionResult.submission.report);
-  const updatedSubmission: Submission = {
-    ...transactionResult.submission,
-    report: enhancedReport,
-    updatedAt: new Date().toISOString()
-  };
+  if (!isGeminiQueueEnabled()) {
+    return transactionResult;
+  }
 
-  await ref.set(updatedSubmission, { merge: true });
-  return { submission: updatedSubmission, created: true };
+  try {
+    await enqueueGeminiNarrativeJob(transactionResult.submission);
+    return transactionResult;
+  } catch (error) {
+    const updatedAt = new Date().toISOString();
+    const narrativeError = error instanceof Error ? error.message.slice(0, 360) : "Gagal membuat queue Gemini.";
+    const updatedSubmission: Submission = {
+      ...transactionResult.submission,
+      narrativeStatus: "failed",
+      narrativeUpdatedAt: updatedAt,
+      narrativeError,
+      updatedAt
+    };
+    await ref.set(
+      {
+        narrativeStatus: "failed",
+        narrativeUpdatedAt: updatedAt,
+        narrativeError,
+        updatedAt
+      },
+      { merge: true }
+    );
+    return { submission: updatedSubmission, created: true };
+  }
 }
 
 export interface SubmissionFilters {

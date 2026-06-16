@@ -42,6 +42,14 @@ ADMIN_SESSION_SECRET=change-this-random-session-secret
 ENABLE_GEMINI_ENHANCEMENT=false
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_TIMEOUT_MS=25000
+GEMINI_MAX_OUTPUT_TOKENS=5200
+GEMINI_QUEUE_ENABLED=true
+GEMINI_QUEUE_BATCH_SIZE=10
+GEMINI_QUEUE_DELAY_MS=500
+GEMINI_QUEUE_MAX_ATTEMPTS=3
+GEMINI_QUEUE_LOCK_MS=120000
+GEMINI_WORKER_SECRET=change-this-random-worker-secret
 ```
 
 Only `NEXT_PUBLIC_*` values are exposed to the browser. Firebase Admin credentials and `GEMINI_API_KEY` are used only in server route handlers.
@@ -194,7 +202,18 @@ The app also remains compatible with Vercel if you later choose that route.
 
 ## Gemini Narrative Enhancement
 
-Gemini is optional and disabled by default. Set `ENABLE_GEMINI_ENHANCEMENT=true` and provide `GEMINI_API_KEY` in Netlify environment variables to enable personalized narrative analysis during submit.
+Gemini is optional and disabled by default. Set `ENABLE_GEMINI_ENHANCEMENT=true` and provide `GEMINI_API_KEY` in Netlify environment variables to enable personalized narrative analysis.
+
+Submissions are saved with heuristic results immediately, but students only see the result page after the Gemini narrative is completed. When Gemini is enabled, the app creates a Firestore-backed job in `geminiNarrativeJobs`; a protected worker route processes jobs later and updates the stored report. This keeps webinar submissions fast even when many students submit at the same time.
+
+Worker route:
+
+```bash
+POST /api/internal/gemini-jobs/drain
+Authorization: Bearer <GEMINI_WORKER_SECRET>
+```
+
+Use a Netlify scheduled function or external cron to call the route every few seconds/minutes during a webinar. With `GEMINI_QUEUE_BATCH_SIZE=10` and a 1-minute cron, the worker attempts up to 10 Gemini narratives per minute. The worker uses `GEMINI_QUEUE_DELAY_MS` as a distributed Firestore rate limiter so concurrent invocations do not start Gemini requests too quickly.
 
 Architecture is prepared through `RecommendationNarrativeEnhancer`:
 

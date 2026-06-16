@@ -256,6 +256,7 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
   const patternNotes = submission.report.answerPatternNotes ?? [];
   const narrativeSource = submission.report.narrative?.source;
   const studentStrengths = studentStrengthHighlightsFor(submission);
+  const narrativePending = submission.narrativeStatus === "pending" || submission.narrativeStatus === "processing";
 
   async function download(endpoint: string, filename: string) {
     setDownloadError("");
@@ -314,6 +315,11 @@ export function ResultsView({ submission, compact = false }: { submission: Submi
         </div>
         {downloadError ? (
           <div className="mb-5 rounded-md border border-coral/25 bg-coral/10 p-3 text-sm text-ink">{downloadError}</div>
+        ) : null}
+        {narrativePending ? (
+          <div className="mb-5 rounded-md border border-marigold/40 bg-marigold/15 p-3 text-sm leading-6 text-ink/75">
+            Analisis personal sedang diperkaya. Hasil utama sudah bisa kamu baca, dan halaman ini akan memperbarui otomatis.
+          </div>
         ) : null}
         {submission.answers.dreamProfession || submission.answers.futureVision ? (
           <div className="mb-5 rounded-md border border-black/10 bg-white p-4 text-sm leading-6 text-ink/75">
