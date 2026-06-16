@@ -10,7 +10,7 @@ import { completeRedirectSignIn } from "@/lib/firebase/client";
 function friendlyLoginError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("auth/unauthorized-domain")) {
-    return "Domain Netlify belum ditambahkan di Firebase Authentication. Tambahkan projectnellyfutureassessment.netlify.app ke Authorized domains.";
+    return "Domain website belum ditambahkan di Firebase Authentication. Tambahkan projectnellyfutureassessment.com dan projectnellyfutureassessment.netlify.app ke Authorized domains.";
   }
   if (message.includes("auth/operation-not-allowed")) {
     return "Google Sign-In belum diaktifkan di Firebase Authentication.";
@@ -39,7 +39,9 @@ export function LoginPanel() {
     setError("");
     setSigningIn(true);
     try {
-      await signIn();
+      const signedInUser = await signIn();
+      if (signedInUser) router.replace(next);
+      else setSigningIn(false);
     } catch (loginError) {
       setError(friendlyLoginError(loginError));
       setSigningIn(false);
@@ -56,14 +58,18 @@ export function LoginPanel() {
     if (!configured) return;
     let active = true;
 
-    completeRedirectSignIn().catch((redirectError) => {
-      if (active) setError(friendlyLoginError(redirectError));
-    });
+    completeRedirectSignIn()
+      .then((redirectUser) => {
+        if (active && redirectUser) router.replace(next);
+      })
+      .catch((redirectError) => {
+        if (active) setError(friendlyLoginError(redirectError));
+      });
 
     return () => {
       active = false;
     };
-  }, [configured]);
+  }, [configured, next, router]);
 
   if (!configured) {
     return (

@@ -14,7 +14,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   configured: boolean;
-  signIn: () => Promise<void>;
+  signIn: () => Promise<User | null>;
   signOut: () => Promise<void>;
   getToken: () => Promise<string>;
 }
@@ -45,9 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       configured,
-      signIn: async () => {
-        await signInWithGoogle();
-      },
+      signIn: signInWithGoogle,
       signOut: signOutGoogle,
       getToken: async () => {
         if (!user) throw new Error("Login diperlukan.");

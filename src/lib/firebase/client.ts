@@ -5,6 +5,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   getRedirectResult,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
   type Auth,
@@ -40,14 +41,38 @@ export function getFirebaseClientAuth(): Auth {
   return auth;
 }
 
-export async function signInWithGoogle() {
+function createGoogleProvider() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  return signInWithRedirect(getFirebaseClientAuth(), provider);
+  return provider;
+}
+
+function shouldFallbackToRedirect(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("auth/popup-blocked") ||
+    message.includes("auth/cancelled-popup-request") ||
+    message.includes("auth/operation-not-supported-in-this-environment")
+  );
+}
+
+export async function signInWithGoogle() {
+  const auth = getFirebaseClientAuth();
+  const provider = createGoogleProvider();
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    return result.user;
+  } catch (error) {
+    if (!shouldFallbackToRedirect(error)) throw error;
+    await signInWithRedirect(auth, provider);
+    return null;
+  }
 }
 
 export async function completeRedirectSignIn() {
-  return getRedirectResult(getFirebaseClientAuth());
+  const result = await getRedirectResult(getFirebaseClientAuth());
+  return result?.user ?? null;
 }
 
 export async function signOutGoogle() {
