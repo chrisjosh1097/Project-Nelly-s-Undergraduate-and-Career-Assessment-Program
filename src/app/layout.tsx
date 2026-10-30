@@ -6,7 +6,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Project Nelly - Tes Jurusan & Karier",
-  description: "Rekomendasi jurusan dan karier berbasis heuristic scoring untuk siswa SMA/SMK Indonesia."
+  description:
+    "Rekomendasi jurusan dan karier berbasis heuristic scoring untuk siswa SMA/SMK Indonesia.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

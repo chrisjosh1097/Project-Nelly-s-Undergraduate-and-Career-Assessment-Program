@@ -82,6 +82,34 @@ npm run build
 
 `npm run lint` currently runs TypeScript validation as the project-level static check.
 
+## Mobile-First Experience and Education Pathways
+
+The app uses the actual Project Nelly logo and orange/white/black identity, with phone-first navigation, a short-step assessment, review/edit before submission, disclosed recommendation details, and counselor records that become labeled cards on phones.
+
+The new assessment asks for `educationPathway` immediately after school background:
+- `university`: programs supporting S1.
+- `vocational`: programs supporting D3 or D4.
+- `exploring`: unrestricted candidate pool.
+
+Pathway is independent of SMA/SMK background and PTN/PTS preferences. Shared questions retain their canonical values; guidance changes lightly by route. All fallbacks honor degree eligibility; certifications alone do not satisfy a requested degree. Current metadata provides 89 S1-compatible and 35 D3/D4-compatible programs.
+
+The field is optional at the API/legacy-read boundary. Missing historical values display **Belum tercatat**, not an inferred preference. Existing reports are not rescored or migrated. New recommendations add optional `degreeTypes` metadata, and scoring version is `knowledge-base-heuristic-v3.0.0`. PDF/admin/CSV expose the recorded pathway. CSV preserves old columns and appends `educationPathway` and `topDegreeTypes`.
+
+Answers are kept in memory during the wizard, not persisted across reloads or devices. The counselor dashboard reports counts from up to 500 latest records matching applied filters, not an unbounded organization-wide total.
+
+See [reference patterns](docs/reference-patterns.md), the [approved design](docs/superpowers/specs/2026-10-30-mobile-first-app-remake-design.md), and the [implementation plan](docs/superpowers/plans/2026-10-30-mobile-first-app-remake.md).
+
+### Browser checks
+
+```bash
+npx playwright install chromium
+npm run test:browser
+```
+
+Component tests compile production styles and use synthetic fixtures with test-only auth/navigation aliases and mocked network responses. They cover phone widths (320/360/390 px), tablet/desktop, keyboard interactions, review/retry, admin actions, and legacy/narrative result states. They do not prove live Google sign-in, Firestore access, or Gemini connectivity.
+
+If a browser download is unavailable, `PLAYWRIGHT_EXECUTABLE_PATH` can point to an already-installed compatible Chromium executable. Standard CI should install the browser matching the lockfile. No production auth bypass is added.
+
 ## Heuristic Scoring
 
 Assessment labels are normalized into stable IDs in `src/lib/assessment/normalization.ts`. Example:
@@ -140,8 +168,8 @@ The copy is intentionally constructive: AI can become a productivity tool, while
 
 The scalable database lives in `data/`:
 
-- `data/majors.ts`: 97 major/program records
-- `data/careers.ts`: 138 career records
+- `data/majors.ts`: 112 major/program records
+- `data/careers.ts`: 143 career records
 - `data/skills.ts`, `data/interests.ts`, `data/subjects.ts`, `data/workStyles.ts`, `data/problemAreas.ts`
 - `data/constraintRules.ts`
 - `data/aiResilienceProfiles.ts`
@@ -204,7 +232,7 @@ The app also remains compatible with Vercel if you later choose that route.
 
 Gemini is optional and disabled by default. Set `ENABLE_GEMINI_ENHANCEMENT=true` and provide `GEMINI_API_KEY` in Netlify environment variables to enable personalized narrative analysis.
 
-Submissions are saved with heuristic results immediately, but students only see the result page after the Gemini narrative is completed. When Gemini is enabled, the app creates a Firestore-backed job in `geminiNarrativeJobs`; a protected worker route processes jobs later and updates the stored report. This keeps webinar submissions fast even when many students submit at the same time.
+Submissions are saved with heuristic results immediately, and students can read them while optional Gemini narration is pending, disabled, or unavailable. When Gemini is enabled, the app creates a Firestore-backed job in `geminiNarrativeJobs`; a protected worker route processes jobs later and updates the stored report. This keeps webinar submissions fast even when many students submit at the same time.
 
 Worker route:
 

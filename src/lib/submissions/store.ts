@@ -1,10 +1,17 @@
-import { matchesSubmissionFilters, type SubmissionFilters } from "@/lib/submissions/filters";
+import {
+  matchesSubmissionFilters,
+  type SubmissionFilters,
+} from "@/lib/submissions/filters";
 export type { SubmissionFilters } from "@/lib/submissions/filters";
 import type { Submission, StudentAnswer } from "@/lib/types";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { generateRecommendations } from "@/lib/recommendation";
 import { buildHeuristicNarrativeReport } from "@/lib/recommendation/narrative";
-import { enqueueGeminiNarrativeJob, initialNarrativeStatus, isGeminiQueueEnabled } from "@/lib/recommendation/geminiQueue";
+import {
+  enqueueGeminiNarrativeJob,
+  initialNarrativeStatus,
+  isGeminiQueueEnabled,
+} from "@/lib/recommendation/geminiQueue";
 import { normalizeEmail } from "@/lib/utils";
 
 const COLLECTION = "submissions";
@@ -18,7 +25,7 @@ function collection() {
 }
 
 function snapshotToSubmission(
-  snapshot: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData>
+  snapshot: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData>,
 ) {
   if (!snapshot.exists) return null;
   return { id: snapshot.id, ...snapshot.data() } as Submission;
@@ -38,7 +45,7 @@ export async function deleteSubmissionByEmail(email: string) {
     return {
       deleted: false,
       email: normalizedEmail,
-      id: ref.id
+      id: ref.id,
     };
   }
 
@@ -46,7 +53,7 @@ export async function deleteSubmissionByEmail(email: string) {
   return {
     deleted: true,
     email: normalizedEmail,
-    id: ref.id
+    id: ref.id,
   };
 }
 
@@ -55,35 +62,40 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
   const normalizedAnswer: StudentAnswer = { ...answer, email: normalizedEmail };
   const ref = collection().doc(submissionIdForEmail(normalizedEmail));
 
-  const transactionResult = await getAdminDb().runTransaction(async (transaction) => {
-    const existing = await transaction.get(ref);
-    if (existing.exists) {
-      return {
-        submission: snapshotToSubmission(existing) as Submission,
-        created: false
+  const transactionResult = await getAdminDb().runTransaction(
+    async (transaction) => {
+      const existing = await transaction.get(ref);
+      if (existing.exists) {
+        return {
+          submission: snapshotToSubmission(existing) as Submission,
+          created: false,
+        };
+      }
+
+      const now = new Date().toISOString();
+      const report = await buildHeuristicNarrativeReport(
+        normalizedAnswer,
+        generateRecommendations(normalizedAnswer),
+      );
+      const submission: Submission = {
+        id: ref.id,
+        email: normalizedEmail,
+        fullName: normalizedAnswer.fullName,
+        school: normalizedAnswer.school,
+        className: normalizedAnswer.className,
+        status: "completed",
+        narrativeStatus: initialNarrativeStatus(),
+        narrativeUpdatedAt: now,
+        answers: normalizedAnswer,
+        report,
+        createdAt: now,
+        updatedAt: now,
       };
-    }
 
-    const now = new Date().toISOString();
-    const report = await buildHeuristicNarrativeReport(normalizedAnswer, generateRecommendations(normalizedAnswer));
-    const submission: Submission = {
-      id: ref.id,
-      email: normalizedEmail,
-      fullName: normalizedAnswer.fullName,
-      school: normalizedAnswer.school,
-      className: normalizedAnswer.className,
-      status: "completed",
-      narrativeStatus: initialNarrativeStatus(),
-      narrativeUpdatedAt: now,
-      answers: normalizedAnswer,
-      report,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    transaction.create(ref, submission);
-    return { submission, created: true };
-  });
+      transaction.create(ref, submission);
+      return { submission, created: true };
+    },
+  );
 
   if (!transactionResult.created) {
     return transactionResult;
@@ -98,28 +110,36 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
     return transactionResult;
   } catch (error) {
     const updatedAt = new Date().toISOString();
-    const narrativeError = error instanceof Error ? error.message.slice(0, 360) : "Gagal membuat queue Gemini.";
+    const narrativeError =
+      error instanceof Error
+        ? error.message.slice(0, 360)
+        : "Gagal membuat queue Gemini.";
     const updatedSubmission: Submission = {
       ...transactionResult.submission,
       narrativeStatus: "failed",
       narrativeUpdatedAt: updatedAt,
       narrativeError,
-      updatedAt
+      updatedAt,
     };
     await ref.set(
       {
         narrativeStatus: "failed",
         narrativeUpdatedAt: updatedAt,
         narrativeError,
-        updatedAt
+        updatedAt,
       },
-      { merge: true }
+      { merge: true },
     );
     return { submission: updatedSubmission, created: true };
   }
 }
 
 export async function listSubmissions(filters: SubmissionFilters = {}) {
- const snapshot = await collection().orderBy("createdAt", "desc").limit(500).get();
- return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Submission).filter(s => matchesSubmissionFilters(s, filters));
+  const snapshot = await collection()
+    .orderBy("createdAt", "desc")
+    .limit(500)
+    .get();
+  return snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Submission)
+    .filter((s) => matchesSubmissionFilters(s, filters));
 }

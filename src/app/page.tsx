@@ -1,9 +1,108 @@
 import Link from "next/link";
-import {ArrowUpRight,Compass,Layers,FileText} from "lucide-react";
-import {Badge} from "@/components/ui/Badge";
-export default function LandingPage(){return <div>
- <section className="hero"><div><Badge>Untuk siswa SMA & SMK Indonesia</Badge><h1>Masa depanmu.<br/>Bukan sekadar<br/><span className="accent-text">ikut arus.</span></h1><p className="hero-copy">Kenali minat dan kekuatanmu. Temukan jurusan serta jalur belajar yang lebih sesuai dengan dirimu.</p><Link href="/login?next=/assessment" className="brand-cta inline-flex min-h-14 items-center justify-between gap-8 rounded-full px-6 py-4 text-sm font-bold">Temukan arahmu <ArrowUpRight size={20}/></Link><p className="mt-4 text-xs leading-6 text-stone-600">Universitas atau vokasi · 10 rekomendasi · Penjelasan transparan</p></div>
- <div className="hero-art"><div className="hero-preview"><div className="eyebrow flex items-center justify-between gap-3">Contoh hasil <Compass size={25} className="text-leaf"/></div><h2 className="mt-6 text-3xl font-extrabold">Sistem Informasi</h2><p className="mt-4 text-sm leading-7 text-stone-600">Teknologi bertemu komunikasi. Bangun solusi yang berguna bagi banyak orang.</p><div className="mt-6 flex items-end justify-between"><span className="text-xs text-stone-600">Kecocokan profil · ilustrasi</span><strong className="text-3xl text-leaf">86<span className="text-sm text-stone-500">/100</span></strong></div><div className="my-4 h-1.5 rounded-full bg-stone-100"><div className="h-full w-[86%] rounded-full bg-leaf"/></div><Badge>Teknologi</Badge> <Badge>Problem solving</Badge></div><div className="hero-note"><strong className="text-sm">Satu tujuan. Banyak jalan.</strong><p className="mt-1 text-xs leading-6">Eksplorasi S1, D3, dan D4 sesuai rencanamu.</p></div></div></section>
- <section><div className="mb-6 flex flex-wrap items-end justify-between gap-4"><h2 className="section-heading">Mulai dari mengenal diri.</h2><span className="eyebrow">Bukan tes benar atau salah</span></div><div className="grid gap-4 md:grid-cols-3">{[{icon:Compass,title:"Ceritakan tentangmu",body:"Minat, aktivitas, kekuatan, dan hal yang penting bagimu."},{icon:Layers,title:"Lihat kemungkinanmu",body:"Rekomendasi sesuai profil dan pilihan jalur pendidikanmu."},{icon:FileText,title:"Buat langkah nyata",body:"Eksplorasi karier dan unduh laporan untuk diskusi bersama guru BK."}].map((item,i)=><article className="panel" key={item.title}><div className="mb-7 flex items-center justify-between"><span className="eyebrow">0{i+1}</span><item.icon size={22} className="text-leaf" aria-hidden="true"/></div><h3 className="text-xl font-bold">{item.title}</h3><p className="mt-3 text-sm leading-7 text-stone-600">{item.body}</p></article>)}</div></section>
- <p className="mt-8 max-w-3xl text-xs leading-6 text-stone-600"><strong>Hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.</strong> Gunakan sebagai bahan refleksi, bukan prediksi kelulusan atau jaminan pekerjaan.</p>
- </div>}
+import { ArrowUpRight, Compass, Layers, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+export default function LandingPage() {
+  return (
+    <div>
+      <section className="hero">
+        <div>
+          <Badge>Untuk siswa SMA & SMK Indonesia</Badge>
+          <h1>
+            Masa depanmu.
+            <br />
+            Bukan sekadar
+            <br />
+            <span className="accent-text">ikut arus.</span>
+          </h1>
+          <p className="hero-copy">
+            Kenali minat dan kekuatanmu. Temukan jurusan serta jalur belajar
+            yang lebih sesuai dengan dirimu.
+          </p>
+          <Link
+            href="/login?next=/assessment"
+            className="brand-cta inline-flex min-h-14 items-center justify-between gap-8 rounded-full px-6 py-4 text-sm font-bold"
+          >
+            Temukan arahmu <ArrowUpRight size={20} />
+          </Link>
+          <p className="mt-4 text-xs leading-6 text-stone-600">
+            Universitas atau vokasi · 10 rekomendasi · Penjelasan transparan
+          </p>
+        </div>
+        <div className="hero-art">
+          <div className="hero-preview">
+            <div className="eyebrow flex items-center justify-between gap-3">
+              Contoh hasil <Compass size={25} className="text-leaf" />
+            </div>
+            <h2 className="mt-6 text-3xl font-extrabold">Sistem Informasi</h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              Teknologi bertemu komunikasi. Bangun solusi yang berguna bagi
+              banyak orang.
+            </p>
+            <div className="mt-6 flex items-end justify-between">
+              <span className="text-xs text-stone-600">
+                Kecocokan profil · ilustrasi
+              </span>
+              <strong className="text-3xl text-leaf">
+                86<span className="text-sm text-stone-500">/100</span>
+              </strong>
+            </div>
+            <div className="my-4 h-1.5 rounded-full bg-stone-100">
+              <div className="h-full w-[86%] rounded-full bg-leaf" />
+            </div>
+            <Badge>Teknologi</Badge> <Badge>Problem solving</Badge>
+          </div>
+          <div className="hero-note">
+            <strong className="text-sm">Satu tujuan. Banyak jalan.</strong>
+            <p className="mt-1 text-xs leading-6">
+              Eksplorasi S1, D3, dan D4 sesuai rencanamu.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <h2 className="section-heading">Mulai dari mengenal diri.</h2>
+          <span className="eyebrow">Bukan tes benar atau salah</span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            {
+              icon: Compass,
+              title: "Ceritakan tentangmu",
+              body: "Minat, aktivitas, kekuatan, dan hal yang penting bagimu.",
+            },
+            {
+              icon: Layers,
+              title: "Lihat kemungkinanmu",
+              body: "Rekomendasi sesuai profil dan pilihan jalur pendidikanmu.",
+            },
+            {
+              icon: FileText,
+              title: "Buat langkah nyata",
+              body: "Eksplorasi karier dan unduh laporan untuk diskusi bersama guru BK.",
+            },
+          ].map((item, i) => (
+            <article className="panel" key={item.title}>
+              <div className="mb-7 flex items-center justify-between">
+                <span className="eyebrow">0{i + 1}</span>
+                <item.icon size={22} className="text-leaf" aria-hidden="true" />
+              </div>
+              <h3 className="text-xl font-bold">{item.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-stone-600">
+                {item.body}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <p className="mt-8 max-w-3xl text-xs leading-6 text-stone-600">
+        <strong>
+          Hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan
+          fakta mutlak atau keputusan final.
+        </strong>{" "}
+        Gunakan sebagai bahan refleksi, bukan prediksi kelulusan atau jaminan
+        pekerjaan.
+      </p>
+    </div>
+  );
+}

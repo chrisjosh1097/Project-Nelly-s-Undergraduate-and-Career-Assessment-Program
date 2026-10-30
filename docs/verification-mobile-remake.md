@@ -1,0 +1,25 @@
+# Mobile remake verification
+
+Verified locally on 2026-10-30, before independent branch review.
+
+- `npm run validate:kb`: pass; 112 majors, 143 careers. Eligible pools: 89 S1 and 35 D3/D4 programs.
+- `npm run lint`: pass (currently the TypeScript check).
+- `npm run typecheck`: pass.
+- `npm test`: 77 tests pass across 15 files.
+- `npm run test:browser`: 44 Chromium component tests pass, using `PLAYWRIGHT_EXECUTABLE_PATH` for an already-installed Chromium after the matching-browser CDN download reset/timed out.
+- `npm run build`: pass; all existing application and API routes remain present.
+
+Browser coverage includes 320/360/390/768/1280 px widths, loaded logo, long student/school names, open filters and report details, large text, reduced motion, 44 px control heights, 16 px input text, keyboard radio/disclosure/dialog operation, answer review/edit, retry/duplicate-click protection, admin filter/export/reset/logout, missing historical fields, and usable heuristic results during narrative failures or delays. Polling cancellation is covered. These are actual application components with compiled styles, not the throwaway HTML preview.
+
+The field-boundary contrast check initially measured 2.52:1, failed, and was corrected to a darker border that passes the 3:1 requirement. Dark body copy passes 4.5:1. Contrast and keyboard regression tests are not a claim of complete WCAG certification.
+
+Synthetic old/vocational/university PDF reports each generated successfully (three pages for the standard sample); extracted words stayed inside horizontal page bounds. First and last pages were visually inspected, as were phone screenshots of the landing page, results, and admin report view. Long-text generation is covered by unit tests.
+
+## Deliberate limits
+
+- No production deployment, migration, historical rescoring, or real student reset was performed.
+- Live Google/Firebase/Firestore/Gemini integration was not exercised. Browser tests use test-only auth/navigation aliases and synthetic API fixtures; server route tests mock external boundaries.
+- Phone-width browser tests do not substitute for testing Safari/iOS/Android virtual keyboards on physical devices.
+- Assessment drafts remain in memory only; reloads do not restore answers.
+- Admin listing/analytics remain limited to up to 500 latest records matching applied filters.
+- Browser installation for CI should use `npx playwright install chromium`; the local executable override is optional, not a machine-specific repository setting.

@@ -29,18 +29,14 @@ export type Gender = "Pria" | "Wanita";
 
 export type SubmissionStatus = "processing" | "completed" | "failed";
 
-export type NarrativeStatus = "pending" | "processing" | "completed" | "failed" | "skipped";
+export type NarrativeStatus =
+  "pending" | "processing" | "completed" | "failed" | "skipped";
 
 export type FitLabel =
-  | "Sangat Cocok"
-  | "Cocok"
-  | "Cukup Cocok"
-  | "Perlu Dipertimbangkan Lagi";
+  "Sangat Cocok" | "Cocok" | "Cukup Cocok" | "Perlu Dipertimbangkan Lagi";
 
 export type AIFutureResilienceLabel =
-  | "Tinggi"
-  | "Sedang"
-  | "Perlu Adaptasi Tinggi";
+  "Tinggi" | "Sedang" | "Perlu Adaptasi Tinggi";
 
 export interface StudentAnswer {
   educationPathway?: EducationPathway;

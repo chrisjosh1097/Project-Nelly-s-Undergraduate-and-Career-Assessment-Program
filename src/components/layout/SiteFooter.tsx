@@ -1,2 +1,44 @@
 import Link from "next/link";
-export function SiteFooter(){return <footer className="border-t border-stone-200"><div className="mx-auto max-w-6xl px-5 py-9"><div className="flex flex-wrap justify-between gap-5"><div><p className="font-bold">Project Nelly 101</p><p className="mt-2 max-w-md text-sm leading-7 text-stone-600">Kenali diri, temukan arah. Hasil asesmen adalah bahan refleksi, bukan keputusan final.</p></div><nav aria-label="Project Nelly" className="flex flex-wrap gap-3">{[{label:"Website",href:"https://projectnelly.com/"},{label:"Instagram",href:"https://www.instagram.com/project.nelly/"},{label:"LinkedIn",href:"https://www.linkedin.com/company/project-nelly/"}].map(link=><Link key={link.label} href={link.href} target="_blank" rel="noreferrer" className="touch-link underline underline-offset-4">{link.label} ↗</Link>)}</nav></div><div className="mt-6 border-t border-stone-200 pt-5 text-xs text-stone-600">© Project Nelly · Untuk siswa SMA & SMK Indonesia</div></div></footer>}
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-stone-200">
+      <div className="mx-auto max-w-6xl px-5 py-9">
+        <div className="flex flex-wrap justify-between gap-5">
+          <div>
+            <p className="font-bold">Project Nelly 101</p>
+            <p className="mt-2 max-w-md text-sm leading-7 text-stone-600">
+              Kenali diri, temukan arah. Hasil asesmen adalah bahan refleksi,
+              bukan keputusan final.
+            </p>
+          </div>
+          <nav aria-label="Project Nelly" className="flex flex-wrap gap-3">
+            {[
+              { label: "Website", href: "https://projectnelly.com/" },
+              {
+                label: "Instagram",
+                href: "https://www.instagram.com/project.nelly/",
+              },
+              {
+                label: "LinkedIn",
+                href: "https://www.linkedin.com/company/project-nelly/",
+              },
+            ].map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                className="touch-link underline underline-offset-4"
+              >
+                {link.label} ↗
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="mt-6 border-t border-stone-200 pt-5 text-xs text-stone-600">
+          © Project Nelly · Untuk siswa SMA & SMK Indonesia
+        </div>
+      </div>
+    </footer>
+  );
+}

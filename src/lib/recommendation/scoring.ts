@@ -5,7 +5,7 @@ import {
   majors as knowledgeMajors,
   type AIFutureResilienceProfile as KnowledgeAIProfile,
   type Major as KnowledgeMajor,
-  type WeightedTag
+  type WeightedTag,
 } from "../../../data";
 import { normalizeStudentAnswer } from "@/lib/assessment/normalization";
 import type {
@@ -16,7 +16,7 @@ import type {
   RecommendationResult,
   ScoringBreakdown,
   StudentAnswer,
-  TechComfort
+  TechComfort,
 } from "@/lib/types";
 import { clamp, roundScore, unique } from "@/lib/utils";
 import { buildRecommendationNarrative } from "@/lib/recommendation/narrative";
@@ -38,7 +38,7 @@ const FLEXIBLE_FALLBACK_MAJOR_IDS = [
   "administrasi_bisnis",
   "data_science",
   "akuntansi",
-  "desain_komunikasi_visual"
+  "desain_komunikasi_visual",
 ];
 
 const PURE_SCORE_TOP_COUNT = 6;
@@ -51,7 +51,7 @@ const RELATED_WORK_STYLE_IDS: Record<string, string[]> = {
   hands_on: ["dynamic_field", "structured_detail"],
   creative_flexible: ["people_facing"],
   structured_detail: ["independent_analysis", "hands_on"],
-  dynamic_field: ["hands_on", "people_facing"]
+  dynamic_field: ["hands_on", "people_facing"],
 };
 
 const CLUSTER_LABELS: Record<string, string> = {
@@ -67,7 +67,7 @@ const CLUSTER_LABELS: Record<string, string> = {
   "Agriculture, Food & Environment": "Agrikultur, Pangan & Lingkungan",
   "Language & Culture": "Bahasa & Budaya",
   "Sports & Physical Performance": "Olahraga & Performa Fisik",
-  "Vocational & Applied Skills": "Vokasi & Skill Terapan"
+  "Vocational & Applied Skills": "Vokasi & Skill Terapan",
 };
 
 function displayCluster(cluster: string) {
@@ -79,16 +79,24 @@ function tagLabels(tags: WeightedTag[], selectedIds: string[]) {
   return tags.filter((tag) => selected.has(tag.id)).map((tag) => tag.label);
 }
 
-function scoreWeightedTags(selectedIds: string[], tags: WeightedTag[], emptyFallback = 35) {
+function scoreWeightedTags(
+  selectedIds: string[],
+  tags: WeightedTag[],
+  emptyFallback = 35,
+) {
   const usableSelectedIds = selectedIds.filter((id) => id !== "other");
   if (usableSelectedIds.length === 0 || tags.length === 0) return emptyFallback;
 
   const weightById = new Map(tags.map((tag) => [tag.id, tag.weight]));
-  const matchedWeights = usableSelectedIds.map((id) => weightById.get(id) ?? 0).filter((weight) => weight > 0);
+  const matchedWeights = usableSelectedIds
+    .map((id) => weightById.get(id) ?? 0)
+    .filter((weight) => weight > 0);
   if (matchedWeights.length === 0) return 18;
 
   const denominator = Math.min(usableSelectedIds.length, tags.length) * 100;
-  const coverage = (matchedWeights.reduce((sum, weight) => sum + weight, 0) / denominator) * 100;
+  const coverage =
+    (matchedWeights.reduce((sum, weight) => sum + weight, 0) / denominator) *
+    100;
   const breadthBonus = Math.min(matchedWeights.length * 5, 15);
   return clamp(coverage + breadthBonus);
 }
@@ -132,39 +140,79 @@ function hasTechnologySignal(major: KnowledgeMajor) {
   return (
     major.cluster === "Technology & Data" ||
     major.relatedSkills.some((tag) => tag.id === "technology") ||
-    major.relatedInterests.some((tag) => tag.id === "tech_ai" || tag.id === "coding")
+    major.relatedInterests.some(
+      (tag) => tag.id === "tech_ai" || tag.id === "coding",
+    )
   );
 }
 
 function schoolBackgroundBoost(answer: StudentAnswer, major: KnowledgeMajor) {
   const schoolMajor = answer.currentSchoolMajor;
   if (schoolMajor === "SMK Teknik") {
-    return major.cluster === "Vocational & Applied Skills" || major.cluster === "Engineering & Infrastructure" || major.cluster === "Technology & Data"
+    return major.cluster === "Vocational & Applied Skills" ||
+      major.cluster === "Engineering & Infrastructure" ||
+      major.cluster === "Technology & Data"
       ? 8
       : 0;
   }
   if (schoolMajor === "SMK Bisnis") {
-    return major.cluster === "Business & Management" || major.cluster === "Finance & Accounting" || major.id === "administrasi_perkantoran" ? 8 : 0;
+    return major.cluster === "Business & Management" ||
+      major.cluster === "Finance & Accounting" ||
+      major.id === "administrasi_perkantoran"
+      ? 8
+      : 0;
   }
   if (schoolMajor === "SMK Kesehatan") {
-    return major.cluster === "Health & Life Sciences" || major.id === "rekam_medis" ? 8 : 0;
+    return major.cluster === "Health & Life Sciences" ||
+      major.id === "rekam_medis"
+      ? 8
+      : 0;
   }
   if (schoolMajor === "SMK Kreatif/Multimedia") {
-    return major.cluster === "Creative & Media" || major.id === "uiux_design_applied" || major.id === "digital_marketing_applied" ? 8 : 0;
+    return major.cluster === "Creative & Media" ||
+      major.id === "uiux_design_applied" ||
+      major.id === "digital_marketing_applied"
+      ? 8
+      : 0;
   }
   if (schoolMajor === "IPA") {
-    return ["Technology & Data", "Health & Life Sciences", "Engineering & Infrastructure", "Agriculture, Food & Environment"].includes(major.cluster) ? 6 : 0;
+    return [
+      "Technology & Data",
+      "Health & Life Sciences",
+      "Engineering & Infrastructure",
+      "Agriculture, Food & Environment",
+    ].includes(major.cluster)
+      ? 6
+      : 0;
   }
   if (schoolMajor === "IPS") {
-    return ["Business & Management", "Finance & Accounting", "Social, Psychology & Education", "Law, Governance & International"].includes(major.cluster) ? 6 : 0;
+    return [
+      "Business & Management",
+      "Finance & Accounting",
+      "Social, Psychology & Education",
+      "Law, Governance & International",
+    ].includes(major.cluster)
+      ? 6
+      : 0;
   }
   if (schoolMajor === "Bahasa") {
-    return ["Language & Culture", "Creative & Media", "Law, Governance & International", "Social, Psychology & Education"].includes(major.cluster) ? 6 : 0;
+    return [
+      "Language & Culture",
+      "Creative & Media",
+      "Law, Governance & International",
+      "Social, Psychology & Education",
+    ].includes(major.cluster)
+      ? 6
+      : 0;
   }
   return 0;
 }
 
-function scoreConstraints(answer: StudentAnswer, normalized: NormalizedStudentAnswer, major: KnowledgeMajor) {
+function scoreConstraints(
+  answer: StudentAnswer,
+  normalized: NormalizedStudentAnswer,
+  major: KnowledgeMajor,
+) {
   let score = 68;
   const notes: string[] = [];
 
@@ -192,20 +240,28 @@ function scoreConstraints(answer: StudentAnswer, normalized: NormalizedStudentAn
     }
   }
 
-  if (normalized.constraintIds.includes("wants_fast_employment") && major.industryPracticality === "Tinggi") {
+  if (
+    normalized.constraintIds.includes("wants_fast_employment") &&
+    major.industryPracticality === "Tinggi"
+  ) {
     score += 10;
     notes.push("punya jalur praktik dan entry-level yang cukup jelas");
   }
 
   if (
     normalized.constraintIds.includes("prefers_vocational") &&
-    major.degreeTypes.some((type) => ["D3", "D4", "Vokasi", "Sertifikasi"].includes(type))
+    major.degreeTypes.some((type) =>
+      ["D3", "D4", "Vokasi", "Sertifikasi"].includes(type),
+    )
   ) {
     score += 12;
     notes.push("selaras dengan jalur vokasi atau terapan");
   }
 
-  if (normalized.constraintIds.includes("prefers_certification") && major.certificationSuggestions.length > 0) {
+  if (
+    normalized.constraintIds.includes("prefers_certification") &&
+    major.certificationSuggestions.length > 0
+  ) {
     score += 6;
     notes.push("bisa diperkuat dengan sertifikasi atau portofolio");
   }
@@ -226,7 +282,7 @@ function scoreConstraints(answer: StudentAnswer, normalized: NormalizedStudentAn
 
   return {
     score: roundScore(score),
-    notes: unique(notes).slice(0, 4)
+    notes: unique(notes).slice(0, 4),
   };
 }
 
@@ -240,10 +296,13 @@ export function calculateAIFutureResilienceScore(profile: KnowledgeAIProfile) {
     profile.professionalAccountability,
     profile.aiAugmentationPotential,
     profile.industryGrowth,
-    profile.nonRoutineWork
+    profile.nonRoutineWork,
   ];
 
-  if (components.some((value) => Number.isNaN(value) || value < 0 || value > 100)) return 0;
+  if (
+    components.some((value) => Number.isNaN(value) || value < 0 || value > 100)
+  )
+    return 0;
 
   return roundScore(
     profile.humanInteraction * 0.15 +
@@ -254,11 +313,13 @@ export function calculateAIFutureResilienceScore(profile: KnowledgeAIProfile) {
       profile.professionalAccountability * 0.1 +
       profile.aiAugmentationPotential * 0.12 +
       profile.industryGrowth * 0.09 +
-      profile.nonRoutineWork * 0.05
+      profile.nonRoutineWork * 0.05,
   );
 }
 
-export function getAIFutureResilienceLabel(score: number): AIFutureResilienceLabel {
+export function getAIFutureResilienceLabel(
+  score: number,
+): AIFutureResilienceLabel {
   if (score >= 80) return "Tinggi";
   if (score >= 60) return "Sedang";
   return "Perlu Adaptasi Tinggi";
@@ -271,13 +332,31 @@ export function getFitLabel(score: number): FitLabel {
   return "Perlu Dipertimbangkan Lagi";
 }
 
-export function calculateScoringBreakdown(answer: StudentAnswer, major: KnowledgeMajor): ScoringBreakdown {
+export function calculateScoringBreakdown(
+  answer: StudentAnswer,
+  major: KnowledgeMajor,
+): ScoringBreakdown {
   const normalized = normalizeStudentAnswer(answer);
-  const interestScore = scoreWeightedTags(normalized.interestIds, major.relatedInterests);
-  const skillScore = scoreWeightedTags(normalized.skillIds, major.relatedSkills);
-  const subjectScore = scoreWeightedTags(normalized.favoriteSubjectIds, major.relatedSubjects);
-  const workStyleScore = scoreWorkStyle(normalized.workStyleId, major.relatedWorkStyles);
-  const problemAreaScore = scoreWeightedTags(normalized.problemAreaIds, major.relatedProblemAreas);
+  const interestScore = scoreWeightedTags(
+    normalized.interestIds,
+    major.relatedInterests,
+  );
+  const skillScore = scoreWeightedTags(
+    normalized.skillIds,
+    major.relatedSkills,
+  );
+  const subjectScore = scoreWeightedTags(
+    normalized.favoriteSubjectIds,
+    major.relatedSubjects,
+  );
+  const workStyleScore = scoreWorkStyle(
+    normalized.workStyleId,
+    major.relatedWorkStyles,
+  );
+  const problemAreaScore = scoreWeightedTags(
+    normalized.problemAreaIds,
+    major.relatedProblemAreas,
+  );
   const constraint = scoreConstraints(answer, normalized, major);
   const aspirationMajorIntent = scoreAspirationMajorIntent(answer, major);
 
@@ -290,17 +369,23 @@ export function calculateScoringBreakdown(answer: StudentAnswer, major: Knowledg
     constraintFitScore: constraint.score,
     aspirationMajorBoost: aspirationMajorIntent.boost,
     matchedAspirationMajorSignals: aspirationMajorIntent.matchedSignals,
-    matchedSubjects: tagLabels(major.relatedSubjects, normalized.favoriteSubjectIds),
+    matchedSubjects: tagLabels(
+      major.relatedSubjects,
+      normalized.favoriteSubjectIds,
+    ),
     matchedInterests: tagLabels(major.relatedInterests, normalized.interestIds),
     matchedSkills: tagLabels(major.relatedSkills, normalized.skillIds),
-    matchedProblemAreas: tagLabels(major.relatedProblemAreas, normalized.problemAreaIds),
+    matchedProblemAreas: tagLabels(
+      major.relatedProblemAreas,
+      normalized.problemAreaIds,
+    ),
     preferenceNotes: constraint.notes,
     normalizedSubjectIds: normalized.favoriteSubjectIds,
     normalizedInterestIds: normalized.interestIds,
     normalizedSkillIds: normalized.skillIds,
     normalizedWorkStyleId: normalized.workStyleId,
     normalizedProblemAreaIds: normalized.problemAreaIds,
-    normalizedConstraintIds: normalized.constraintIds
+    normalizedConstraintIds: normalized.constraintIds,
   };
 }
 
@@ -312,23 +397,34 @@ export function calculateOverallFitScore(breakdown: ScoringBreakdown) {
       breakdown.workStyleScore * 0.1 +
       breakdown.problemAreaScore * 0.1 +
       breakdown.constraintFitScore * 0.1 +
-      (breakdown.aspirationMajorBoost ?? 0)
+      (breakdown.aspirationMajorBoost ?? 0),
   );
 }
 
 function careerTitles(major: KnowledgeMajor) {
-  return major.relatedCareers.map((careerId) => careersById[careerId]?.title ?? careerId).slice(0, 5);
+  return major.relatedCareers
+    .map((careerId) => careersById[careerId]?.title ?? careerId)
+    .slice(0, 5);
 }
 
 function buildCareerDirection(major: KnowledgeMajor) {
-  return major.careerDirections.slice(0, 3).join(", ") || "Arah karier fleksibel sesuai portofolio dan pengalaman belajar.";
+  return (
+    major.careerDirections.slice(0, 3).join(", ") ||
+    "Arah karier fleksibel sesuai portofolio dan pengalaman belajar."
+  );
 }
 
 function buildSkillGaps(answer: StudentAnswer, major: KnowledgeMajor) {
   const normalized = normalizeStudentAnswer(answer);
   const selected = new Set(normalized.skillIds);
-  const missingCoreSkills = major.relatedSkills.filter((skill) => !selected.has(skill.id)).map((skill) => skill.label);
-  const suggestions = [...missingCoreSkills, ...major.certificationSuggestions, ...major.portfolioSuggestions];
+  const missingCoreSkills = major.relatedSkills
+    .filter((skill) => !selected.has(skill.id))
+    .map((skill) => skill.label);
+  const suggestions = [
+    ...missingCoreSkills,
+    ...major.certificationSuggestions,
+    ...major.portfolioSuggestions,
+  ];
   return unique(suggestions).slice(0, 5);
 }
 
@@ -336,27 +432,46 @@ function buildNextSteps(answer: StudentAnswer, major: KnowledgeMajor) {
   const nextSteps = [
     ...major.beginnerFriendlyNextSteps,
     ...major.portfolioSuggestions.slice(0, 2),
-    ...major.internshipSuggestions.slice(0, 1)
+    ...major.internshipSuggestions.slice(0, 1),
   ];
 
   if (answer.personalConstraints.includes("Ingin cepat kerja")) {
-    nextSteps.push("Bangun portofolio, magang, proyek nyata, atau sertifikasi sejak awal.");
+    nextSteps.push(
+      "Bangun portofolio, magang, proyek nyata, atau sertifikasi sejak awal.",
+    );
   }
-  if (answer.personalConstraints.includes("Biaya") || answer.personalConstraints.includes("Ingin beasiswa")) {
-    nextSteps.push("Bandingkan biaya PTN, PTS, vokasi, biaya hidup, dan peluang beasiswa sebelum menentukan pilihan.");
+  if (
+    answer.personalConstraints.includes("Biaya") ||
+    answer.personalConstraints.includes("Ingin beasiswa")
+  ) {
+    nextSteps.push(
+      "Bandingkan biaya PTN, PTS, vokasi, biaya hidup, dan peluang beasiswa sebelum menentukan pilihan.",
+    );
   }
-  if (answer.personalConstraints.includes("Belum tahu minat") || answer.personalConstraints.includes("Takut salah jurusan")) {
-    nextSteps.push("Coba mini project 2 minggu dan diskusikan hasilnya dengan guru BK atau mentor.");
+  if (
+    answer.personalConstraints.includes("Belum tahu minat") ||
+    answer.personalConstraints.includes("Takut salah jurusan")
+  ) {
+    nextSteps.push(
+      "Coba mini project 2 minggu dan diskusikan hasilnya dengan guru BK atau mentor.",
+    );
   }
-  if (techComfortLevel(answer.techComfort) < 0.35 && hasTechnologySignal(major)) {
-    nextSteps.push("Mulai pelajari literasi digital dan AI dasar secara bertahap; AI dapat menjadi alat bantu produktivitas.");
+  if (
+    techComfortLevel(answer.techComfort) < 0.35 &&
+    hasTechnologySignal(major)
+  ) {
+    nextSteps.push(
+      "Mulai pelajari literasi digital dan AI dasar secara bertahap; AI dapat menjadi alat bantu produktivitas.",
+    );
   }
 
   return unique(nextSteps).slice(0, 6);
 }
 
 function costAlternativeText() {
-  const alternatives = constraintRules.find((rule) => rule.id === "cost_sensitive")?.alternativeMajorIds ?? [];
+  const alternatives =
+    constraintRules.find((rule) => rule.id === "cost_sensitive")
+      ?.alternativeMajorIds ?? [];
   const names = alternatives
     .map((id) => knowledgeMajors.find((major) => major.id === id)?.name)
     .filter(Boolean)
@@ -380,25 +495,50 @@ function buildAnswerPatternNotes(answer: StudentAnswer) {
   const text = answerText(answer);
 
   if (clearInterests.length <= 2) {
-    notes.push("Jawabanmu masih cukup umum, jadi gunakan hasil ini sebagai titik awal eksplorasi.");
+    notes.push(
+      "Jawabanmu masih cukup umum, jadi gunakan hasil ini sebagai titik awal eksplorasi.",
+    );
   }
   if (clearInterests.length >= 7 || answer.favoriteActivities.length >= 6) {
-    notes.push("Minatmu cukup beragam. Kamu bisa mempertimbangkan jurusan fleksibel dan mencoba beberapa mini project.");
+    notes.push(
+      "Minatmu cukup beragam. Kamu bisa mempertimbangkan jurusan fleksibel dan mencoba beberapa mini project.",
+    );
   }
-  if (normalized.constraintIds.includes("prefers_ptn_outside_java") && normalized.constraintIds.includes("far_location")) {
-    notes.push("Kamu tertarik PTN luar Jawa tetapi juga khawatir jarak; pastikan biaya hidup, adaptasi, dan dukungan keluarga sudah dipertimbangkan.");
+  if (
+    normalized.constraintIds.includes("prefers_ptn_outside_java") &&
+    normalized.constraintIds.includes("far_location")
+  ) {
+    notes.push(
+      "Kamu tertarik PTN luar Jawa tetapi juga khawatir jarak; pastikan biaya hidup, adaptasi, dan dukungan keluarga sudah dipertimbangkan.",
+    );
   }
   if (techComfortLevel(answer.techComfort) < 0.35) {
-    notes.push("Kamu belum terlalu nyaman dengan AI. Tidak apa-apa; mulai dari literasi digital dan penggunaan AI yang aman sebagai alat bantu.");
+    notes.push(
+      "Kamu belum terlalu nyaman dengan AI. Tidak apa-apa; mulai dari literasi digital dan penggunaan AI yang aman sebagai alat bantu.",
+    );
   }
-  if (/\bham\b|hak asasi|keadilan|advokasi|memperjuangkan|hukum|kebijakan/.test(text)) {
-    notes.push("Aspirasi kamu menyebut isu HAM, keadilan, advokasi, atau kebijakan; ini ikut memberi sinyal ke jalur sosial, hukum, governance, dan public policy.");
+  if (
+    /\bham\b|hak asasi|keadilan|advokasi|memperjuangkan|hukum|kebijakan/.test(
+      text,
+    )
+  ) {
+    notes.push(
+      "Aspirasi kamu menyebut isu HAM, keadilan, advokasi, atau kebijakan; ini ikut memberi sinyal ke jalur sosial, hukum, governance, dan public policy.",
+    );
   }
-  if (/lingkungan|iklim|climate|sustainability|keberlanjutan|konservasi|hutan|limbah|alam/.test(text)) {
-    notes.push("Aspirasi kamu menyebut lingkungan; ini ikut memberi sinyal ke jalur lingkungan, sustainability, kebijakan publik, dan dampak sosial.");
+  if (
+    /lingkungan|iklim|climate|sustainability|keberlanjutan|konservasi|hutan|limbah|alam/.test(
+      text,
+    )
+  ) {
+    notes.push(
+      "Aspirasi kamu menyebut lingkungan; ini ikut memberi sinyal ke jalur lingkungan, sustainability, kebijakan publik, dan dampak sosial.",
+    );
   }
   if (/membantu|bantu|menolong|mendampingi|melayani|pelayanan/.test(text)) {
-    notes.push("Aspirasi kamu menyebut membantu orang; ini ikut memberi sinyal ke bidang yang banyak membutuhkan empati, komunikasi, dan kerja berdampak.");
+    notes.push(
+      "Aspirasi kamu menyebut membantu orang; ini ikut memberi sinyal ke bidang yang banyak membutuhkan empati, komunikasi, dan kerja berdampak.",
+    );
   }
 
   return unique(notes);
@@ -407,22 +547,37 @@ function buildAnswerPatternNotes(answer: StudentAnswer) {
 function buildCautionNotes(answer: StudentAnswer, major: KnowledgeMajor) {
   const notes = [...major.cautionNotes, ...buildAnswerPatternNotes(answer)];
 
-  if (answer.personalConstraints.includes("Biaya") && levelValue(major.educationCostLevel) >= 3) {
-    notes.push("Karena biaya menjadi pertimbangan, pertahankan rekomendasi ini jika fit tinggi, tetapi siapkan rencana beasiswa dan pilihan serumpun.");
+  if (
+    answer.personalConstraints.includes("Biaya") &&
+    levelValue(major.educationCostLevel) >= 3
+  ) {
+    notes.push(
+      "Karena biaya menjadi pertimbangan, pertahankan rekomendasi ini jika fit tinggi, tetapi siapkan rencana beasiswa dan pilihan serumpun.",
+    );
     const alternatives = costAlternativeText();
     if (alternatives) notes.push(alternatives);
   }
   if (answer.personalConstraints.includes("Persaingan masuk")) {
-    notes.push("Siapkan pilihan utama dan cadangan dengan cluster serupa agar peluang tetap terbuka.");
+    notes.push(
+      "Siapkan pilihan utama dan cadangan dengan cluster serupa agar peluang tetap terbuka.",
+    );
   }
-  notes.push("Bidang ini tetap relevan, tetapi cara kerjanya akan banyak berubah dengan AI.");
+  notes.push(
+    "Bidang ini tetap relevan, tetapi cara kerjanya akan banyak berubah dengan AI.",
+  );
   notes.push("AI dapat menjadi alat bantu untuk meningkatkan produktivitas.");
-  notes.push("Skill manusia seperti komunikasi, empati, kreativitas, dan judgement tetap penting.");
+  notes.push(
+    "Skill manusia seperti komunikasi, empati, kreativitas, dan judgement tetap penting.",
+  );
 
   return unique(notes).slice(0, 7);
 }
 
-export function scoreMajor(answer: StudentAnswer, major: KnowledgeMajor, rank = 0): RecommendationResult {
+export function scoreMajor(
+  answer: StudentAnswer,
+  major: KnowledgeMajor,
+  rank = 0,
+): RecommendationResult {
   const scoringBreakdown = calculateScoringBreakdown(answer, major);
   const overallFitScore = calculateOverallFitScore(scoringBreakdown);
   const aiProfile = aiResilienceProfilesById[major.aiFutureResilienceProfileId];
@@ -431,7 +586,10 @@ export function scoreMajor(answer: StudentAnswer, major: KnowledgeMajor, rank = 
     : roundScore(major.aiFutureResilienceScore);
   const recommendation: RecommendationResult = {
     rank,
-    degreeTypes: eligibleDegreeTypes(major.degreeTypes, answer.educationPathway),
+    degreeTypes: eligibleDegreeTypes(
+      major.degreeTypes,
+      answer.educationPathway,
+    ),
     majorId: major.id,
     majorName: major.name,
     cluster: displayCluster(major.cluster),
@@ -440,21 +598,31 @@ export function scoreMajor(answer: StudentAnswer, major: KnowledgeMajor, rank = 
     overallFitScore,
     fitLabel: getFitLabel(overallFitScore),
     aiFutureResilienceScore,
-    aiFutureResilienceLabel: getAIFutureResilienceLabel(aiFutureResilienceScore),
+    aiFutureResilienceLabel: getAIFutureResilienceLabel(
+      aiFutureResilienceScore,
+    ),
     reasonBullets: [],
     skillStrengthMatches: scoringBreakdown.matchedSkills,
     skillGaps: buildSkillGaps(answer, major),
     recommendedNextSteps: buildNextSteps(answer, major),
     cautionNotes: buildCautionNotes(answer, major),
-    scoringBreakdown
+    scoringBreakdown,
   };
 
-  recommendation.reasonBullets = buildRecommendationNarrative(answer, major, recommendation);
+  recommendation.reasonBullets = buildRecommendationNarrative(
+    answer,
+    major,
+    recommendation,
+  );
   return recommendation;
 }
 
 function validRecommendation(recommendation: RecommendationResult) {
-  return Boolean(recommendation.majorId && recommendation.majorName && recommendation.careerDirection);
+  return Boolean(
+    recommendation.majorId &&
+    recommendation.majorName &&
+    recommendation.careerDirection,
+  );
 }
 
 type ScoredMajor = {
@@ -462,7 +630,10 @@ type ScoredMajor = {
   recommendation: RecommendationResult;
 };
 
-function selectedCountBy(selected: Map<string, ScoredMajor>, selector: (item: ScoredMajor) => string) {
+function selectedCountBy(
+  selected: Map<string, ScoredMajor>,
+  selector: (item: ScoredMajor) => string,
+) {
   const counts = new Map<string, number>();
   for (const item of selected.values()) {
     const key = selector(item);
@@ -475,11 +646,17 @@ function canAddWithBreadth(
   selected: Map<string, ScoredMajor>,
   item: ScoredMajor,
   maxClusterCount: number,
-  maxSubClusterCount: number
+  maxSubClusterCount: number,
 ) {
   if (selected.has(item.major.id)) return false;
-  const clusterCounts = selectedCountBy(selected, (selectedItem) => selectedItem.major.cluster);
-  const subClusterCounts = selectedCountBy(selected, (selectedItem) => selectedItem.major.subCluster);
+  const clusterCounts = selectedCountBy(
+    selected,
+    (selectedItem) => selectedItem.major.cluster,
+  );
+  const subClusterCounts = selectedCountBy(
+    selected,
+    (selectedItem) => selectedItem.major.subCluster,
+  );
 
   return (
     (clusterCounts.get(item.major.cluster) ?? 0) < maxClusterCount &&
@@ -487,13 +664,21 @@ function canAddWithBreadth(
   );
 }
 
-function addScoredRecommendation(selected: Map<string, ScoredMajor>, item: ScoredMajor) {
+function addScoredRecommendation(
+  selected: Map<string, ScoredMajor>,
+  item: ScoredMajor,
+) {
   if (!selected.has(item.major.id)) selected.set(item.major.id, item);
 }
 
-function selectRecommendationPool(scored: ScoredMajor[], answer: StudentAnswer) {
+function selectRecommendationPool(
+  scored: ScoredMajor[],
+  answer: StudentAnswer,
+) {
   const selected = new Map<string, ScoredMajor>();
-  const strongMatches = scored.filter((item) => item.recommendation.overallFitScore >= 58);
+  const strongMatches = scored.filter(
+    (item) => item.recommendation.overallFitScore >= 58,
+  );
   const primaryPool = strongMatches.length > 0 ? strongMatches : scored;
 
   for (const item of primaryPool) {
@@ -503,14 +688,28 @@ function selectRecommendationPool(scored: ScoredMajor[], answer: StudentAnswer) 
 
   for (const item of strongMatches) {
     if (selected.size >= 10) break;
-    if (canAddWithBreadth(selected, item, MAX_CLUSTER_REPETITION_IN_TOP_TEN, MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN)) {
+    if (
+      canAddWithBreadth(
+        selected,
+        item,
+        MAX_CLUSTER_REPETITION_IN_TOP_TEN,
+        MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN,
+      )
+    ) {
       addScoredRecommendation(selected, item);
     }
   }
 
   for (const item of strongMatches) {
     if (selected.size >= 10) break;
-    if (canAddWithBreadth(selected, item, MAX_CLUSTER_REPETITION_IN_TOP_TEN + 2, MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN + 1)) {
+    if (
+      canAddWithBreadth(
+        selected,
+        item,
+        MAX_CLUSTER_REPETITION_IN_TOP_TEN + 2,
+        MAX_SUBCLUSTER_REPETITION_IN_TOP_TEN + 1,
+      )
+    ) {
       addScoredRecommendation(selected, item);
     }
   }
@@ -531,22 +730,42 @@ function selectRecommendationPool(scored: ScoredMajor[], answer: StudentAnswer) 
   return Array.from(selected.values()).map((item) => item.recommendation);
 }
 
-export function generateRecommendations(answer: StudentAnswer): RecommendationReport {
+export function generateRecommendations(
+  answer: StudentAnswer,
+): RecommendationReport {
   const candidates = eligibleMajors(knowledgeMajors, answer.educationPathway);
-  if (candidates.length < 10) throw new Error("Pathway requires at least 10 degree-compatible programs.");
+  if (candidates.length < 10)
+    throw new Error("Pathway requires at least 10 degree-compatible programs.");
   const scored = candidates
     .map((major) => ({ major, recommendation: scoreMajor(answer, major) }))
     .filter(({ recommendation }) => validRecommendation(recommendation))
     .sort((left, right) => {
-      if (right.recommendation.overallFitScore !== left.recommendation.overallFitScore) {
-        return right.recommendation.overallFitScore - left.recommendation.overallFitScore;
+      if (
+        right.recommendation.overallFitScore !==
+        left.recommendation.overallFitScore
+      ) {
+        return (
+          right.recommendation.overallFitScore -
+          left.recommendation.overallFitScore
+        );
       }
-      if (right.recommendation.aiFutureResilienceScore !== left.recommendation.aiFutureResilienceScore) {
-        return right.recommendation.aiFutureResilienceScore - left.recommendation.aiFutureResilienceScore;
+      if (
+        right.recommendation.aiFutureResilienceScore !==
+        left.recommendation.aiFutureResilienceScore
+      ) {
+        return (
+          right.recommendation.aiFutureResilienceScore -
+          left.recommendation.aiFutureResilienceScore
+        );
       }
-      const jobFlexDiff = jobFlexValue(right.major.jobMarketFlexibility) - jobFlexValue(left.major.jobMarketFlexibility);
+      const jobFlexDiff =
+        jobFlexValue(right.major.jobMarketFlexibility) -
+        jobFlexValue(left.major.jobMarketFlexibility);
       if (jobFlexDiff !== 0) return jobFlexDiff;
-      return left.recommendation.majorName.localeCompare(right.recommendation.majorName, "id-ID");
+      return left.recommendation.majorName.localeCompare(
+        right.recommendation.majorName,
+        "id-ID",
+      );
     });
 
   const recommendations = selectRecommendationPool(scored, answer)
@@ -554,7 +773,9 @@ export function generateRecommendations(answer: StudentAnswer): RecommendationRe
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
 
   if (recommendations.length !== 10) {
-    throw new Error("Recommendation engine failed to produce exactly 10 recommendations.");
+    throw new Error(
+      "Recommendation engine failed to produce exactly 10 recommendations.",
+    );
   }
 
   return {
@@ -564,6 +785,6 @@ export function generateRecommendations(answer: StudentAnswer): RecommendationRe
     scoringVersion: SCORING_VERSION,
     narrativeVersion: "heuristic-template-v2.0.0",
     ptnPtsVokasiAdvice: generatePtnPtsVokasiAdvice(answer),
-    answerPatternNotes: buildAnswerPatternNotes(answer)
+    answerPatternNotes: buildAnswerPatternNotes(answer),
   };
 }

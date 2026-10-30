@@ -1,12 +1,14 @@
-import type {Submission,RecommendationResult} from "@/lib/types";
-function careerDirectionFor(r:RecommendationResult){return r.personalizedCareerDirection||r.careerDirection}
+import type { Submission, RecommendationResult } from "@/lib/types";
+function careerDirectionFor(r: RecommendationResult) {
+  return r.personalizedCareerDirection || r.careerDirection;
+}
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   width: number,
   height: number,
-  radius: number
+  radius: number,
 ) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -28,7 +30,7 @@ function drawWrappedCanvasText(
   y: number,
   maxWidth: number,
   lineHeight: number,
-  maxLines = 4
+  maxLines = 4,
 ) {
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
@@ -45,7 +47,11 @@ function drawWrappedCanvasText(
     if (lines.length === maxLines) break;
   }
   if (line && lines.length < maxLines) lines.push(line);
-  if (words.length > 0 && lines.length === maxLines && words.join(" ").length > lines.join(" ").length) {
+  if (
+    words.length > 0 &&
+    lines.length === maxLines &&
+    words.join(" ").length > lines.join(" ").length
+  ) {
     lines[maxLines - 1] = `${lines[maxLines - 1].replace(/[.,;:!?]?$/, "")}...`;
   }
 
@@ -72,7 +78,8 @@ export async function createInstagramCardBlob(submission: Submission) {
   canvas.width = 1080;
   canvas.height = 1350;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Browser tidak mendukung canvas untuk membuat gambar.");
+  if (!ctx)
+    throw new Error("Browser tidak mendukung canvas untuk membuat gambar.");
 
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -105,7 +112,15 @@ export async function createInstagramCardBlob(submission: Submission) {
 
   ctx.fillStyle = "#333333";
   ctx.font = "500 30px Arial";
-  y = drawWrappedCanvasText(ctx, careerDirectionFor(top), 115, y + 14, 830, 42, 3);
+  y = drawWrappedCanvasText(
+    ctx,
+    careerDirectionFor(top),
+    115,
+    y + 14,
+    830,
+    42,
+    3,
+  );
 
   const scoreY = Math.max(y + 36, 580);
   drawRoundedRect(ctx, 115, scoreY, 255, 125, 22);
@@ -145,13 +160,25 @@ export async function createInstagramCardBlob(submission: Submission) {
   ctx.fill();
   ctx.fillStyle = "#111111";
   ctx.font = "800 30px Arial";
-  ctx.fillText("Alternatif yang juga layak dipertimbangkan", 115, alternativeY + 62);
+  ctx.fillText(
+    "Alternatif yang juga layak dipertimbangkan",
+    115,
+    alternativeY + 62,
+  );
   ctx.font = "700 28px Arial";
   alternatives.forEach((recommendation, index) => {
     ctx.fillStyle = "#BC340E";
-    ctx.fillText(`#${recommendation.rank}`, 115, alternativeY + 116 + index * 42);
+    ctx.fillText(
+      `#${recommendation.rank}`,
+      115,
+      alternativeY + 116 + index * 42,
+    );
     ctx.fillStyle = "#111111";
-    ctx.fillText(recommendation.majorName, 175, alternativeY + 116 + index * 42);
+    ctx.fillText(
+      recommendation.majorName,
+      175,
+      alternativeY + 116 + index * 42,
+    );
   });
 
   ctx.fillStyle = "#FFFFFF";
@@ -162,4 +189,3 @@ export async function createInstagramCardBlob(submission: Submission) {
 
   return canvasBlob(canvas);
 }
-

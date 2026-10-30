@@ -31,7 +31,11 @@ export function LoginPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedNext = searchParams.get("next");
-  const next = requestedNext && ["/assessment", "/result", "/already-submitted"].includes(requestedNext) ? requestedNext : "/assessment";
+  const next =
+    requestedNext &&
+    ["/assessment", "/result", "/already-submitted"].includes(requestedNext)
+      ? requestedNext
+      : "/assessment";
   const { user, loading, configured, signIn } = useAuth();
   const [error, setError] = useState("");
   const [isSigningIn, setSigningIn] = useState(false);
@@ -75,7 +79,8 @@ export function LoginPanel() {
   if (!configured) {
     return (
       <div role="alert" className="panel mx-auto max-w-md text-sm text-ink">
-        Layanan masuk belum dikonfigurasi. Hubungi pengelola sebelum memulai asesmen.
+        Layanan masuk belum dikonfigurasi. Hubungi pengelola sebelum memulai
+        asesmen.
       </div>
     );
   }
@@ -87,8 +92,12 @@ export function LoginPanel() {
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">Langkah pertama untuk mengenal dirimu.</h1>
-          <p className="text-sm text-ink/65">Gunakan email Google terverifikasi sebelum mengisi assessment.</p>
+          <h1 className="text-2xl font-extrabold text-ink">
+            Langkah pertama untuk mengenal dirimu.
+          </h1>
+          <p className="text-sm text-ink/65">
+            Gunakan email Google terverifikasi sebelum mengisi assessment.
+          </p>
         </div>
       </div>
       {error ? (
@@ -97,8 +106,15 @@ export function LoginPanel() {
           <span>{error}</span>
         </div>
       ) : null}
-      <p className="mb-5 text-xs leading-6 text-stone-600">Satu email Google terverifikasi dapat mengirim satu asesmen. Akunmu juga digunakan untuk membuka kembali laporan.</p>
-      <Button className="brand-cta w-full" onClick={handleLogin} disabled={loading || isSigningIn}>
+      <p className="mb-5 text-xs leading-6 text-stone-600">
+        Satu email Google terverifikasi dapat mengirim satu asesmen. Akunmu juga
+        digunakan untuk membuka kembali laporan.
+      </p>
+      <Button
+        className="brand-cta w-full"
+        onClick={handleLogin}
+        disabled={loading || isSigningIn}
+      >
         <Chrome className="h-4 w-4" />
         {isSigningIn ? "Mengarahkan ke Google..." : "Masuk dengan Google"}
       </Button>
