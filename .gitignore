@@ -11,3 +11,4 @@ firestore-debug.log
 tsconfig.tsbuildinfo
 netlify-env-copy.txt
 exports/
+.superpowers/
