@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import type { RecommendationResult, Submission } from "@/lib/types";
+import { educationPathwayLabel } from "@/lib/assessment/pathways";
 import { formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { CAREER_MATCH_LABEL, shouldShowAlternativePathway, studentStrengthHighlightsFor } from "@/lib/recommendation/display";
@@ -12,9 +13,9 @@ const MARGIN = 48;
 const TEXT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const INK = rgb(0.07, 0.07, 0.07);
 const MUTED = rgb(0.35, 0.35, 0.35);
-const ORANGE = rgb(0.98, 0.45, 0.09);
+const ORANGE = rgb(1, 0.235, 0);
 const ORANGE_DARK = rgb(0.72, 0.25, 0.03);
-const NAVY = rgb(0.06, 0.16, 0.26);
+const NAVY = rgb(0.098, 0.094, 0.09);
 const LINE = rgb(0.9, 0.86, 0.8);
 const TABLE_HEADER_BG = rgb(1, 0.94, 0.88);
 const TABLE_ALT_BG = rgb(1, 0.98, 0.95);
@@ -38,7 +39,12 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
   const lines: string[] = [];
   let line = "";
 
-  for (const word of words) {
+  const tokens = words.flatMap(word => {
+    const chunks: string[] = []; let chunk = "";
+    for (const char of word) { if (chunk && font.widthOfTextAtSize(chunk + char, size) > maxWidth) { chunks.push(chunk); chunk = ""; } chunk += char; }
+    if (chunk) chunks.push(chunk); return chunks;
+  });
+  for (const word of tokens) {
     const next = line ? `${line} ${word}` : word;
     if (font.widthOfTextAtSize(next, size) <= maxWidth) {
       line = next;
@@ -76,7 +82,7 @@ function addPage(ctx: PdfContext) {
 
 async function loadLogo(pdf: PDFDocument) {
   if (!existsSync(LOGO_PATH)) return undefined;
-  return pdf.embedPng(readFileSync(LOGO_PATH));
+  try { return await pdf.embedPng(readFileSync(LOGO_PATH)); } catch { return undefined; }
 }
 
 function ensureSpace(ctx: PdfContext, height: number) {
@@ -95,9 +101,8 @@ function drawText(
   const indent = options.indent ?? 0;
   const lines = wrapText(text, font, size, TEXT_WIDTH - indent);
   const lineHeight = size + 4;
-  ensureSpace(ctx, lines.length * lineHeight + (options.gap ?? 4));
-
   for (const line of lines) {
+    ensureSpace(ctx, lineHeight + (options.gap ?? 4));
     ctx.page.drawText(line, {
       x: MARGIN + indent,
       y: ctx.y,
@@ -166,6 +171,7 @@ function drawRecommendation(ctx: PdfContext, recommendation: RecommendationResul
     color: highlighted ? ORANGE_DARK : NAVY,
     gap: 2
   });
+  if (recommendation.degreeTypes?.length) drawText(ctx, `Jalur: ${recommendation.degreeTypes.join(" / ")}`, { size: 9, color: MUTED });
   drawText(ctx, careerDirectionFor(recommendation), { size: 10, gap: 2 });
   drawText(
     ctx,
@@ -252,52 +258,35 @@ function drawAlternativeTable(ctx: PdfContext, recommendations: RecommendationRe
     const pathwayText = recommendation.careerPathwayAdvice?.slice(0, 2).filter(Boolean).join(" ") ?? "";
     const baseCells = [
       { text: `#${recommendation.rank}`, bold: true },
-      { text: recommendation.majorName, bold: true },
+      { text: [recommendation.majorName, recommendation.degreeTypes?.join(" / ")].filter(Boolean).join(" - "), bold: true },
       { text: String(recommendation.overallFitScore), bold: false },
       { text: String(recommendation.aiFutureResilienceScore), bold: false },
       { text: nicheCareersFor(recommendation).join(", "), bold: false }
     ];
     const cells = showPathwayAdvice ? [...baseCells, { text: pathwayText, bold: false }] : baseCells;
     const lineSets = cells.map((cell, index) => cellLines(cell.text, columns[index].width, cell.bold));
-    const rowHeight = Math.max(34, Math.max(...lineSets.map((lines) => lines.length)) * lineHeight + 12);
-
-    if (ctx.y - rowHeight < MARGIN) {
-      addPage(ctx);
-      drawHeader();
-    }
-
-    let x = MARGIN;
-    const yTop = ctx.y;
-    const rowColor = rowIndex % 2 === 0 ? rgb(1, 1, 1) : TABLE_ALT_BG;
-
-    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
-      const column = columns[columnIndex];
-      ctx.page.drawRectangle({
-        x,
-        y: yTop - rowHeight,
-        width: column.width,
-        height: rowHeight,
-        color: rowColor,
-        borderColor: LINE,
-        borderWidth: 0.6
-      });
-
-      let textY = yTop - 13;
-      const font = cells[columnIndex].bold ? ctx.bold : ctx.font;
-      for (const line of lineSets[columnIndex]) {
-        ctx.page.drawText(line, {
-          x: x + paddingX,
-          y: textY,
-          size: fontSize,
-          font,
-          color: columnIndex === 0 ? ORANGE_DARK : INK
-        });
-        textY -= lineHeight;
+    const totalLines = Math.max(1, ...lineSets.map(lines => lines.length));
+    let offset = 0;
+    while (offset < totalLines) {
+      if (ctx.y - 34 < MARGIN) { addPage(ctx); drawHeader(); }
+      const available = Math.max(1, Math.floor((ctx.y - MARGIN - 12) / lineHeight));
+      const count = Math.min(available, totalLines - offset);
+      const rowHeight = Math.max(34, count * lineHeight + 12);
+      let x = MARGIN;
+      const yTop = ctx.y;
+      for (let i = 0; i < columns.length; i++) {
+        const column = columns[i];
+        ctx.page.drawRectangle({ x, y: yTop - rowHeight, width: column.width, height: rowHeight,
+          color: rowIndex % 2 === 0 ? rgb(1,1,1) : TABLE_ALT_BG, borderColor: LINE, borderWidth: 0.6 });
+        lineSets[i].slice(offset, offset + count).forEach((line, index) => ctx.page.drawText(line, {
+          x: x + paddingX, y: yTop - 13 - index * lineHeight, size: fontSize,
+          font: cells[i].bold ? ctx.bold : ctx.font, color: i === 0 ? ORANGE_DARK : INK
+        }));
+        x += column.width;
       }
-      x += column.width;
+      ctx.y -= rowHeight; offset += count;
+      if (offset < totalLines) { addPage(ctx); drawHeader(); }
     }
-
-    ctx.y -= rowHeight;
   }
 
   drawHeader();
@@ -313,6 +302,8 @@ export function buildSubmissionPdfTextSnapshot(submission: Submission) {
     "Laporan Rekomendasi Jurusan & Karier",
     submission.fullName,
     submission.school,
+    educationPathwayLabel(submission.answers.educationPathway),
+    ...submission.report.recommendations.map(r => `${r.majorName} ${(r.degreeTypes ?? []).join(" / ")}`),
     submission.report.topRecommendation.majorName,
     careerDirectionFor(submission.report.topRecommendation),
     CAREER_MATCH_LABEL,
@@ -363,6 +354,7 @@ export async function generateSubmissionPdf(submission: Submission) {
   drawKeyValue(ctx, "Sekolah", submission.school);
   drawKeyValue(ctx, "Kelas", submission.className);
   drawKeyValue(ctx, "Jurusan sekolah", submission.answers.currentSchoolMajor);
+  drawKeyValue(ctx, "Arah pendidikan", educationPathwayLabel(submission.answers.educationPathway));
   drawKeyValue(ctx, "Tanggal submit", formatDateTime(submission.createdAt));
 
   drawSectionTitle(ctx, "Ringkasan Jawaban");
@@ -403,6 +395,9 @@ export async function generateSubmissionPdf(submission: Submission) {
   );
   drawAlternativeTable(ctx, alternativeRecommendations, showAlternativePathwayAdvice);
 
+  drawSectionTitle(ctx, "Hal yang Perlu Dipertimbangkan");
+  drawBulletList(ctx, submission.report.topRecommendation.cautionNotes, 10);
+  drawText(ctx, "Kecocokan bukan peluang diterima; ketahanan AI bukan jaminan pekerjaan.", { size: 10, bold: true });
   drawSectionTitle(ctx, "AI Future Resilience Score");
   drawText(
     ctx,
