@@ -33,6 +33,7 @@ export function AssessmentForm() {
   const [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false),
     [editing, setEditing] = useState(false);
+  const editSnapshot = useRef<StudentAnswer | null>(null);
   const submitting = useRef(false),
     heading = useRef<HTMLHeadingElement>(null),
     errorRef = useRef<HTMLDivElement>(null);
@@ -137,6 +138,7 @@ export function AssessmentForm() {
       return;
     }
     if (editing) {
+      editSnapshot.current = null;
       setEditing(false);
       setIndex(steps.length - 1);
     } else setIndex((i) => i + 1);
@@ -447,6 +449,7 @@ export function AssessmentForm() {
                       (key === "gender" && s.type === "profile"),
                   );
                   if (target >= 0) {
+                    editSnapshot.current = structuredClone(answer);
                     setEditing(true);
                     setIndex(target);
                   }
@@ -456,10 +459,12 @@ export function AssessmentForm() {
             <div className="wizard-actions">
               <Button
                 variant="secondary"
-                disabled={index === 0 || busy}
+                disabled={(!editing && index === 0) || busy}
                 onClick={() => {
                   setError("");
                   if (editing) {
+                    if (editSnapshot.current) setAnswer(editSnapshot.current);
+                    editSnapshot.current = null;
                     setEditing(false);
                     setIndex(steps.length - 1);
                   } else setIndex((i) => Math.max(0, i - 1));

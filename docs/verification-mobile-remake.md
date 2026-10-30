@@ -1,12 +1,12 @@
 # Mobile remake verification
 
-Verified locally on 2026-10-30, before independent branch review.
+Verified locally on 2026-10-30, including regression verification after the independent branch review.
 
 - `npm run validate:kb`: pass; 112 majors, 143 careers. Eligible pools: 89 S1 and 35 D3/D4 programs.
 - `npm run lint`: pass (currently the TypeScript check).
 - `npm run typecheck`: pass.
 - `npm test`: 77 tests pass across 15 files.
-- `npm run test:browser`: 44 Chromium component tests pass, using `PLAYWRIGHT_EXECUTABLE_PATH` for an already-installed Chromium after the matching-browser CDN download reset/timed out.
+- `npm run test:browser`: 51 Chromium component tests pass, using `PLAYWRIGHT_EXECUTABLE_PATH` for an already-installed Chromium after the matching-browser CDN download reset/timed out.
 - `npm run build`: pass; all existing application and API routes remain present.
 
 Browser coverage includes 320/360/390/768/1280 px widths, loaded logo, long student/school names, open filters and report details, large text, reduced motion, 44 px control heights, 16 px input text, keyboard radio/disclosure/dialog operation, answer review/edit, retry/duplicate-click protection, admin filter/export/reset/logout, missing historical fields, and usable heuristic results during narrative failures or delays. Polling cancellation is covered. These are actual application components with compiled styles, not the throwaway HTML preview.
@@ -14,6 +14,23 @@ Browser coverage includes 320/360/390/768/1280 px widths, loaded logo, long stud
 The field-boundary contrast check initially measured 2.52:1, failed, and was corrected to a darker border that passes the 3:1 requirement. Dark body copy passes 4.5:1. Contrast and keyboard regression tests are not a claim of complete WCAG certification.
 
 Synthetic old/vocational/university PDF reports each generated successfully (three pages for the standard sample); extracted words stayed inside horizontal page bounds. First and last pages were visually inspected, as were phone screenshots of the landing page, results, and admin report view. Long-text generation is covered by unit tests.
+
+## Independent review and regression fixes
+
+A read-only independent Codex review of `9626ae3..b010b7b` found no critical issues and three important issues. All three were reproduced by failing browser tests, fixed in one pass, and verified with the full green suites and production build:
+
+1. Reports are now scoped to a keyed authenticated UID/email state tree; switching identities cannot retain the previous report, and authorization failures clear private report data.
+2. The real `GET /api/submissions/me` HTTP 404 contract now leads to the actionable empty state, rather than an unrecoverable retry loop.
+3. Review edits snapshot all answers; cancelling restores the original pathway, name, selections, and companion text. Cancellation also works for the first field.
+
+Seven browser regressions were added. The reviewer raised no minor findings. Fix verification was test-driven, not a second independent approval.
+
+### Decisions and residual risks
+
+- Kept the existing clean dedicated branch/checkout rather than creating another worktree, as agreed in the plan. Tradeoff: no additional filesystem isolation.
+- Used a locally installed Chromium through the documented executable override after CDN download failures. Tradeoff: possible version skew; CI should install the matching version.
+- Live Google/Firebase/Firestore/Gemini behavior and deployment were outside the read-only review and were not tested against real accounts. Tradeoff: integration failures may still be discovered in an authorized release smoke test.
+- Physical virtual keyboards and an independent PDF/share-image visual audit were outside the reviewer’s pass. Synthetic PDFs and phone screenshots were inspected locally, but physical-device differences may remain.
 
 ## Deliberate limits
 

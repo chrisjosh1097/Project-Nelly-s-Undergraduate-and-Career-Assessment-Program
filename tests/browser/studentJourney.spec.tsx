@@ -63,6 +63,94 @@ test("school background routes to explicit direction and retains answers", async
     page.getByRole("checkbox", { name: "Matematika", exact: true }),
   ).toHaveAttribute("aria-checked", "true");
 });
+for (const field of [
+  "pathway",
+  "name",
+  "subject-other",
+  "college-other",
+] as const)
+  test(`cancelling ${field} edits restores original answers`, async ({
+    mount,
+    page,
+  }) => {
+    await mount(<AssessmentForm />);
+    await school(page);
+    await page.getByRole("radio", { name: /Vokasi \/ Terapan/ }).click();
+    await next(page);
+    await page.getByRole("checkbox", { name: "Lainnya", exact: true }).click();
+    await page
+      .getByLabel("Mata pelajaran lainnya", { exact: true })
+      .fill("Robotika");
+    await next(page);
+    await page
+      .getByRole("checkbox", { name: "Coding/teknologi", exact: true })
+      .click();
+    await next(page);
+    await page.getByRole("checkbox", { name: "Logika", exact: true }).click();
+    await next(page);
+    await next(page);
+    await page
+      .getByRole("checkbox", { name: "Teknologi", exact: true })
+      .click();
+    await next(page);
+    await page.getByRole("checkbox", { name: "Lainnya", exact: true }).click();
+    await page
+      .getByLabel("Preferensi lainnya", { exact: true })
+      .fill("Dekat industri");
+    await next(page);
+    await page.getByRole("checkbox", { name: "Biaya", exact: true }).click();
+    await next(page);
+    await next(page);
+    await next(page);
+    await next(page);
+    const label =
+      field === "pathway"
+        ? "Ubah Setelah lulus, kamu ingin belajar lewat jalur apa?"
+        : field === "name"
+          ? "Ubah Nama lengkap"
+          : field === "subject-other"
+            ? "Ubah Mata pelajaran yang paling disukai"
+            : "Ubah Preferensi kampus dan lokasi";
+    await page.getByRole("button", { name: label, exact: true }).click();
+    if (field === "pathway")
+      await page
+        .getByRole("radio", { name: /Universitas \/ Akademik/ })
+        .click();
+    else if (field === "name")
+      await page
+        .getByRole("textbox", { name: "Nama lengkap", exact: true })
+        .fill("Cancelled name");
+    else
+      await page
+        .getByRole("checkbox", { name: "Lainnya", exact: true })
+        .click();
+    await expect(
+      page.getByRole("button", { name: "Batal ubah", exact: true }),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "Batal ubah", exact: true }).click();
+    await page.getByRole("button", { name: label, exact: true }).click();
+    if (field === "pathway")
+      await expect(
+        page.getByRole("radio", { name: /Vokasi \/ Terapan/ }),
+      ).toHaveAttribute("aria-checked", "true");
+    else if (field === "name")
+      await expect(
+        page.getByRole("textbox", { name: "Nama lengkap", exact: true }),
+      ).toHaveValue("Nelly Siswa");
+    else {
+      await expect(
+        page.getByRole("checkbox", { name: "Lainnya", exact: true }),
+      ).toHaveAttribute("aria-checked", "true");
+      await expect(
+        page.getByLabel(
+          field === "subject-other"
+            ? "Mata pelajaran lainnya"
+            : "Preferensi lainnya",
+          { exact: true },
+        ),
+      ).toHaveValue(field === "subject-other" ? "Robotika" : "Dekat industri");
+    }
+  });
 test("review editing and retry keep answers, duplicate clicks send one request", async ({
   mount,
   page,

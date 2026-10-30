@@ -13,6 +13,16 @@ export function ResultLoader({
 }: {
   alreadySubmitted?: boolean;
 }) {
+  const { user } = useAuth();
+  // A new identity gets a fresh state tree before any old report can render.
+  return (
+    <AccountResults
+      key={`${user?.uid ?? "signed-out"}:${user?.email ?? ""}`}
+      alreadySubmitted={alreadySubmitted}
+    />
+  );
+}
+function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
   const router = useRouter();
   const { user, loading, getToken } = useAuth();
   const [submission, setSubmission] = useState<Submission | null>(null),
@@ -36,6 +46,15 @@ export function ResultLoader({
           headers: { authorization: `Bearer ${token}` },
         });
         const data = await response.json();
+        if (cancelled) return;
+        if (response.status === 404) {
+          setSubmission(null);
+          setLoaded(true);
+          setError("");
+          return;
+        }
+        if (response.status === 401 || response.status === 403)
+          setSubmission(null);
         if (!response.ok)
           throw new Error(data.error ?? "Hasil belum dapat dimuat.");
         if (cancelled) return;

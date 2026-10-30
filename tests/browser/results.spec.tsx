@@ -57,7 +57,7 @@ test("missing report is actionable, not an endless spinner", async ({
   page,
 }) => {
   await page.route("**/api/submissions/me", (r) =>
-    r.fulfill({ json: { submission: null } }),
+    r.fulfill({ status: 404, json: { error: "Submission belum ditemukan." } }),
   );
   await mount(<ResultLoader />);
   await expect(page.getByRole("link", { name: "Mulai asesmen" })).toBeVisible();
@@ -91,6 +91,68 @@ test("pending polling stops on unmount and retries recover failures", async ({
   await component.unmount();
   await page.clock.fastForward(10000);
   expect(requests).toBe(3);
+});
+for (const failure of [401, 500])
+  test(`account change never retains another student's report after ${failure}`, async ({
+    mount,
+    page,
+  }) => {
+    let requests = 0;
+    await page.route("**/api/submissions/me", (route) => {
+      requests++;
+      return route.fulfill(
+        requests === 1
+          ? { json: { submission } }
+          : { status: failure, json: { error: "New account request failed" } },
+      );
+    });
+    const component = await mount(<ResultLoader />);
+    await expect(
+      page.getByText(submission.fullName, { exact: false }).first(),
+    ).toBeVisible();
+    await page.evaluate(() => {
+      (window as any).__auth = {
+        user: { uid: "synthetic-user-b", email: "student-b@example.com" },
+        loading: false,
+        configured: true,
+      };
+    });
+    await component.update(<ResultLoader alreadySubmitted />);
+    await expect(page.getByRole("alert")).toContainText(
+      "New account request failed",
+    );
+    await expect(
+      page.getByRole("button", { name: "Kartu Instagram" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText(submission.fullName, { exact: false }),
+    ).toHaveCount(0);
+  });
+test("authorization failure while polling clears the current private report", async ({
+  mount,
+  page,
+}) => {
+  await page.clock.install();
+  let requests = 0;
+  await page.route("**/api/submissions/me", (route) => {
+    requests++;
+    return route.fulfill(
+      requests === 1
+        ? {
+            json: { submission: { ...submission, narrativeStatus: "pending" } },
+          }
+        : { status: 401, json: { error: "Session expired" } },
+    );
+  });
+  await mount(<ResultLoader />);
+  await expect(
+    page.getByRole("button", { name: "Kartu Instagram" }),
+  ).toBeVisible();
+  await page.clock.fastForward(3501);
+  await expect(page.getByRole("alert")).toContainText("Session expired");
+  await expect(
+    page.getByRole("button", { name: "Kartu Instagram" }),
+  ).toHaveCount(0);
 });
 test("legacy results and previous-submission notice remain readable", async ({
   mount,
