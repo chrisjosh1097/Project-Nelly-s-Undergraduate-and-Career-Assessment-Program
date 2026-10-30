@@ -14,6 +14,7 @@ import {
   type SampleStudentProfile,
   type WeightedTag
 } from "../data";
+import { validatePathwayCapacity } from "../src/lib/recommendation/eligibility";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -99,7 +100,7 @@ function validateWeightedTags(
 }
 
 export function validateKnowledgeBase(): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationIssue[] = validatePathwayCapacity(majors).map(message => ({ path: "majors.degreeTypes", message }));
   const majorIds = setOf(majors);
   const careerIds = setOf(careers);
   const profileIds = setOf(aiResilienceProfiles);

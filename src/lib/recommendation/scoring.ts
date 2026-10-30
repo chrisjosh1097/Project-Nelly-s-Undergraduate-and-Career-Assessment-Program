@@ -23,7 +23,10 @@ import { buildRecommendationNarrative } from "@/lib/recommendation/narrative";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { scoreAspirationMajorIntent } from "@/lib/recommendation/aspirationIntent";
 
-export const SCORING_VERSION = "knowledge-base-heuristic-v2.0.0";
+import { eligibleMajors } from "@/lib/recommendation/eligibility";
+import { eligibleDegreeTypes } from "@/lib/assessment/pathways";
+
+export const SCORING_VERSION = "knowledge-base-heuristic-v3.0.0";
 
 const FLEXIBLE_FALLBACK_MAJOR_IDS = [
   "sistem_informasi",
@@ -428,6 +431,7 @@ export function scoreMajor(answer: StudentAnswer, major: KnowledgeMajor, rank = 
     : roundScore(major.aiFutureResilienceScore);
   const recommendation: RecommendationResult = {
     rank,
+    degreeTypes: eligibleDegreeTypes(major.degreeTypes, answer.educationPathway),
     majorId: major.id,
     majorName: major.name,
     cluster: displayCluster(major.cluster),
@@ -513,9 +517,9 @@ function selectRecommendationPool(scored: ScoredMajor[], answer: StudentAnswer) 
 
   for (const majorId of FLEXIBLE_FALLBACK_MAJOR_IDS) {
     if (selected.size >= 10) break;
-    const fallback = knowledgeMajors.find((major) => major.id === majorId);
-    if (fallback && !selected.has(fallback.id)) {
-      addScoredRecommendation(selected, { major: fallback, recommendation: scoreMajor(answer, fallback) });
+    const fallback = scored.find((item) => item.major.id === majorId);
+    if (fallback && !selected.has(fallback.major.id)) {
+      addScoredRecommendation(selected, fallback);
     }
   }
 
@@ -528,7 +532,9 @@ function selectRecommendationPool(scored: ScoredMajor[], answer: StudentAnswer) 
 }
 
 export function generateRecommendations(answer: StudentAnswer): RecommendationReport {
-  const scored = knowledgeMajors
+  const candidates = eligibleMajors(knowledgeMajors, answer.educationPathway);
+  if (candidates.length < 10) throw new Error("Pathway requires at least 10 degree-compatible programs.");
+  const scored = candidates
     .map((major) => ({ major, recommendation: scoreMajor(answer, major) }))
     .filter(({ recommendation }) => validRecommendation(recommendation))
     .sort((left, right) => {
