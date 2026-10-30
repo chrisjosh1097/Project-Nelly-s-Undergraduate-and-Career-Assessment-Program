@@ -13,6 +13,11 @@ import {
   isGeminiQueueEnabled,
 } from "@/lib/recommendation/geminiQueue";
 import { normalizeEmail } from "@/lib/utils";
+import {
+  ADMIN_SUMMARY_FIELDS,
+  summarizeAdminPage,
+  type AdminSummarySource,
+} from "@/lib/admin/submissions";
 
 const COLLECTION = "submissions";
 
@@ -34,6 +39,10 @@ function snapshotToSubmission(
 export async function getSubmissionByEmail(email: string) {
   const snapshot = await collection().doc(submissionIdForEmail(email)).get();
   return snapshotToSubmission(snapshot);
+}
+
+export async function getSubmissionById(id: string) {
+  return snapshotToSubmission(await collection().doc(id).get());
 }
 
 export async function deleteSubmissionByEmail(email: string) {
@@ -135,11 +144,39 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
 }
 
 export async function listSubmissions(filters: SubmissionFilters = {}) {
-  const snapshot = await collection()
-    .orderBy("createdAt", "desc")
-    .limit(500)
-    .get();
-  return snapshot.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }) as Submission)
-    .filter((s) => matchesSubmissionFilters(s, filters));
+  const matches: Submission[] = [];
+  for await (const doc of scanSubmissions(false)) {
+    const submission = { ...doc.data(), id: doc.id } as Submission;
+    if (matchesSubmissionFilters(submission, filters)) matches.push(submission);
+  }
+  return matches;
+}
+
+// A cursor snapshot includes the implicit document-ID tie breaker for equal timestamps.
+// No hard cap: each read has a bounded payload, and summary pages retain at most 100 rows.
+async function* scanSubmissions(projected: boolean) {
+  let query: FirebaseFirestore.Query = collection().orderBy(
+    "createdAt",
+    "desc",
+  );
+  if (projected) query = query.select(...ADMIN_SUMMARY_FIELDS);
+  query = query.limit(200);
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  while (true) {
+    const snapshot = await (cursor ? query.startAfter(cursor) : query).get();
+    for (const doc of snapshot.docs) yield doc;
+    if (snapshot.docs.length < 200) break;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+  }
+}
+
+export async function listAdminSubmissionPage(
+  filters: SubmissionFilters = {},
+  page = 1,
+) {
+  async function* sources() {
+    for await (const doc of scanSubmissions(true))
+      yield { ...doc.data(), id: doc.id } as AdminSummarySource;
+  }
+  return summarizeAdminPage(sources(), filters, page);
 }

@@ -1,6 +1,7 @@
 import type { EducationPathway, Submission } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 export interface SubmissionFilters {
+  search?: string;
   school?: string;
   className?: string;
   topRecommendation?: string;
@@ -23,6 +24,7 @@ export function parseSubmissionFilters(
     throw new ApiError("Arah pendidikan tidak valid.", 400);
   const result: SubmissionFilters = {};
   for (const key of [
+    "search",
     "school",
     "className",
     "topRecommendation",
@@ -39,11 +41,36 @@ export function parseSubmissionFilters(
       educationPathway as SubmissionFilters["educationPathway"];
   return result;
 }
+export type SubmissionFilterRecord = Pick<
+  Submission,
+  "fullName" | "email" | "school" | "className" | "status" | "createdAt"
+> & {
+  answers?: Pick<Partial<Submission["answers"]>, "educationPathway">;
+  report?: {
+    topRecommendation?: Pick<
+      Submission["report"]["topRecommendation"],
+      "majorName" | "cluster"
+    >;
+  };
+};
 export function matchesSubmissionFilters(
-  s: Submission,
+  s: SubmissionFilterRecord,
   f: SubmissionFilters,
 ): boolean {
   const top = s.report?.topRecommendation;
+  const search = f.search?.toLowerCase();
+  if (
+    search &&
+    ![
+      s.fullName,
+      s.email,
+      s.school,
+      s.className,
+      top?.majorName,
+      top?.cluster,
+    ].some((value) => value?.toLowerCase().includes(search))
+  )
+    return false;
   if (f.school && !s.school.toLowerCase().includes(f.school.toLowerCase()))
     return false;
   if (
@@ -63,7 +90,7 @@ export function matchesSubmissionFilters(
   if (f.dateTo && s.createdAt > `${f.dateTo}T23:59:59.999Z`) return false;
   if (
     f.educationPathway &&
-    (s.answers.educationPathway ?? "unrecorded") !== f.educationPathway
+    (s.answers?.educationPathway ?? "unrecorded") !== f.educationPathway
   )
     return false;
   return true;

@@ -6,6 +6,66 @@ import {
 import { serializeSubmissionsCsv } from "@/lib/submissions/csv";
 import { buildSubmission, techAnswer } from "./fixtures";
 describe("admin pathway data", () => {
+  it("exports processing records whose reports are not available yet", () => {
+    const row = buildSubmission({
+      ...techAnswer,
+      fullName: "Synthetic Pending Student",
+      email: "pending@example.test",
+    });
+    row.status = "processing";
+    Reflect.deleteProperty(row, "report");
+    expect(serializeSubmissionsCsv([row])).toContain(
+      '"processing","Synthetic Pending Student","pending@example.test"',
+    );
+  });
+  it("parses general search and ANDs it with every existing filter", () => {
+    const row = buildSubmission({
+      ...techAnswer,
+      fullName: "Synthetic Archive Student",
+      email: "archive@example.test",
+      educationPathway: "vocational",
+    });
+    const filters = {
+      search: "ARCHIVE",
+      school: "Contoh",
+      className: "XI",
+      status: "completed",
+      educationPathway: "vocational" as const,
+      dateFrom: "2026-05-23",
+      dateTo: "2026-05-23",
+      topRecommendation: row.report.topRecommendation.majorName,
+      cluster: row.report.topRecommendation.cluster,
+    };
+    expect(
+      parseSubmissionFilters(new URLSearchParams("search=%20ARCHIVE%20")),
+    ).toEqual({ search: "ARCHIVE" });
+    expect(matchesSubmissionFilters(row, filters)).toBe(true);
+    for (const key of [
+      "school",
+      "className",
+      "status",
+      "educationPathway",
+      "topRecommendation",
+      "cluster",
+    ] as const)
+      expect(
+        matchesSubmissionFilters(row, { ...filters, [key]: "missing" }),
+      ).toBe(false);
+    for (const search of [
+      row.fullName,
+      row.email,
+      row.school,
+      row.className,
+      row.report.topRecommendation.majorName,
+      row.report.topRecommendation.cluster,
+    ])
+      expect(
+        matchesSubmissionFilters(row, { search: search.toUpperCase() }),
+      ).toBe(true);
+    expect(
+      matchesSubmissionFilters(row, { search: "unknown archive phrase" }),
+    ).toBe(false);
+  });
   it("distinguishes missing and explicitly exploring", () => {
     const old = buildSubmission();
     const exploring = buildSubmission({

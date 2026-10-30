@@ -43,7 +43,7 @@ export function serializeSubmissionsCsv(
     "topDegreeTypes",
   ];
   const rows = submissions.map((submission) => {
-    const top = submission.report.topRecommendation;
+    const top = submission.report?.topRecommendation;
     return [
       submission.createdAt,
       submission.updatedAt,
@@ -67,21 +67,23 @@ export function serializeSubmissionsCsv(
       submission.answers.techComfort,
       submission.answers.dreamProfession,
       submission.answers.futureVision,
-      top.majorName,
-      top.careerDirection,
-      top.personalizedCareerDirection ?? "",
-      (top.nicheCareerPaths ?? top.relatedCareers.slice(0, 3)).join("; "),
-      top.aspirationReflection ?? "",
-      (top.careerPathwayAdvice ?? []).join("; "),
-      top.cluster,
-      top.overallFitScore,
-      top.aiFutureResilienceScore,
-      top.fitLabel,
-      top.aiFutureResilienceLabel,
-      JSON.stringify(submission.report.recommendations),
-      submission.report.scoringVersion,
+      top?.majorName,
+      top?.careerDirection,
+      top?.personalizedCareerDirection ?? "",
+      (top?.nicheCareerPaths ?? top?.relatedCareers?.slice(0, 3) ?? []).join(
+        "; ",
+      ),
+      top?.aspirationReflection ?? "",
+      (top?.careerPathwayAdvice ?? []).join("; "),
+      top?.cluster,
+      top?.overallFitScore,
+      top?.aiFutureResilienceScore,
+      top?.fitLabel,
+      top?.aiFutureResilienceLabel,
+      JSON.stringify(submission.report?.recommendations ?? []),
+      submission.report?.scoringVersion ?? "",
       submission.answers.educationPathway ?? "",
-      (top.degreeTypes ?? []).join("; "),
+      (top?.degreeTypes ?? []).join("; "),
     ].map(csvEscape);
   });
 

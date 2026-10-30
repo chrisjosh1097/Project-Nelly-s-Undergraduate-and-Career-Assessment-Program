@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     );
     return new Response(serializeSubmissionsCsv(submissions), {
       headers: {
+        "cache-control": "private, no-store",
         "content-type": "text/csv; charset=utf-8",
         "content-disposition":
           'attachment; filename="project-nelly-submissions.csv"',

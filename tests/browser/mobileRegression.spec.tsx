@@ -48,7 +48,39 @@ for (const width of [320, 360, 390, 768, 1280])
         school: "SMK Negeri Teknik dan Informatika dengan nama sekolah panjang",
       };
       await page.route("**/api/admin/submissions", (r) =>
-        r.fulfill({ json: { submissions: [long] } }),
+        r.fulfill({
+          json: {
+            page: 1,
+            pageSize: 50,
+            total: 1,
+            totalPages: 1,
+            submissions: [
+              {
+                id: long.id,
+                fullName: long.fullName,
+                email: long.email,
+                school: long.school,
+                className: long.className,
+                status: long.status,
+                createdAt: long.createdAt,
+                educationPathway: long.answers.educationPathway,
+                topRecommendation: {
+                  majorName: long.report.topRecommendation.majorName,
+                  cluster: long.report.topRecommendation.cluster,
+                  overallFitScore:
+                    long.report.topRecommendation.overallFitScore,
+                  aiFutureResilienceScore:
+                    long.report.topRecommendation.aiFutureResilienceScore,
+                },
+              },
+            ],
+            analytics: { total: 1, schools: 1, fit: 70, ai: 80, charts: [] },
+          },
+        }),
+      );
+      await page.route(
+        "**/api/admin/submissions/" + encodeURIComponent(long.id),
+        (r) => r.fulfill({ json: { submission: long } }),
       );
       const view =
         screen === "landing" ? (
@@ -71,10 +103,19 @@ for (const width of [320, 360, 390, 768, 1280])
         await expect(
           page.getByRole("heading", { name: "Pahami arah siswa." }),
         ).toBeVisible();
-        await page
-          .locator("summary")
-          .filter({ hasText: "Filter asesmen" })
-          .click();
+        await expect(page.getByLabel("Cari semua asesmen")).toBeVisible();
+        await expect(
+          page.getByLabel("Email siswa", { exact: true }),
+        ).toBeVisible();
+        await expect(page.getByRole("table")).toHaveCount(1);
+        const tableRegion = page.getByRole("region", {
+          name: /Tabel asesmen siswa/,
+        });
+        await expect(tableRegion).toBeVisible();
+        if (width < 768)
+          expect(
+            await tableRegion.evaluate((el) => el.scrollWidth > el.clientWidth),
+          ).toBe(true);
       }
       expect(
         await page.evaluate(

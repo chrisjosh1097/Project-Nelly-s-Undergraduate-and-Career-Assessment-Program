@@ -9,6 +9,14 @@ export function AdminFilters({
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Field label="Cari semua asesmen">
+        <Input
+          type="search"
+          placeholder="Nama, email, sekolah, kelas, jurusan, cluster"
+          value={filters.search ?? ""}
+          onChange={(e) => onChange({ ...filters, search: e.target.value })}
+        />
+      </Field>
       {[
         { key: "school", label: "Sekolah" },
         { key: "className", label: "Kelas" },

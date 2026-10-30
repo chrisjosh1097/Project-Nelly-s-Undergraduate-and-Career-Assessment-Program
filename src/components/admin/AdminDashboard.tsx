@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Filter, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
@@ -9,32 +9,21 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ResultsView } from "@/components/results/ResultsView";
 import { AdminFilters } from "./AdminFilters";
 import { SubmissionList } from "./SubmissionList";
-import { educationPathwayLabel } from "@/lib/assessment/pathways";
 import type { Submission } from "@/lib/types";
+import type {
+  AdminSubmissionPage,
+  AdminSubmissionSummary,
+} from "@/lib/admin/submissions";
 import type { SubmissionFilters } from "@/lib/submissions/filters";
 import { downloadBlob } from "@/lib/utils";
-function buildQuery(filters: SubmissionFilters) {
+import { adminRequest, readAdminJson } from "./request";
+function buildQuery(filters: SubmissionFilters, page?: number) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters))
     if (value?.trim()) params.set(key, value.trim());
+  if (page && page !== 1) params.set("page", String(page));
   const text = params.toString();
   return text ? "?" + text : "";
-}
-function counts(items: string[]) {
-  const m = new Map<string, number>();
-  for (const value of items.filter(Boolean))
-    m.set(value, (m.get(value) ?? 0) + 1);
-  return [...m]
-    .map(([label, count]) => ({ label, count }))
-    .sort(
-      (a, b) => b.count - a.count || a.label.localeCompare(b.label, "id-ID"),
-    )
-    .slice(0, 10);
-}
-function average(items: number[]) {
-  return items.length
-    ? Math.round(items.reduce((a, b) => a + b, 0) / items.length)
-    : 0;
 }
 function Chart({
   title,
@@ -72,8 +61,9 @@ function Chart({
 export function AdminDashboard() {
   const [filters, setFilters] = useState<SubmissionFilters>({}),
     [applied, setApplied] = useState<SubmissionFilters>({});
-  const [submissions, setSubmissions] = useState<Submission[]>([]),
+  const [pageData, setPageData] = useState<AdminSubmissionPage | null>(null),
     [selected, setSelected] = useState<Submission | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [needsLogin, setNeedsLogin] = useState<boolean | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState("");
@@ -89,22 +79,32 @@ export function AdminDashboard() {
     resetting = useRef(false);
   function revoke() {
     generation.current++;
-    setSubmissions([]);
+    setPageData(null);
     setSelected(null);
+    setLoading(false);
+    setDetailLoading(false);
     setNeedsLogin(true);
     setResetTarget("");
+    setResetEmail("");
+    setFilters({});
+    setApplied({});
+    setMessage("");
+    setError("");
+    returnId.current = "";
     setPassword("");
   }
-  async function load(next: SubmissionFilters = applied) {
+  async function load(
+    next: SubmissionFilters = applied,
+    page = pageData?.page ?? 1,
+  ) {
     const id = ++generation.current;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(
-        "/api/admin/submissions" + buildQuery(next),
-        { credentials: "include" },
+      const { response, data } = await adminRequest(
+        "/api/admin/submissions" + buildQuery(next, page),
+        readAdminJson,
       );
-      const data = await response.json();
       if (id !== generation.current) return;
       if (response.status === 401) {
         revoke();
@@ -112,12 +112,37 @@ export function AdminDashboard() {
       }
       if (!response.ok) throw new Error(data.error ?? "Gagal memuat data.");
       setNeedsLogin(false);
-      setSubmissions(data.submissions ?? []);
+      setPageData(data as AdminSubmissionPage);
+      setApplied(next);
     } catch (e) {
       if (id === generation.current)
         setError(e instanceof Error ? e.message : "Gagal memuat data.");
     } finally {
       if (id === generation.current) setLoading(false);
+    }
+  }
+  async function openDetail(summary: AdminSubmissionSummary) {
+    const id = ++generation.current;
+    returnId.current = (document.activeElement as HTMLElement)?.id ?? "";
+    setDetailLoading(true);
+    setError("");
+    try {
+      const { response, data } = await adminRequest(
+        "/api/admin/submissions/" + encodeURIComponent(summary.id),
+        readAdminJson,
+      );
+      if (id !== generation.current) return;
+      if (response.status === 401) {
+        revoke();
+        return;
+      }
+      if (!response.ok) throw new Error(data.error ?? "Gagal memuat laporan.");
+      setSelected(data.submission);
+    } catch (e) {
+      if (id === generation.current)
+        setError(e instanceof Error ? e.message : "Gagal memuat laporan.");
+    } finally {
+      if (id === generation.current) setDetailLoading(false);
     }
   }
   useEffect(() => {
@@ -134,77 +159,39 @@ export function AdminDashboard() {
       document.getElementById(returnId.current)?.focus();
     }
   }, [selected]);
-  const analytics = useMemo(() => {
-    const top = submissions.flatMap((s) =>
-      s.report?.topRecommendation ? [s.report.topRecommendation] : [],
-    );
-    return {
-      total: submissions.length,
-      schools: new Set(submissions.map((s) => s.school)).size,
-      fit: average(top.map((r) => r.overallFitScore)),
-      ai: average(top.map((r) => r.aiFutureResilienceScore)),
-      charts: [
-        {
-          title: "Arah pendidikan",
-          rows: counts(
-            submissions.map((s) =>
-              educationPathwayLabel(s.answers.educationPathway),
-            ),
-          ),
-        },
-        {
-          title: "Gender",
-          rows: counts(
-            submissions.map((s) => s.answers.gender || "Belum tercatat"),
-          ),
-        },
-        {
-          title: "Umur",
-          rows: counts(
-            submissions.map((s) => s.answers.age || "Belum tercatat"),
-          ),
-        },
-        {
-          title: "Top 10 rekomendasi",
-          rows: counts(top.map((r) => r.majorName)),
-        },
-        { title: "Top 10 cluster", rows: counts(top.map((r) => r.cluster)) },
-        {
-          title: "Pertimbangan umum",
-          rows: counts(
-            submissions.flatMap((s) => s.answers.personalConstraints),
-          ),
-        },
-        {
-          title: "Aktivitas umum",
-          rows: counts(
-            submissions.flatMap((s) => s.answers.favoriteActivities),
-          ),
-        },
-        {
-          title: "Skill umum",
-          rows: counts(submissions.flatMap((s) => s.answers.skillStrengths)),
-        },
-      ],
-    };
-  }, [submissions]);
+  const submissions = pageData?.submissions ?? [];
+  const analytics = pageData?.analytics ?? {
+    total: 0,
+    schools: 0,
+    fit: 0,
+    ai: 0,
+    charts: [],
+  };
+  const firstRow = pageData?.total ? (pageData.page - 1) * 50 + 1 : 0;
+  const lastRow = pageData ? Math.min(pageData.page * 50, pageData.total) : 0;
   async function login() {
     if (busy) return;
     setBusy("login");
     setError("");
+    const id = ++generation.current;
     try {
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: loginEmail, password }),
-      });
-      const data = await response.json().catch(() => ({}));
+      const { response, data } = await adminRequest(
+        "/api/admin/login",
+        (r) => r.json().catch(() => ({})),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email: loginEmail, password }),
+        },
+      );
+      if (id !== generation.current) return;
       if (!response.ok) throw new Error(data.error ?? "Login admin gagal.");
       setPassword("");
       setFilters({});
       setApplied({});
-      await load({});
+      setNeedsLogin(null);
+      await load({}, 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login admin gagal.");
     } finally {
@@ -213,12 +200,16 @@ export function AdminDashboard() {
   }
   async function logout() {
     setBusy("logout");
-    generation.current++;
+    revoke();
     try {
-      const response = await fetch("/api/admin/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      const { response } = await adminRequest(
+        "/api/admin/logout",
+        async () => null,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       if (!response.ok) throw new Error("Keluar belum berhasil. Coba lagi.");
       revoke();
       setMessage("");
@@ -233,19 +224,21 @@ export function AdminDashboard() {
     if (busy) return;
     setBusy("export");
     setError("");
+    const id = generation.current;
     try {
-      const response = await fetch("/api/admin/export" + buildQuery(applied), {
-        credentials: "include",
-      });
+      const { response, data } = await adminRequest(
+        "/api/admin/export" + buildQuery(applied),
+        async (r) => (r.ok ? r.blob() : readAdminJson(r).catch(() => ({}))),
+      );
+      if (id !== generation.current) return;
       if (response.status === 401) {
         revoke();
         return;
       }
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
         throw new Error(data.error ?? "Ekspor gagal.");
       }
-      downloadBlob(await response.blob(), "project-nelly-submissions.csv");
+      downloadBlob(data, "project-nelly-submissions.csv");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ekspor gagal.");
     } finally {
@@ -267,14 +260,19 @@ export function AdminDashboard() {
     resetting.current = true;
     setBusy("reset");
     setError("");
+    const id = generation.current;
     try {
-      const response = await fetch("/api/admin/submissions/reset", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: resetTarget }),
-      });
-      const data = await response.json().catch(() => ({}));
+      const { response, data } = await adminRequest(
+        "/api/admin/submissions/reset",
+        (r) => readAdminJson(r).catch(() => ({})),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email: resetTarget }),
+        },
+      );
+      if (id !== generation.current) return;
       if (response.status === 401) {
         revoke();
         return;
@@ -355,11 +353,16 @@ export function AdminDashboard() {
     );
   if (selected)
     return (
-      <div className="space-y-6">
-        <Button variant="secondary" onClick={() => setSelected(null)}>
-          <ArrowLeft size={16} />
-          Kembali ke dashboard
-        </Button>
+      <div className="min-w-0 space-y-6">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => setSelected(null)}>
+            <ArrowLeft size={16} />
+            Kembali ke dashboard
+          </Button>
+          <Button variant="secondary" onClick={logout} disabled={!!busy}>
+            Keluar admin
+          </Button>
+        </div>
         <Panel>
           <h2 ref={detailHeading} tabIndex={-1} className="text-lg font-bold">
             Detail asesmen siswa
@@ -399,18 +402,21 @@ export function AdminDashboard() {
       </div>
     );
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="eyebrow">Ruang konselor / dashboard admin</p>
           <h1 className="section-heading mt-3">Pahami arah siswa.</h1>
           <p className="mt-3 text-sm text-stone-600">
-            Ringkasan dari maksimal 500 rekaman terbaru, sesuai filter yang
-            diterapkan.
+            Cari seluruh rekaman asesmen. Ringkasan dan CSV mengikuti pencarian
+            serta filter yang diterapkan.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={exportCsv} disabled={!!busy || loading}>
+          <Button
+            onClick={exportCsv}
+            disabled={!!busy || loading || detailLoading}
+          >
             <Download size={16} />
             {busy === "export" ? "Mengunduh…" : "Ekspor CSV"}
           </Button>
@@ -428,44 +434,47 @@ export function AdminDashboard() {
         </StatusMessage>
       ) : null}
       {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-      <details className="panel">
-        <summary className="flex min-h-12 items-center gap-3 font-bold">
+      {detailLoading ? <StatusMessage>Memuat laporan…</StatusMessage> : null}
+      <section className="panel" aria-labelledby="admin-filters-heading">
+        <h2
+          id="admin-filters-heading"
+          className="flex min-h-12 items-center gap-3 font-bold"
+        >
           <Filter size={18} />
-          Filter asesmen <span className="ml-auto">+</span>
-        </summary>
+          Pencarian dan filter asesmen
+        </h2>
         <form
           className="mt-5"
           onSubmit={(e) => {
             e.preventDefault();
-            setApplied(filters);
-            void load(filters);
+            if (loading || detailLoading || busy) return;
+            void load(filters, 1);
           }}
         >
           <AdminFilters filters={filters} onChange={setFilters} />
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="submit" disabled={loading}>
-              Terapkan filter
+            <Button type="submit" disabled={loading || detailLoading || !!busy}>
+              Cari
             </Button>
             <Button
               variant="secondary"
-              disabled={loading}
+              disabled={loading || detailLoading || !!busy}
               onClick={() => {
                 setFilters({});
-                setApplied({});
-                void load({});
+                void load({}, 1);
               }}
             >
               Bersihkan filter
             </Button>
           </div>
         </form>
-      </details>
+      </section>
       <section
         aria-label="Ringkasan asesmen"
         className="grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
         {[
-          ["Asesmen dimuat", analytics.total],
+          ["Asesmen sesuai filter", analytics.total],
           ["Sekolah unik", analytics.schools],
           ["Rata-rata fit", analytics.fit],
           ["Rata-rata ketahanan AI", analytics.ai],
@@ -476,39 +485,76 @@ export function AdminDashboard() {
           </Panel>
         ))}
       </section>
-      <section>
+      <section className="min-w-0" aria-busy={loading || detailLoading}>
         <div className="mb-5 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold">Data asesmen</h2>
           <span className="text-xs text-stone-600" role="status">
-            {loading ? "Memuat…" : `${submissions.length} rekaman`}
+            {loading
+              ? "Memuat…"
+              : `${firstRow}–${lastRow} dari ${pageData?.total ?? 0} rekaman`}
           </span>
         </div>
         <SubmissionList
           submissions={submissions}
-          busy={!!busy}
-          onSelect={(s) => {
-            returnId.current =
-              (document.activeElement as HTMLElement)?.id ?? "";
-            setSelected(s);
-          }}
+          busy={!!busy || loading || detailLoading}
+          onSelect={openDetail}
           onReset={askReset}
         />
+        <nav
+          aria-label="Halaman asesmen"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3"
+        >
+          <Button
+            variant="secondary"
+            aria-label="Halaman sebelumnya"
+            disabled={
+              loading ||
+              detailLoading ||
+              !!busy ||
+              !pageData ||
+              pageData.page <= 1
+            }
+            onClick={() => load(applied, (pageData?.page ?? 1) - 1)}
+          >
+            Sebelumnya
+          </Button>
+          <p className="text-sm">
+            Halaman {pageData?.page ?? 1} dari {pageData?.totalPages ?? 1}
+          </p>
+          <Button
+            variant="secondary"
+            aria-label="Halaman berikutnya"
+            disabled={
+              loading ||
+              detailLoading ||
+              !!busy ||
+              !pageData ||
+              pageData.page >= pageData.totalPages
+            }
+            onClick={() => load(applied, (pageData?.page ?? 1) + 1)}
+          >
+            Berikutnya
+          </Button>
+        </nav>
       </section>
-      <details className="panel" open>
-        <summary className="touch-link text-lg font-bold">
-          Analitik siswa +
-        </summary>
+      <section className="panel" aria-labelledby="admin-analytics-heading">
+        <h2 id="admin-analytics-heading" className="text-lg font-bold">
+          Analitik siswa
+        </h2>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {analytics.charts.map((c) => (
             <Chart key={c.title} {...c} />
           ))}
         </div>
-      </details>
-      <details className="panel">
-        <summary className="flex min-h-12 items-center gap-3 text-sm font-bold">
+      </section>
+      <section className="panel" aria-labelledby="admin-reset-heading">
+        <h2
+          id="admin-reset-heading"
+          className="flex min-h-12 items-center gap-3 text-sm font-bold"
+        >
           <Trash2 size={17} />
           Hapus attempt melalui email
-        </summary>
+        </h2>
         <p className="my-4 text-sm leading-7 text-stone-600">
           Menghapus submission lama agar siswa dapat mengisi ulang. Tindakan ini
           tidak dapat dibatalkan.
@@ -528,11 +574,15 @@ export function AdminDashboard() {
               required
             />
           </Field>
-          <Button variant="danger" type="submit" disabled={!!busy}>
+          <Button
+            variant="danger"
+            type="submit"
+            disabled={!!busy || loading || detailLoading}
+          >
             Hapus attempt
           </Button>
         </form>
-      </details>
+      </section>
       <ConfirmDialog
         open={!!resetTarget}
         title="Hapus attempt siswa?"
