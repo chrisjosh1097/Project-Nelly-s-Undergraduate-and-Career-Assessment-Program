@@ -59,6 +59,14 @@ Persisted historical queue jobs lack a durable assessment token. Before claim/re
 
 Actual Gemini schema acceptance/completion rates, live Firestore transaction retries/performance, deployed latency and physical keyboards remain unverified. Strict narrative structure does not prove factual correctness. Forwarded brighter blue/green palette and 1080×1920 Story-export suggestions await confirmation; this verification covers the existing orange/white/black treatment and unchanged 1080×1350 image export.
 
+## Export-only tidy follow-up
+
+The subsequently approved export update changes the Instagram download to **1080×1920 Story format** with blue/green light surfaces, orange identity accents, dark readable text and 250px top/bottom content-safe areas. It does not change the website results palette. Long names/programs wrap or ellipsize within fixed slots; the social image excludes email, school and raw answers.
+
+PDF downloads now start with the saved result/summary and evidence, consolidate duplicate guidance, retain substantive unique content, and place profile/answers once near the end. Body text remains 10pt, ordinary alternative metadata stays together and footer/page-number space is reserved. An empty heading when summary equals career direction was reproduced and fixed. No scoring, saved rank/order, answer, narrative regeneration or persistence change is included.
+
+Final local verification: **219 unit tests / 22 files**, **70 browser tests**, KB validation, lint/typecheck and production build pass. Independent template review and scoped PDF correction re-review approve, with no remaining findings. An authorized saved payload was retrieved read-only and rendered locally; its source fingerprint remained unchanged. The final six-page A4 PDF and Story were visually inspected, and extracted PDF words stayed within tested page bounds. Private payloads/generated artifacts remain gitignored and are never included in the preview-branch push. These checks do not establish live deployment success, physical-device behavior, or full Unicode font support (the existing PDF standard-font fallback remains).
+
 ## Deliberate limits
 
 - No production deployment, migration, historical rescoring, or real student reset was performed.

@@ -1,15 +1,12 @@
-import type { Submission, RecommendationResult } from "@/lib/types";
-function careerDirectionFor(r: RecommendationResult) {
-  return r.personalizedCareerDirection || r.careerDirection;
-}
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) {
+import type { Submission } from "@/lib/types";
+import { fitContextFor, scoreText } from "./resultPresentation";
+
+const INK = "#142A33";
+const ORANGE = "#A13613";
+
+function roundedPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, color: string) {
+  const radius = 28;
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.lineTo(x + width - radius, y);
@@ -21,171 +18,95 @@ function drawRoundedRect(
   ctx.lineTo(x, y + radius);
   ctx.quadraticCurveTo(x, y, x + radius, y);
   ctx.closePath();
+  ctx.fill();
 }
 
-function drawWrappedCanvasText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  maxLines = 4,
-) {
-  const words = text.split(/\s+/).filter(Boolean);
+/** Every text slot has fixed bounds; oversized tokens wrap before ellipsis is applied. */
+function drawText(ctx: CanvasRenderingContext2D, value: string, options: {
+  x?: number; y: number; width?: number; size: number; lines?: number; leading?: number; bold?: boolean; color?: string;
+}) {
+  const { x = 96, y, width = 888, size, lines: maxLines = 1, leading = size + 8 } = options;
+  ctx.font = `${options.bold ? 700 : 500} ${size}px Arial`;
+  ctx.fillStyle = options.color ?? INK;
   const lines: string[] = [];
   let line = "";
-
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (ctx.measureText(next).width <= maxWidth) {
-      line = next;
-      continue;
+  for (const word of value.trim().split(/\s+/).filter(Boolean)) {
+    if (ctx.measureText(word).width > width) {
+      if (line) { lines.push(line); line = ""; }
+      for (const char of Array.from(word)) {
+        if (line && ctx.measureText(line + char).width > width) {
+          lines.push(line); line = "";
+        }
+        line += char;
+      }
+    } else {
+      const next = line ? `${line} ${word}` : word;
+      if (ctx.measureText(next).width <= width) line = next;
+      else { lines.push(line); line = word; }
     }
-    if (line) lines.push(line);
-    line = word;
-    if (lines.length === maxLines) break;
   }
-  if (line && lines.length < maxLines) lines.push(line);
-  if (
-    words.length > 0 &&
-    lines.length === maxLines &&
-    words.join(" ").length > lines.join(" ").length
-  ) {
-    lines[maxLines - 1] = `${lines[maxLines - 1].replace(/[.,;:!?]?$/, "")}...`;
+  if (line) lines.push(line);
+  const visible = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    let last = Array.from(visible[maxLines - 1]);
+    while (last.length && ctx.measureText(last.join("") + "...").width > width) last.pop();
+    visible[maxLines - 1] = last.join("").trimEnd() + "...";
   }
-
-  for (const canvasLine of lines) {
-    ctx.fillText(canvasLine, x, y);
-    y += lineHeight;
-  }
-  return y;
+  visible.forEach((text, index) => ctx.fillText(text, x, y + index * leading));
 }
 
 function canvasBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Gagal membuat gambar Instagram."));
-    }, "image/png");
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Gagal membuat gambar Instagram.")), "image/png");
   });
 }
 
-export async function createInstagramCardBlob(submission: Submission) {
+export async function createInstagramCardBlob(submission: Submission): Promise<Blob> {
   const top = submission.report.topRecommendation;
-  const alternatives = submission.report.recommendations.slice(1, 4);
+  const fit = fitContextFor(top);
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
-  canvas.height = 1350;
+  canvas.height = 1920;
   const ctx = canvas.getContext("2d");
-  if (!ctx)
-    throw new Error("Browser tidak mendukung canvas untuk membuat gambar.");
+  if (!ctx) throw new Error("Browser tidak mendukung canvas untuk membuat gambar.");
 
-  ctx.fillStyle = "#FFFFFF";
+  // Decorative color may bleed; all meaningful text stays between y=250 and y=1670.
+  ctx.fillStyle = "#ECF9FF";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#BC340E";
-  ctx.fillRect(0, 0, canvas.width, 330);
-  ctx.fillStyle = "#191817";
-  ctx.fillRect(0, 1240, canvas.width, 110);
+  roundedPanel(ctx, 660, 70, 350, 130, "#BAEAC2");
+  roundedPanel(ctx, 70, 1740, 410, 100, "#FFB088");
+  roundedPanel(ctx, 64, 250, 952, 1420, "#FFFFFF");
+  ctx.fillStyle = "#F16A32";
+  ctx.fillRect(96, 430, 888, 5);
+  roundedPanel(ctx, 80, 456, 920, 372, "#E5F6FF");
+  roundedPanel(ctx, 80, 850, 444, 200, "#DDF5D8");
+  roundedPanel(ctx, 548, 850, 452, 200, "#D9F0FF");
 
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "700 36px Arial";
-  ctx.fillText("Project Nelly 101", 70, 92);
-  ctx.font = "500 28px Arial";
-  ctx.fillText("Laporan singkat rekomendasi jurusan & karier", 70, 138);
+  drawText(ctx, "Project Nelly 101", { y: 295, size: 28, bold: true, color: ORANGE });
+  drawText(ctx, submission.fullName, { y: 350, size: 40, leading: 46, lines: 2, bold: true });
+  drawText(ctx, `#${top.rank} Rekomendasi utama`, { y: 485, size: 28, bold: true, color: ORANGE });
+  drawText(ctx, top.majorName, { y: 550, size: 54, leading: 64, lines: 3, bold: true });
+  drawText(ctx, top.personalizedCareerDirection?.trim() || top.careerDirection, { y: 734, size: 30, leading: 38, lines: 3 });
 
-  ctx.save();
-  ctx.shadowColor = "rgba(17, 17, 17, 0.18)";
-  ctx.shadowBlur = 28;
-  ctx.shadowOffsetY = 12;
-  drawRoundedRect(ctx, 70, 230, 940, 680, 28);
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fill();
-  ctx.restore();
+  drawText(ctx, "Kecocokan profil", { y: 890, width: 412, size: 24, bold: true });
+  drawText(ctx, scoreText(top.overallFitScore), { y: 944, width: 412, size: 48, bold: true });
+  drawText(ctx, fit.interpretation, { y: 991, width: 412, size: 24, leading: 31, lines: 2 });
+  drawText(ctx, "Ketahanan AI", { x: 572, y: 890, width: 404, size: 24, bold: true });
+  drawText(ctx, scoreText(top.aiFutureResilienceScore), { x: 572, y: 944, width: 404, size: 48, bold: true });
+  drawText(ctx, top.aiFutureResilienceLabel || "Belum tercatat", { x: 572, y: 991, width: 404, size: 24, lines: 2, leading: 31 });
+  if (fit.savedLabel) drawText(ctx, `Label laporan tersimpan: ${fit.savedLabel}`, { y: 1084, size: 22 });
+  drawText(ctx, "Kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan kerja.", { y: 1120, size: 22, leading: 28, lines: 2 });
 
-  ctx.fillStyle = "#BC340E";
-  ctx.font = "800 34px Arial";
-  ctx.fillText("#1 Rekomendasi Utama", 115, 305);
-  ctx.fillStyle = "#111111";
-  ctx.font = "900 76px Arial";
-  let y = drawWrappedCanvasText(ctx, top.majorName, 115, 395, 850, 82, 2);
-
-  ctx.fillStyle = "#333333";
-  ctx.font = "500 30px Arial";
-  y = drawWrappedCanvasText(
-    ctx,
-    careerDirectionFor(top),
-    115,
-    y + 14,
-    830,
-    42,
-    3,
-  );
-
-  const scoreY = Math.max(y + 36, 580);
-  drawRoundedRect(ctx, 115, scoreY, 255, 125, 22);
-  ctx.fillStyle = "#FFF3E8";
-  ctx.fill();
-  ctx.fillStyle = "#BC340E";
-  ctx.font = "900 54px Arial";
-  ctx.fillText(`${top.overallFitScore}`, 145, scoreY + 68);
-  ctx.font = "700 23px Arial";
-  ctx.fillText("FIT SCORE", 145, scoreY + 101);
-
-  drawRoundedRect(ctx, 400, scoreY, 355, 125, 22);
-  ctx.fillStyle = "#191817";
-  ctx.fill();
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "900 54px Arial";
-  ctx.fillText(`${top.aiFutureResilienceScore}`, 430, scoreY + 68);
-  ctx.font = "700 23px Arial";
-  ctx.fillText("AI RESILIENCE", 430, scoreY + 101);
-
-  ctx.fillStyle = "#111111";
-  ctx.font = "800 30px Arial";
-  ctx.fillText("Kenapa cocok?", 115, scoreY + 185);
-  ctx.fillStyle = "#333333";
-  ctx.font = "500 27px Arial";
-  let reasonY = scoreY + 232;
-  for (const reason of top.reasonBullets.slice(0, 1)) {
-    ctx.fillStyle = "#BC340E";
-    ctx.fillText("•", 115, reasonY);
-    ctx.fillStyle = "#333333";
-    reasonY = drawWrappedCanvasText(ctx, reason, 145, reasonY, 790, 36, 3) + 8;
-  }
-
-  const alternativeY = 935;
-  drawRoundedRect(ctx, 70, alternativeY, 940, 220, 28);
-  ctx.fillStyle = "#FFF7ED";
-  ctx.fill();
-  ctx.fillStyle = "#111111";
-  ctx.font = "800 30px Arial";
-  ctx.fillText(
-    "Alternatif yang juga layak dipertimbangkan",
-    115,
-    alternativeY + 62,
-  );
-  ctx.font = "700 28px Arial";
-  alternatives.forEach((recommendation, index) => {
-    ctx.fillStyle = "#BC340E";
-    ctx.fillText(
-      `#${recommendation.rank}`,
-      115,
-      alternativeY + 116 + index * 42,
-    );
-    ctx.fillStyle = "#111111";
-    ctx.fillText(
-      recommendation.majorName,
-      175,
-      alternativeY + 116 + index * 42,
-    );
+  const alternatives = submission.report.recommendations.slice(1, 4);
+  if (alternatives.length) drawText(ctx, "Arah lain untuk dijelajahi", { y: 1204, size: 28, bold: true });
+  alternatives.forEach((r, index) => {
+    const y = 1256 + index * 94;
+    drawText(ctx, `#${r.rank} ${r.majorName}`, { y, width: 680, size: 28, bold: true });
+    drawText(ctx, scoreText(r.overallFitScore), { x: 819, y, width: 165, size: 28, bold: true });
+    drawText(ctx, fitContextFor(r).interpretation, { y: y + 36, size: 24 });
   });
-
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "700 28px Arial";
-  ctx.fillText(submission.fullName, 70, 1288);
-  ctx.font = "500 22px Arial";
-  ctx.fillText("Hasil ini bahan refleksi, bukan keputusan final.", 70, 1322);
+  drawText(ctx, "Hasil ini bahan refleksi, bukan keputusan final. Diskusikan dengan orang tua, guru BK, atau mentor.",
+    { y: 1556, size: 24, leading: 32, lines: 3 });
 
   return canvasBlob(canvas);
 }
