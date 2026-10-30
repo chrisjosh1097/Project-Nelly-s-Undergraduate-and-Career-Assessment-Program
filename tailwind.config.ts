@@ -9,10 +9,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#111111",
-        leaf: "#F97316",
-        moss: "#0F2A43",
-        skysoft: "#E9EEF6",
+        ink: "#191817",
+        leaf: "#BC340E",
+        moss: "#51473F",
+        skysoft: "#FFF0E8",
         marigold: "#FFB020",
         coral: "#DC2626"
       },

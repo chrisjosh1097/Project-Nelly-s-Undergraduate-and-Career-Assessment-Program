@@ -1,42 +1,6 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
-
-interface FieldProps {
-  label: string;
-  error?: string;
-  children: ReactNode;
-}
-
-export function Field({ label, error, children }: FieldProps) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-sm font-semibold text-ink">{label}</span>
-      {children}
-      {error ? <span className="block text-sm text-coral">{error}</span> : null}
-    </label>
-  );
-}
-
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={cn(
-        "min-h-11 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-black/35 focus:border-leaf focus:ring-2 focus:ring-leaf/20 disabled:bg-black/5",
-        className
-      )}
-      {...props}
-    />
-  );
-}
-
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      className={cn(
-        "min-h-28 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-black/35 focus:border-leaf focus:ring-2 focus:ring-leaf/20",
-        className
-      )}
-      {...props}
-    />
-  );
-}
+import type {InputHTMLAttributes,ReactNode,TextareaHTMLAttributes} from "react";
+import {cn} from "@/lib/utils";
+export function Field({label,error,children}:{label:string;error?:string;children:ReactNode}){return <label className="block space-y-2"><span className="text-sm font-semibold text-ink">{label}</span>{children}{error?<span className="block text-sm text-red-800">{error}</span>:null}</label>}
+const style="w-full min-h-12 rounded-xl border border-stone-400 bg-white px-4 py-3 text-base text-ink placeholder:text-stone-500 focus:border-ink focus:ring-2 focus:ring-ink/20 disabled:bg-stone-100";
+export function Input({className,...props}:InputHTMLAttributes<HTMLInputElement>){return <input className={cn(style,className)} {...props}/>}
+export function Textarea({className,...props}:TextareaHTMLAttributes<HTMLTextAreaElement>){return <textarea className={cn(style,"min-h-32",className)} {...props}/>}
