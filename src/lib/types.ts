@@ -134,6 +134,8 @@ export interface ScoringBreakdown {
   workStyleScore: number;
   problemAreaScore: number;
   constraintFitScore: number;
+  aspirationMajorBoost?: number;
+  matchedAspirationMajorSignals?: string[];
   matchedSubjects: string[];
   matchedInterests: string[];
   matchedSkills: string[];

@@ -21,6 +21,7 @@ import type {
 import { clamp, roundScore, unique } from "@/lib/utils";
 import { buildRecommendationNarrative } from "@/lib/recommendation/narrative";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
+import { scoreAspirationMajorIntent } from "@/lib/recommendation/aspirationIntent";
 
 export const SCORING_VERSION = "knowledge-base-heuristic-v2.0.0";
 
@@ -275,6 +276,7 @@ export function calculateScoringBreakdown(answer: StudentAnswer, major: Knowledg
   const workStyleScore = scoreWorkStyle(normalized.workStyleId, major.relatedWorkStyles);
   const problemAreaScore = scoreWeightedTags(normalized.problemAreaIds, major.relatedProblemAreas);
   const constraint = scoreConstraints(answer, normalized, major);
+  const aspirationMajorIntent = scoreAspirationMajorIntent(answer, major);
 
   return {
     interestScore: roundScore(interestScore),
@@ -283,6 +285,8 @@ export function calculateScoringBreakdown(answer: StudentAnswer, major: Knowledg
     workStyleScore: roundScore(workStyleScore),
     problemAreaScore: roundScore(problemAreaScore),
     constraintFitScore: constraint.score,
+    aspirationMajorBoost: aspirationMajorIntent.boost,
+    matchedAspirationMajorSignals: aspirationMajorIntent.matchedSignals,
     matchedSubjects: tagLabels(major.relatedSubjects, normalized.favoriteSubjectIds),
     matchedInterests: tagLabels(major.relatedInterests, normalized.interestIds),
     matchedSkills: tagLabels(major.relatedSkills, normalized.skillIds),
@@ -304,7 +308,8 @@ export function calculateOverallFitScore(breakdown: ScoringBreakdown) {
       breakdown.subjectScore * 0.15 +
       breakdown.workStyleScore * 0.1 +
       breakdown.problemAreaScore * 0.1 +
-      breakdown.constraintFitScore * 0.1
+      breakdown.constraintFitScore * 0.1 +
+      (breakdown.aspirationMajorBoost ?? 0)
   );
 }
 

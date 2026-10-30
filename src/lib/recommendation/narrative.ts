@@ -729,6 +729,7 @@ export function buildRecommendationNarrative(
   );
   const matchedSubjects = joinPreview(recommendation.scoringBreakdown.matchedSubjects, "mata pelajaran pilihanmu");
   const preferenceNote = recommendation.scoringBreakdown.preferenceNotes[0];
+  const aspirationSignals = joinPreview(recommendation.scoringBreakdown.matchedAspirationMajorSignals ?? [], "");
   const requiredSkills = joinPreview(
     major.relatedSkills.map((skill) => skill.label),
     "kombinasi skill teknis dan manusia"
@@ -745,6 +746,9 @@ export function buildRecommendationNarrative(
 
   if (preferenceNote) {
     bullets.splice(3, 0, `Dari sisi preferensi dan batasan, ${preferenceNote}.`);
+  }
+  if (aspirationSignals) {
+    bullets.splice(2, 0, `Aspirasi yang kamu tulis menyebut ${aspirationSignals}, jadi jurusan ini mendapat sinyal tambahan kecil.`);
   }
 
   return bullets.slice(0, 6);

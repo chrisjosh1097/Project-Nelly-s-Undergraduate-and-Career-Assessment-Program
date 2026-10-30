@@ -48,7 +48,8 @@ describe("heuristic scoring engine", () => {
         breakdown.subjectScore * 0.15 +
         breakdown.workStyleScore * 0.1 +
         breakdown.problemAreaScore * 0.1 +
-        breakdown.constraintFitScore * 0.1
+        breakdown.constraintFitScore * 0.1 +
+        (breakdown.aspirationMajorBoost ?? 0)
     );
 
     expect(score).toBe(manual);
@@ -156,6 +157,50 @@ describe("heuristic scoring engine", () => {
 
     expect(["Engineering & Infrastructure", "Vocational & Applied Skills"]).toContain(topMajor?.cluster);
     expect(topIds).toEqual(expect.arrayContaining(["teknik_mesin", "teknik_elektro", "teknik_industri"]));
+  });
+
+  it("boosts explicit civil engineering aspiration over adjacent engineering matches", () => {
+    const report = generateRecommendations(
+      answer({
+        currentSchoolMajor: "IPA",
+        favoriteSubjects: ["Fisika", "Matematika", "Komputer/TIK"],
+        favoriteActivities: ["Kerja lapangan", "Memperbaiki barang/mesin"],
+        skillStrengths: ["Numerik/hitung-hitungan", "Kerja praktik", "Problem solving"],
+        workStyle: "Dinamis di lapangan",
+        problemAreas: ["Infrastruktur", "Lingkungan"],
+        collegePathPreferences: ["Diploma/vokasi"],
+        personalConstraints: ["Ingin cepat kerja"],
+        dreamProfession: "Saya ingin masuk Teknik Sipil dan menjadi civil engineer."
+      })
+    );
+
+    expect(report.topRecommendation.majorId).toBe("teknik_sipil");
+    expect(report.topRecommendation.scoringBreakdown.aspirationMajorBoost).toBeGreaterThan(0);
+    expect(report.topRecommendation.scoringBreakdown.matchedAspirationMajorSignals).toEqual(
+      expect.arrayContaining(["teknik sipil"])
+    );
+  });
+
+  it("boosts civil engineering from infrastructure keyword pairs without exact major name", () => {
+    const report = generateRecommendations(
+      answer({
+        currentSchoolMajor: "IPA",
+        favoriteSubjects: ["Fisika", "Matematika", "Komputer/TIK"],
+        favoriteActivities: ["Kerja lapangan", "Memperbaiki barang/mesin"],
+        skillStrengths: ["Numerik/hitung-hitungan", "Kerja praktik", "Problem solving"],
+        workStyle: "Dinamis di lapangan",
+        problemAreas: ["Infrastruktur", "Lingkungan"],
+        collegePathPreferences: ["PTN di Jawa"],
+        personalConstraints: ["Persaingan masuk"],
+        futureVision: "Saya ingin membangun jalan dan jembatan yang aman untuk masyarakat."
+      })
+    );
+
+    expect(report.topRecommendation.majorId).toBe("teknik_sipil");
+    expect(report.topRecommendation.scoringBreakdown.aspirationMajorBoost).toBe(4);
+    expect(report.topRecommendation.scoringBreakdown.matchedAspirationMajorSignals).toEqual(
+      expect.arrayContaining(["jalan", "jembatan"])
+    );
   });
 
   it("calculates AI Future Resilience Score and label from transparent components", () => {
