@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Download, ArrowUpRight } from "lucide-react";
+import { Download, ArrowUpRight, Compass, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -13,6 +13,7 @@ import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
 import { createInstagramCardBlob } from "./shareCard";
+import { cleanLines, fitContextFor, scoreText } from "./resultPresentation";
 export function ResultsView({
   submission,
   compact = false,
@@ -27,6 +28,13 @@ export function ResultsView({
   const advice =
     submission.report.ptnPtsVokasiAdvice ??
     generatePtnPtsVokasiAdvice(submission.answers);
+  const fit = fitContextFor(top);
+  const summary = submission.report.narrative?.summary?.trim() ||
+    `Laporan tersimpan menempatkan ${top.majorName} sebagai arah utama dengan kecocokan ${scoreText(top.overallFitScore)}.`;
+  const strengths = cleanLines(studentStrengthHighlightsFor(submission));
+  const aspirations = [submission.answers.dreamProfession, submission.answers.futureVision]
+    .map(text => text?.trim()).filter(Boolean);
+  const notes = cleanLines(submission.report.answerPatternNotes);
   async function download(kind: "pdf" | "image") {
     if (busy) return;
     setBusy(kind);
@@ -55,14 +63,14 @@ export function ResultsView({
     }
   }
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
       <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
         <div>
           <p className="eyebrow">
             Peta arahmu · {formatDateTime(submission.createdAt)}
           </p>
           <h1 className="section-heading mt-3">
-            Banyak potensi. Ini titik mulainya.
+            Peta arah dan langkahmu
           </h1>
           <p className="mt-3 text-sm leading-7 text-stone-600">
             {submission.fullName} · {submission.school} · {submission.className}
@@ -76,7 +84,7 @@ export function ResultsView({
         {!compact ? (
           <div className="grid gap-2 sm:flex lg:shrink-0">
             <Button onClick={() => download("pdf")} disabled={!!busy}>
-              <Download size={16} />
+              <Download size={16} aria-hidden="true" />
               {busy === "pdf" ? "Mengunduh…" : "Laporan PDF"}
             </Button>
             <Button
@@ -84,89 +92,73 @@ export function ResultsView({
               onClick={() => download("image")}
               disabled={!!busy}
             >
-              <ArrowUpRight size={16} />
+              <ArrowUpRight size={16} aria-hidden="true" />
               {busy === "image" ? "Membuat…" : "Kartu Instagram"}
             </Button>
           </div>
         ) : null}
       </header>
       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
-      <div className="result-grid">
-        <section className="rounded-[22px] bg-ink p-6 text-white sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-wider text-orange-200">
-            01 / Rekomendasi utama
-            {top.degreeTypes?.length ? ` · ${top.degreeTypes.join(" / ")}` : ""}
-          </p>
-          <h2 className="my-5 text-4xl font-extrabold sm:text-5xl">
-            {top.majorName}
-          </h2>
-          <p className="text-sm leading-7 text-stone-200">
-            {top.personalizedCareerDirection || top.careerDirection}
-          </p>
-          <div className="mt-7 grid grid-cols-2 gap-5 border-t border-white/20 pt-5">
-            {[
-              { label: "Kecocokan profil", value: top.overallFitScore },
-              {
-                label: "Ketahanan terhadap perubahan AI",
-                value: top.aiFutureResilienceScore,
-              },
-            ].map((item) => (
-              <div key={item.label}>
-                <strong className="text-4xl text-orange-200">
-                  {item.value}
-                  <span className="text-sm text-white/70">/100</span>
-                </strong>
-                <p className="mt-2 text-xs leading-6 text-stone-200">
-                  {item.label}
-                </p>
-              </div>
-            ))}
+      <section aria-label="Ringkasan arahmu" className="min-w-0 overflow-hidden rounded-[22px] border border-stone-200 bg-white">
+        <div className="bg-ink p-5 text-white sm:p-6">
+          <p className="text-xs font-bold tracking-wide text-orange-200">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h2 className="min-w-0 text-3xl font-extrabold sm:text-4xl">{top.majorName}</h2>
+            {cleanLines(top.degreeTypes).map(degree => <Badge key={degree}>{degree}</Badge>)}
           </div>
-          <p className="mt-5 text-xs leading-6 text-stone-300">
-            Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan
-            pekerjaan.
-          </p>
-        </section>
-        <Panel>
-          <p className="eyebrow">Kelebihan kamu</p>
-          <ul className="mt-5 space-y-5 text-sm leading-7">
-            {studentStrengthHighlightsFor(submission).map((s, i) => (
-              <li key={i} className="border-b border-stone-100 pb-4">
-                {s}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
-      <RecommendationCard recommendation={top} expanded />
-      {submission.answers.dreamProfession || submission.answers.futureVision ? (
-        <Panel>
-          <h2 className="text-xl font-bold">Aspirasi yang kamu tulis</h2>
-          <p className="mt-4 text-sm leading-7">
-            {submission.answers.dreamProfession}
-          </p>
-          <p className="mt-3 text-sm leading-7 text-stone-600">
-            {submission.answers.futureVision}
-          </p>
-        </Panel>
-      ) : null}
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-200">{top.personalizedCareerDirection?.trim() || top.careerDirection}</p>
+          <dl className="mt-5 grid min-w-0 grid-cols-2 gap-4 border-t border-white/20 pt-4">
+            <div className="min-w-0">
+              <dt className="text-xs text-stone-200">Kecocokan profil</dt>
+              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-orange-200">{scoreText(top.overallFitScore)}</dd>
+              <dd className="mt-1 text-sm font-bold">{fit.interpretation}</dd>
+              {fit.savedLabel ? <dd className="mt-1 text-xs leading-5 text-stone-300">Label laporan tersimpan: {fit.savedLabel}</dd> : null}
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-stone-200">Ketahanan terhadap perubahan AI</dt>
+              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-orange-200">{scoreText(top.aiFutureResilienceScore)}</dd>
+              <dd className="mt-1 text-sm font-bold">{top.aiFutureResilienceLabel}</dd>
+            </div>
+          </dl>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-200">{fit.explanation}</p>
+          <p className="mt-3 text-xs leading-6 text-stone-300">Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan pekerjaan.</p>
+        </div>
+        <div className={`grid min-w-0 gap-6 p-5 sm:p-6 ${aspirations.length ? "lg:grid-cols-2" : ""}`}>
+          <div className="min-w-0 space-y-5">
+            <section>
+              <h3 className="flex items-center gap-2 text-base font-bold"><Compass size={18} className="shrink-0 text-leaf" aria-hidden="true" />Ringkasan laporan</h3>
+              <p className="mt-2 text-sm leading-7 text-stone-700">{summary}</p>
+            </section>
+            {strengths.length ? <section>
+              <h3 className="flex items-center gap-2 text-base font-bold"><Sparkles size={18} className="shrink-0 text-leaf" aria-hidden="true" />Kekuatan dari jawabanmu</h3>
+              <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-600">{strengths.map(line => <li key={line}>{line}</li>)}</ul>
+            </section> : null}
+          </div>
+          {aspirations.length ? <section aria-label="Aspirasi yang kamu tulis" className="min-w-0 border-l-2 border-orange-300 pl-4">
+            <h3 className="text-base font-bold">Aspirasi yang kamu tulis</h3>
+            {aspirations.map((text, i) => <p key={i} className="mt-3 whitespace-pre-line text-sm leading-7 text-stone-700">{text}</p>)}
+            <div className="mt-4 text-xs leading-6 text-stone-600">Gunakan tujuan ini untuk membandingkan kurikulum dan pengalaman praktik. Periksa persyaratan resmi pendidikan, profesi, dan kerja untuk arah yang kamu tuju.</div>
+          </section> : null}
+        </div>
+      </section>
+      <RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} />
       <section>
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
         <div className="space-y-3">
           {submission.report.recommendations.slice(1).map((r) => (
-            <RecommendationCard key={r.majorId} recommendation={r} />
+            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} />
           ))}
         </div>
       </section>
       <div className="result-grid">
-        <Panel>
+        {cleanLines(advice).length ? <Panel>
           <h2 className="text-xl font-bold">Kampus dan jalur belajarmu</h2>
           <ul className="mt-5 list-disc space-y-3 pl-5 text-sm leading-7 text-stone-600">
-            {advice.map((a, i) => (
+            {cleanLines(advice).map((a, i) => (
               <li key={i}>{a}</li>
             ))}
           </ul>
-        </Panel>
+        </Panel> : null}
         <Panel>
           <h2 className="text-xl font-bold">Memahami kedua skor</h2>
           <p className="mt-4 text-sm leading-7 text-stone-600">
@@ -186,9 +178,9 @@ export function ResultsView({
           </p>
         </Panel>
       </div>
-      {submission.report.answerPatternNotes?.length ? (
+      {notes.length ? (
         <StatusMessage>
-          {submission.report.answerPatternNotes.map((n, i) => (
+          {notes.map((n, i) => (
             <p key={i}>{n}</p>
           ))}
         </StatusMessage>

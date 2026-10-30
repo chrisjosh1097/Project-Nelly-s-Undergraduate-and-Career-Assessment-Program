@@ -1,109 +1,111 @@
 import type { RecommendationResult } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ListChecks, Footprints } from "lucide-react";
+import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText } from "./resultPresentation";
+
 function Lines({ title, items }: { title: string; items?: string[] }) {
-  return items?.length ? (
+  const lines = cleanLines(items);
+  if (!lines.length) return null;
+  return (
     <section>
-      <h3 className="mb-3 text-sm font-bold">{title}</h3>
-      <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-stone-600">
-        {items.map((line, i) => (
-          <li key={i}>{line}</li>
-        ))}
+      <h3 className="mb-2 text-sm font-bold text-ink">{title}</h3>
+      <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-600">
+        {lines.map(line => <li key={line}>{line}</li>)}
       </ul>
     </section>
-  ) : null;
+  );
 }
-export function RecommendationCard({
-  recommendation: r,
-  expanded = false,
-}: {
-  recommendation: RecommendationResult;
-  expanded?: boolean;
+
+export function RecommendationCard({ recommendation: r, expanded = false, workStyle }: {
+  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string;
 }) {
+  const fit = fitContextFor(r);
+  const rows = componentEvidenceFor(r, workStyle);
+  const bonus = r.scoringBreakdown?.aspirationMajorBoost;
+  const signals = cleanLines(r.scoringBreakdown?.matchedAspirationMajorSignals);
+  const steps = cleanLines(r.recommendedNextSteps);
+  const cautions = cleanLines([...(r.cautionNotes ?? []), ...(r.careerCautions ?? [])]);
+  const careers = cleanLines(r.nicheCareerPaths).length ? r.nicheCareerPaths : r.relatedCareers;
+  const hasExplanation = cleanLines(r.reasonBullets).length || cleanLines(careers).length ||
+    cleanLines(r.skillStrengthMatches).length || r.careerPersonalizationReason?.trim() || r.aspirationReflection?.trim();
+  const explanation = <div className="grid gap-5 px-2 pb-4 md:grid-cols-2">
+    <Lines title="Dasar pertimbangan" items={r.reasonBullets} />
+    <Lines title="Arah karier untuk dijelajahi" items={careers} />
+    <Lines title="Kekuatan yang mendukung" items={r.skillStrengthMatches} />
+    {r.careerPersonalizationReason?.trim() ? <p className="text-sm leading-6 text-stone-600">{r.careerPersonalizationReason}</p> : null}
+    {r.aspirationReflection?.trim() ? <p className="rounded-xl bg-orange-50 p-3 text-sm leading-6 text-stone-700">{r.aspirationReflection}</p> : null}
+  </div>;
   const body = (
-    <div className="space-y-6 pt-6">
-      <p className="text-sm leading-7 text-stone-600">
-        {r.personalizedCareerDirection || r.careerDirection}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {r.degreeTypes?.map((d) => (
-          <Badge key={d}>{d}</Badge>
-        ))}
-        <Badge>{r.fitLabel}</Badge>
+    <div className="min-w-0 space-y-5 pt-4 [overflow-wrap:anywhere]">
+      {!expanded ? <>
+        <p className="text-sm leading-6 text-stone-600">{r.personalizedCareerDirection?.trim() || r.careerDirection}</p>
+        <p className="text-sm leading-6 text-stone-600">{fit.explanation}</p>
+      </> : null}
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <section aria-label="Bukti dari jawabanmu" className="min-w-0">
+          <h3 className="mb-3 flex items-center gap-2 text-base font-bold">
+            <ListChecks size={18} className="shrink-0 text-leaf" aria-hidden="true" />Bukti dari jawabanmu
+          </h3>
+          <dl className="divide-y divide-stone-100 rounded-xl border border-stone-200 px-3">
+            {rows.map(row => <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 py-3">
+                <dt className="text-sm font-semibold">{row.label}</dt>
+                <dd className="text-sm font-bold tabular-nums text-leaf">{scoreText(row.score)}</dd>
+              <dd className="col-span-2 mt-1 text-xs leading-5 text-stone-600">{row.evidence.length ? row.evidence.join(" · ") : "Rincian belum tercatat"}</dd>
+            </div>)}
+          </dl>
+          {typeof bonus === "number" && Number.isFinite(bonus) ? <p className="mt-3 text-xs leading-5 text-stone-600">Tambahan aspirasi tersimpan: {bonus} poin. Sudah termasuk dalam skor laporan.</p> : null}
+          {signals.length ? <p className="mt-2 text-xs leading-5 text-stone-600">Sinyal aspirasi tersimpan: {signals.join(", ")}</p> : null}
+        </section>
+        <div className="min-w-0 space-y-4">
+          {steps.length ? <section className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+            <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink">
+              <Footprints size={18} className="shrink-0 text-leaf" aria-hidden="true" />Langkah berikutnya
+            </h3>
+            <ol className="list-decimal space-y-2 pl-5 text-sm leading-6 text-stone-700">
+              {steps.slice(0, 3).map(line => <li key={line}>{line}</li>)}
+            </ol>
+            {steps.length > 3 ? <details className="mt-2">
+              <summary className="touch-link rounded-lg text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Langkah lainnya</summary>
+              <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{steps.slice(3).map(line => <li key={line}>{line}</li>)}</ul>
+            </details> : null}
+          </section> : null}
+          <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />
+          <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
+          <Lines title="Hal yang perlu dicek" items={cautions} />
+        </div>
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Lines title="Kenapa cocok" items={r.reasonBullets} />
-        <Lines
-          title="Karier yang sesuai"
-          items={
-            r.nicheCareerPaths?.length ? r.nicheCareerPaths : r.relatedCareers
-          }
-        />
-        <Lines title="Kekuatan yang mendukung" items={r.skillStrengthMatches} />
-        <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />
-        <Lines title="Langkah berikutnya" items={r.recommendedNextSteps} />
-        <Lines
-          title="Hal yang perlu dipertimbangkan"
-          items={[...r.cautionNotes, ...(r.careerCautions ?? [])]}
-        />
-      </div>
-      {r.careerPersonalizationReason ? (
-        <p className="text-sm leading-7">{r.careerPersonalizationReason}</p>
-      ) : null}
-      {r.aspirationReflection ? (
-        <p className="rounded-xl bg-orange-50 p-4 text-sm leading-7">
-          {r.aspirationReflection}
-        </p>
-      ) : null}
-      <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
-      <details className="border-t border-stone-200 pt-4">
-        <summary className="touch-link text-sm font-semibold">
-          Bagaimana skor dihitung? +
-        </summary>
-        <dl className="grid grid-cols-2 gap-3 py-4 text-sm">
-          {[
-            ["Minat", r.scoringBreakdown.interestScore],
-            ["Skill", r.scoringBreakdown.skillScore],
-            ["Mata pelajaran", r.scoringBreakdown.subjectScore],
-            ["Gaya kerja", r.scoringBreakdown.workStyleScore],
-            ["Area masalah", r.scoringBreakdown.problemAreaScore],
-            ["Pertimbangan pribadi", r.scoringBreakdown.constraintFitScore],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <dt className="text-stone-600">{label}</dt>
-              <dd className="font-bold">{value}/100</dd>
-            </div>
-          ))}
-        </dl>
-        <p className="text-xs leading-6 text-stone-600">
-          Bobot: minat 30%, skill 25%, mata pelajaran 15%, gaya kerja 10%, area
-          masalah 10%, pertimbangan 10%. Aspirasi tertulis dapat memberi
-          tambahan kecil ({r.scoringBreakdown.aspirationMajorBoost ?? 0} poin).
+      {hasExplanation ? expanded ? <details className="rounded-xl border border-stone-200 px-3">
+        <summary className="touch-link rounded-lg text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Penjelasan laporan tersimpan</summary>
+        {explanation}
+      </details> : explanation : null}
+      <details className="border-t border-stone-200 pt-2">
+        <summary className="touch-link rounded-lg text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Bagaimana skor dibaca?</summary>
+        <p className="pb-3 text-xs leading-6 text-stone-600">
+          Bobot penilaian: minat 30%, skill 25%, mata pelajaran 15%, gaya kerja 10%, area masalah 10%, pertimbangan 10%.
+          Nilai di atas adalah komponen laporan tersimpan, bukan peluang diterima atau persentase kemampuan yang sudah dikuasai.
+          Skor dan urutan laporan ini tidak dihitung ulang.
         </p>
       </details>
     </div>
   );
-  return expanded ? (
-    <article className="panel">
-      <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>
-      {body}
-    </article>
-  ) : (
-    <details className="recommendation-details panel">
-      <summary className="flex min-h-14 items-center gap-4">
-        <span className="text-xs text-stone-500">
-          {String(r.rank).padStart(2, "0")}
+  return expanded ? <article className="panel min-w-0">
+    <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{body}
+  </article> : <details className="recommendation-details panel min-w-0">
+    <summary className="flex min-h-14 items-start gap-3 rounded-lg [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf">
+      <span className="pt-1 text-xs font-bold tabular-nums text-leaf">{String(r.rank).padStart(2, "0")}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-base font-bold sm:text-lg">{r.majorName}</span>
+        <span className="mt-1 block text-xs leading-6 text-stone-700">Kecocokan {scoreText(r.overallFitScore)} · {fit.interpretation}</span>
+        <span className="block text-xs leading-6 text-stone-600">Ketahanan AI {scoreText(r.aiFutureResilienceScore)} · {r.aiFutureResilienceLabel}</span>
+        <span className="mt-1 flex flex-wrap gap-2">
+          {cleanLines(r.degreeTypes).map(d => <Badge key={d}>{d}</Badge>)}
+          {!fit.conflicts && fit.savedLabel ? <Badge>{fit.savedLabel}</Badge> : null}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-lg font-bold">{r.majorName}</span>
-          <span className="mt-1 block text-xs text-stone-600">
-            Kecocokan {r.overallFitScore} · Ketahanan AI{" "}
-            {r.aiFutureResilienceScore}
-          </span>
-        </span>
-        <ChevronDown size={20} className="shrink-0" aria-hidden="true" />
-      </summary>
-      {body}
-    </details>
-  );
+        {fit.conflicts && fit.savedLabel ? <span className="mt-1 block text-xs leading-5 text-stone-600">Label laporan tersimpan: {fit.savedLabel}</span> : null}
+        <span className="mt-2 block text-xs leading-5 text-stone-600">{comparisonSignalFor(r)}</span>
+      </span>
+      <ChevronDown size={20} className="mt-1 shrink-0 text-leaf" aria-hidden="true" />
+    </summary>
+    {body}
+  </details>;
 }
