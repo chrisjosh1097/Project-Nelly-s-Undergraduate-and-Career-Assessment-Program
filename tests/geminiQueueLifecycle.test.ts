@@ -15,11 +15,25 @@ let docs: Map<string, any>;
 let processingErrors: unknown[];
 let slotFailure: boolean;
 let afterRecoveryScan: (() => void) | undefined;
+let afterSubmissionRead: (() => void) | undefined;
+let submissionCreation = 1;
 
 function reference(path: string): any {
   return {
     id: path.split("/").at(-1),
-    get: async () => ({ exists: docs.has(path), id: path.split("/").at(-1), data: () => structuredClone(docs.get(path)) }),
+    get: async () => {
+      const data = structuredClone(docs.get(path));
+      const creation = path === submissionPath ? submissionCreation : 0;
+      const snapshot = { exists: data !== undefined, id: path.split("/").at(-1),
+        createTime: { isEqual: (other: { generation: number }) => other.generation === creation, generation: creation },
+        data: () => structuredClone(data) };
+      if (path === submissionPath) {
+        const hook = afterSubmissionRead;
+        afterSubmissionRead = undefined;
+        hook?.();
+      }
+      return snapshot;
+    },
     set: async (patch: any) => {
       docs.set(path, { ...docs.get(path), ...structuredClone(patch) });
       if (path === submissionPath && patch.narrativeStatus === "processing") processingErrors.push(docs.get(path).narrativeError);
@@ -30,10 +44,10 @@ function reference(path: string): any {
 beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
   for (const [key, value] of Object.entries({ENABLE_GEMINI_ENHANCEMENT:"true", GEMINI_QUEUE_ENABLED:"true", GEMINI_API_KEY:"test-only-key", GEMINI_QUEUE_DELAY_MS:"0", GEMINI_QUEUE_MAX_ATTEMPTS:"3", GEMINI_QUEUE_LOCK_MS:"120000", GEMINI_TIMEOUT_MS:"25000"})) vi.stubEnv(key, value);
-  processingErrors = []; slotFailure = false; afterRecoveryScan = undefined;
+  processingErrors = []; slotFailure = false; afterRecoveryScan = undefined; afterSubmissionRead = undefined; submissionCreation = 1;
   docs = new Map([
     [jobPath, {id:"synthetic",submissionId:"synthetic",status:"queued",attempts:0,availableAt:new Date().toISOString(),createdAt:new Date().toISOString(),lastError:"old error"}],
-    [submissionPath, {answers:answer,report:structuredClone(savedReport),narrativeStatus:"pending",narrativeError:"old error"}],
+    [submissionPath, {createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),answers:answer,report:structuredClone(savedReport),narrativeStatus:"pending",narrativeError:"old error"}],
   ]);
   mock.db = {
     doc: (path: string) => { if (slotFailure) throw new Error("Synthetic slot failure"); return reference(path); },
@@ -47,7 +61,15 @@ beforeEach(() => {
         },
       }) }),
     }),
-    runTransaction: async (fn: any) => fn({ get: (ref: any) => ref.get(), set: (ref: any, patch: any) => ref.set(patch) }),
+    runTransaction: async (fn: any) => {
+      const writes: Array<[any, any]> = [];
+      const result = await fn({ get: (ref: any) => {
+        if (writes.length) throw new Error("Firestore transaction reads must precede writes");
+        return ref.get();
+      }, set: (ref: any, patch: any) => { writes.push([ref, patch]); } });
+      for (const [ref, patch] of writes) await ref.set(patch);
+      return result;
+    },
     batch: () => {
       const writes: Array<[any,any]> = [];
       return { set: (ref: any, patch: any) => writes.push([ref,patch]), commit: async () => Promise.all(writes.map(([ref,patch])=>ref.set(patch))) };
@@ -57,6 +79,70 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Gemini queue report lifecycle", () => {
+  it.each(["queued", "processing"])("does not recreate a missing submission when an exhausted %s job is failed", async status => {
+    docs.delete(submissionPath);
+    docs.set(jobPath, { ...docs.get(jobPath), status, attempts: 3, lockedUntil: new Date(Date.now() - 1000).toISOString() });
+    const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+    await drainGeminiNarrativeJobs();
+    expect(docs.has(submissionPath)).toBe(false);
+    expect(docs.get(jobPath)).toMatchObject({ status: "failed", attempts: 3 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each(["success", "failure"])("does not recreate a submission deleted during provider %s", async outcome => {
+    const fetch = vi.fn(async () => {
+      docs.delete(submissionPath);
+      if (outcome === "failure") throw new Error("Synthetic provider failure after reset");
+      return Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify(completeGeminiNarrative(savedReport)) }] } }] });
+    });
+    vi.stubGlobal("fetch", fetch);
+    await drainGeminiNarrativeJobs();
+    expect(docs.has(submissionPath)).toBe(false);
+    expect(docs.get(jobPath)).toMatchObject({ status: "failed", attempts: 1 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each(["success", "failure", "same-timestamp replacement", "changed report"])("leaves a replacement assessment untouched after provider %s", async outcome => {
+    let replacement: any;
+    vi.stubGlobal("fetch", async () => {
+      replacement = outcome === "same-timestamp replacement" ? structuredClone(docs.get(submissionPath)) : {
+        ...docs.get(submissionPath), createdAt: new Date(Date.now() + 1000).toISOString(),
+        answers: { ...answer, futureVision: "A new synthetic assessment" },
+        report: { ...savedReport, narrativeVersion: "replacement-synthetic" }, narrativeStatus: "pending", narrativeError: "",
+      };
+      if (outcome === "changed report") replacement = {
+        ...docs.get(submissionPath), report: { ...savedReport, narrativeVersion: "replacement-synthetic" },
+      };
+      else submissionCreation++;
+      docs.set(submissionPath, replacement);
+      if (outcome === "failure") throw new Error("Synthetic old attempt failure");
+      return Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify(completeGeminiNarrative(savedReport)) }] } }] });
+    });
+    await drainGeminiNarrativeJobs();
+    expect(docs.get(submissionPath)).toEqual(replacement);
+    expect(docs.get(jobPath)).toMatchObject({ status: "failed", attempts: 1 });
+  });
+  it.each(["queued", "processing"])("leaves a newer assessment untouched when an old exhausted %s job is failed", async status => {
+    const replacement = { ...docs.get(submissionPath), createdAt: new Date(Date.now() + 1000).toISOString(), narrativeStatus: "pending", narrativeError: "" };
+    docs.set(submissionPath, replacement);
+    docs.set(jobPath, { ...docs.get(jobPath), status, attempts: 3, lockedUntil: new Date(Date.now() - 1000).toISOString() });
+    const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+    await drainGeminiNarrativeJobs();
+    expect(docs.get(submissionPath)).toEqual(replacement);
+    expect(docs.get(jobPath)).toMatchObject({ status: "failed", attempts: 3 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("rejects replacement between claim and processing before touching its metadata or calling Gemini", async () => {
+    let replacement: any;
+    afterSubmissionRead = () => {
+      replacement = { ...docs.get(submissionPath), narrativeError: "New assessment state" };
+      submissionCreation++;
+      docs.set(submissionPath, replacement);
+    };
+    const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+    await drainGeminiNarrativeJobs();
+    expect(docs.get(submissionPath)).toEqual(replacement);
+    expect(docs.get(jobPath)).toMatchObject({ status: "failed", attempts: 1 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("does not recover an expired snapshot after another worker completed it", async () => {
     docs.set(jobPath, { ...docs.get(jobPath), status: "processing", attempts: 3, lockedUntil: new Date(Date.now() - 1000).toISOString() });
     afterRecoveryScan = () => {

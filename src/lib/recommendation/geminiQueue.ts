@@ -2,6 +2,7 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { enhanceRecommendationReportWithGemini } from "@/lib/recommendation/narrative";
 import type { NarrativeStatus, Submission } from "@/lib/types";
 import { getGeminiRequestConfig } from "@/lib/recommendation/geminiResponse";
+import { isDeepStrictEqual } from "node:util";
 
 const JOB_COLLECTION = "geminiNarrativeJobs";
 const SUBMISSION_COLLECTION = "submissions";
@@ -23,6 +24,11 @@ export interface GeminiNarrativeJob {
   completedAt?: string;
   lastError?: string;
 }
+
+// In-memory snapshot only; persisted job documents keep their existing schema.
+type ProcessingGeminiJob = GeminiNarrativeJob & {
+  assessmentSnapshot?: FirebaseFirestore.DocumentSnapshot;
+};
 
 export interface GeminiQueueResult {
   jobId: string;
@@ -94,7 +100,7 @@ export async function drainGeminiNarrativeJobs() {
 
   const config = getGeminiQueueConfig();
   const snapshot = await getAdminDb().collection(JOB_COLLECTION).where("status", "==", "queued").limit(config.batchSize * 4).get();
-  const lockedJobs: GeminiNarrativeJob[] = [];
+  const lockedJobs: ProcessingGeminiJob[] = [];
 
   for (const doc of snapshot.docs) {
     if (lockedJobs.length >= config.batchSize) break;
@@ -111,7 +117,7 @@ export async function drainGeminiNarrativeJobs() {
   };
 }
 
-async function processRateLimitedGeminiJob(job: GeminiNarrativeJob) {
+async function processRateLimitedGeminiJob(job: ProcessingGeminiJob) {
   try {
     await waitForGeminiSlot();
   } catch (error) {
@@ -162,10 +168,13 @@ async function lockQueuedJob(jobId: string) {
     const availableAt = Date.parse(data.availableAt ?? data.createdAt);
     if (Number.isFinite(availableAt) && availableAt > now) return null;
 
-    if ((data.attempts ?? 0) >= config.maxAttempts) {
-      const message = "Gemini retry limit reached before another attempt.";
+    const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(data.submissionId);
+    const assessmentSnapshot = await transaction.get(submissionRef);
+    const problem = assessmentProblem(data, assessmentSnapshot);
+    if (problem || (data.attempts ?? 0) >= config.maxAttempts) {
+      const message = problem ?? "Gemini retry limit reached before another attempt.";
       transaction.set(ref, { status: "failed", updatedAt: nowIso, lastError: message }, { merge: true });
-      transaction.set(db.collection(SUBMISSION_COLLECTION).doc(data.submissionId), {
+      if (!problem) transaction.set(submissionRef, {
         narrativeStatus: "failed", narrativeUpdatedAt: nowIso, narrativeError: message,
       }, { merge: true });
       return null;
@@ -186,6 +195,7 @@ async function lockQueuedJob(jobId: string) {
 
     return {
       ...data,
+      assessmentSnapshot,
       status: "processing" as const,
       attempts,
       lockedUntil,
@@ -220,7 +230,7 @@ async function waitForGeminiSlot() {
   if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
 }
 
-async function processLockedGeminiJob(job: GeminiNarrativeJob): Promise<GeminiQueueResult> {
+async function processLockedGeminiJob(job: ProcessingGeminiJob): Promise<GeminiQueueResult> {
   const db = getAdminDb();
   const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(job.submissionId);
   const now = new Date().toISOString();
@@ -283,7 +293,7 @@ async function processLockedGeminiJob(job: GeminiNarrativeJob): Promise<GeminiQu
   }
 }
 
-async function handleGeminiJobFailure(job: GeminiNarrativeJob, message: string): Promise<GeminiQueueResult> {
+async function handleGeminiJobFailure(job: ProcessingGeminiJob, message: string): Promise<GeminiQueueResult> {
   const config = getGeminiQueueConfig();
   const now = new Date().toISOString();
   const exhausted = job.attempts >= config.maxAttempts;
@@ -311,12 +321,32 @@ async function handleGeminiJobFailure(job: GeminiNarrativeJob, message: string):
 }
 
 function staleJobResult(job: GeminiNarrativeJob): GeminiQueueResult {
-  return { jobId: job.id, status: "skipped", attempts: job.attempts, message: "Gemini job ownership changed; stale result ignored." };
+  return { jobId: job.id, status: "skipped", attempts: job.attempts, message: "Gemini job or assessment changed; stale result ignored." };
+}
+
+function assessmentProblem(job: ProcessingGeminiJob, snapshot: FirebaseFirestore.DocumentSnapshot) {
+  if (!snapshot.exists) return "Submission for Gemini job was not found.";
+  const submission = snapshot.data() as Submission;
+  const createdAt = Date.parse(submission.createdAt);
+  const queuedAt = Date.parse(job.createdAt);
+  // Existing persisted timestamps reject old orphan jobs targeting a newer attempt.
+  if (!Number.isFinite(createdAt) || !Number.isFinite(queuedAt) || createdAt > queuedAt)
+    return "Submission assessment changed; Gemini job no longer applies.";
+  const expected = job.assessmentSnapshot;
+  if (expected) {
+    const version = (value: Submission) => ({
+      createdAt: value.createdAt, updatedAt: value.updatedAt, answers: value.answers, report: value.report,
+    });
+    if ((expected.createTime && !snapshot.createTime?.isEqual(expected.createTime)) ||
+      !isDeepStrictEqual(version(submission), version(expected.data() as Submission)))
+      return "Submission assessment changed; Gemini result no longer applies.";
+  }
+  return undefined;
 }
 
 // Commit the report/status together and only for the attempt that still owns the job.
 async function writeOwnedTransition(
-  job: GeminiNarrativeJob,
+  job: ProcessingGeminiJob,
   jobPatch: Partial<GeminiNarrativeJob>,
   submissionPatch?: Partial<Submission>,
 ) {
@@ -326,10 +356,17 @@ async function writeOwnedTransition(
     const snapshot = await transaction.get(jobRef);
     const current = snapshot.data() as GeminiNarrativeJob | undefined;
     if (!current || current.status !== "processing" || current.attempts !== job.attempts ||
-        current.lockedUntil !== job.lockedUntil) return false;
+        current.lockedUntil !== job.lockedUntil || current.createdAt !== job.createdAt) return false;
+    const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(job.submissionId);
+    const assessmentSnapshot = await transaction.get(submissionRef);
+    const problem = assessmentProblem(job, assessmentSnapshot);
+    if (problem) {
+      transaction.set(jobRef, { status: "failed", updatedAt: new Date().toISOString(), lastError: problem }, { merge: true });
+      return false;
+    }
     if (Object.keys(jobPatch).length) transaction.set(jobRef, jobPatch, { merge: true });
     if (submissionPatch) transaction.set(
-      db.collection(SUBMISSION_COLLECTION).doc(job.submissionId), submissionPatch, { merge: true },
+      submissionRef, submissionPatch, { merge: true },
     );
     return true;
   });
