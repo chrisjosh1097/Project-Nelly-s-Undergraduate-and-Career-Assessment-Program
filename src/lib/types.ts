@@ -1,3 +1,5 @@
+export type EducationPathway = "university" | "vocational" | "exploring";
+
 export type SchoolMajor =
   | "IPA"
   | "IPS"
@@ -41,6 +43,7 @@ export type AIFutureResilienceLabel =
   | "Perlu Adaptasi Tinggi";
 
 export interface StudentAnswer {
+  educationPathway?: EducationPathway;
   fullName: string;
   email: string;
   gender: Gender | "";
@@ -63,6 +66,7 @@ export interface StudentAnswer {
 }
 
 export interface NormalizedStudentAnswer {
+  educationPathway?: EducationPathway;
   fullName: string;
   email: string;
   gender: Gender | "";
@@ -150,6 +154,7 @@ export interface ScoringBreakdown {
 }
 
 export interface RecommendationResult {
+  degreeTypes?: string[];
   rank: number;
   majorId: string;
   majorName: string;

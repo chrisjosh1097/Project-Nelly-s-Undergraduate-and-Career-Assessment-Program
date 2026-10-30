@@ -207,6 +207,7 @@ export function normalizeStudentAnswer(answer: StudentAnswer): NormalizedStudent
   const textSignals = inferTextSignals(answer);
 
   return {
+    ...(answer.educationPathway ? { educationPathway: answer.educationPathway } : {}),
     fullName: answer.fullName,
     email: answer.email,
     gender: answer.gender,

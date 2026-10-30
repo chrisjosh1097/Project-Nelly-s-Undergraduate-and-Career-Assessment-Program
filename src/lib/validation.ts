@@ -41,6 +41,7 @@ const optionalText = (label: string, min: number, max: number) =>
     .default("");
 
 export const studentAnswerSchema = z.object({
+  educationPathway: z.enum(["university", "vocational", "exploring"]).optional(),
   fullName: boundedText("Nama lengkap", 100),
   email: z.string().trim().email("Email Google tidak valid."),
   gender: z.enum(genderOptions as [Gender, ...Gender[]], {
