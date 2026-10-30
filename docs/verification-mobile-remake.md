@@ -6,7 +6,7 @@ Verified locally on 2026-10-30, including regression verification after the inde
 - `npm run lint`: pass (currently the TypeScript check).
 - `npm run typecheck`: pass.
 - `npm test`: 77 tests pass across 15 files.
-- `npm run test:browser`: 51 Chromium component tests pass, using `PLAYWRIGHT_EXECUTABLE_PATH` for an already-installed Chromium after the matching-browser CDN download reset/timed out.
+- `npm run test:browser`: 54 Chromium component tests pass, using `PLAYWRIGHT_EXECUTABLE_PATH` for an already-installed Chromium after the matching-browser CDN download reset/timed out.
 - `npm run build`: pass; all existing application and API routes remain present.
 
 Browser coverage includes 320/360/390/768/1280 px widths, loaded logo, long student/school names, open filters and report details, large text, reduced motion, 44 px control heights, 16 px input text, keyboard radio/disclosure/dialog operation, answer review/edit, retry/duplicate-click protection, admin filter/export/reset/logout, missing historical fields, and usable heuristic results during narrative failures or delays. Polling cancellation is covered. These are actual application components with compiled styles, not the throwaway HTML preview.
@@ -31,6 +31,10 @@ Seven browser regressions were added. The reviewer raised no minor findings. Fix
 - Used a locally installed Chromium through the documented executable override after CDN download failures. Tradeoff: possible version skew; CI should install the matching version.
 - Live Google/Firebase/Firestore/Gemini behavior and deployment were outside the read-only review and were not tested against real accounts. Tradeoff: integration failures may still be discovered in an authorized release smoke test.
 - Physical virtual keyboards and an independent PDF/share-image visual audit were outside the reviewer’s pass. Synthetic PDFs and phone screenshots were inspected locally, but physical-device differences may remain.
+
+## User-test follow-up: admin entry point
+
+The admin dashboard remained at `/admin`, but the redesign had removed its public navigation entry point. Restored an **Admin / Guru BK** footer link without adding admin controls to the student bottom bar. Regression tests confirm visibility, keyboard focus, a 44 px tap target, and no horizontal overflow at 320, 390, and 1280 px. All 54 browser tests, 77 unit tests, typecheck, and production build pass. Admin authentication remains unchanged.
 
 ## Deliberate limits
 

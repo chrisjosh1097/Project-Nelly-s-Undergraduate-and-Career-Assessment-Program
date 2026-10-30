@@ -35,8 +35,14 @@ export function SiteFooter() {
             ))}
           </nav>
         </div>
-        <div className="mt-6 border-t border-stone-200 pt-5 text-xs text-stone-600">
-          © Project Nelly · Untuk siswa SMA & SMK Indonesia
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-5 text-xs text-stone-600">
+          <span>© Project Nelly · Untuk siswa SMA & SMK Indonesia</span>
+          <Link
+            href="/admin"
+            className="touch-link underline underline-offset-4"
+          >
+            Admin / Guru BK
+          </Link>
         </div>
       </div>
     </footer>
