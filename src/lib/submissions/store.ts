@@ -1,3 +1,5 @@
+import { matchesSubmissionFilters, type SubmissionFilters } from "@/lib/submissions/filters";
+export type { SubmissionFilters } from "@/lib/submissions/filters";
 import type { Submission, StudentAnswer } from "@/lib/types";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { generateRecommendations } from "@/lib/recommendation";
@@ -117,36 +119,7 @@ export async function createOrGetSubmission(answer: StudentAnswer) {
   }
 }
 
-export interface SubmissionFilters {
-  school?: string;
-  className?: string;
-  topRecommendation?: string;
-  cluster?: string;
-  status?: string;
-  dateFrom?: string;
-  dateTo?: string;
-}
-
 export async function listSubmissions(filters: SubmissionFilters = {}) {
-  const snapshot = await collection().orderBy("createdAt", "desc").limit(500).get();
-  let submissions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Submission);
-
-  submissions = submissions.filter((submission) => {
-    const top = submission.report?.topRecommendation;
-    if (filters.school && !submission.school.toLowerCase().includes(filters.school.toLowerCase())) return false;
-    if (filters.className && !submission.className.toLowerCase().includes(filters.className.toLowerCase())) return false;
-    if (
-      filters.topRecommendation &&
-      top?.majorName.toLowerCase() !== filters.topRecommendation.toLowerCase()
-    ) {
-      return false;
-    }
-    if (filters.cluster && top?.cluster.toLowerCase() !== filters.cluster.toLowerCase()) return false;
-    if (filters.status && submission.status !== filters.status) return false;
-    if (filters.dateFrom && submission.createdAt < filters.dateFrom) return false;
-    if (filters.dateTo && submission.createdAt > `${filters.dateTo}T23:59:59.999Z`) return false;
-    return true;
-  });
-
-  return submissions;
+ const snapshot = await collection().orderBy("createdAt", "desc").limit(500).get();
+ return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Submission).filter(s => matchesSubmissionFilters(s, filters));
 }
