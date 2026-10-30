@@ -1,6 +1,6 @@
 # Admin Usability and Result Quality Follow-up Implementation Plan
 
-> **For agentic workers:** Use superpowers:subagent-driven-development for the three scoped tasks below. Steps use checkbox (`- [ ]`) syntax for tracking. Only one implementer edits at a time; other agents may investigate read-only. The coordinator owns Git commits and the single final push.
+> **For agentic workers:** Use superpowers:subagent-driven-development for the three scoped tasks below. Steps use checkbox (`- [x]`) syntax for tracking. Only one implementer edits at a time; other agents may investigate read-only. The coordinator owns Git commits and the single final push.
 
 **Goal:** Ship admin tables/search and materially better, reliable result explanations together in one push to the existing preview branch.
 
@@ -62,11 +62,11 @@
 
 **Interfaces:** Define/export `AdminSubmissionSummary`, `AdminSubmissionPage`, and summary analytics in the new admin helper, with `pageSize: 50`, `page`, `total`, `totalPages`, summary `submissions`, and matching analytics. Add optional `search` to `SubmissionFilters`. Keep existing `listSubmissions(filters)` signature for full exports, but remove the hard 500 cap by safe batched scanning. Add a protected GET `/api/admin/submissions/[id]` for full reports; URL-encode IDs and validate malformed/absent IDs.
 
-- [ ] Inspect current admin/storage contracts and identify the actual initial-loading state transitions before changing them.
-- [ ] Add failing tests: 121 matching rows yield pages 50/50/21; search/filter resets page; matches beyond old position 500 are found; all filters AND with general search; all-match CSV; page validation/clamping; auth before reads; failed/hanging requests exit spinner; stale load/detail cannot leak after logout.
-- [ ] Run focused tests, observe the intended failures, implement typed summaries/projections/batched scan, paging/detail routes, and stable query/analytics state. Avoid casting incomplete summary objects to full Submission.
-- [ ] Render one table on every viewport inside an accessible local horizontal-scroll region, 50 rows and pager. Keep all old report and reset actions accessible. Remove collapse containers from filters/analytics/reset tools. Include search field/button and explicit submit behavior.
-- [ ] Run focused unit tests and typecheck. Write/update browser tests but do not run CT concurrently with another agent. Return files, exact test output, concerns, and a report at the assigned scratch path. No Git changes.
+- [x] Inspect current admin/storage contracts and identify the actual initial-loading state transitions before changing them.
+- [x] Add failing tests: 121 matching rows yield pages 50/50/21; search/filter resets page; matches beyond old position 500 are found; all filters AND with general search; all-match CSV; page validation/clamping; auth before reads; failed/hanging requests exit spinner; stale load/detail cannot leak after logout.
+- [x] Run focused tests, observe the intended failures, implement typed summaries/projections/batched scan, paging/detail routes, and stable query/analytics state. Avoid casting incomplete summary objects to full Submission.
+- [x] Render one table on every viewport inside an accessible local horizontal-scroll region, 50 rows and pager. Keep all old report and reset actions accessible. Remove collapse containers from filters/analytics/reset tools. Include search field/button and explicit submit behavior.
+- [x] Run focused unit tests and typecheck. Write/update browser tests but do not run CT concurrently with another agent. Return files, exact test output, concerns, and a report at the assigned scratch path. No Git changes.
 
 ## Task 2: Reliable Gemini and honest, personalized deterministic results
 
@@ -74,11 +74,11 @@
 
 **Interfaces:** Preserve `generateRecommendations`, `enhanceRecommendationReport`, and stored report/narrative types. Use existing summary/strengths/reasons/personalization fields. If a type addition is unavoidable, report the exact proposed change to the coordinator rather than editing shared types.
 
-- [ ] Diagnose flexible fallback placement, Gemini parser/finish-reason behavior, and generic aspiration fallback using source and synthetic reproductions. No live credentials or calls.
-- [ ] Add failing tests: final ranks sorted by existing deterministic comparator even with sparse matches; top-degree eligibility maintained; weak matches use cautious copy; synthetic Japan/overseas technical maritime/mining ambitions produce relevant heuristic direction without generic social text or unsupported guarantees.
-- [ ] Add malformed JSON, MAX_TOKENS, empty/missing fields, Gemini output trying to alter ranked data, and bounded-retry/failure tests. Inspect queue status/error semantics so completed work does not retain misleading old errors.
-- [ ] Implement the minimal fixes with strict structured output validation and bounded network behavior, preserving heuristic fallback availability. Do not invent a blanket retry policy or regex-repair arbitrary model text into supposedly valid analysis.
-- [ ] Run recommendation and full unit tests as practical, typecheck, and report exact red/green evidence. No environment changes, DB writes, queue drain, commits, pushes or browser server starts.
+- [x] Diagnose flexible fallback placement, Gemini parser/finish-reason behavior, and generic aspiration fallback using source and synthetic reproductions. No live credentials or calls.
+- [x] Add failing tests: final ranks sorted by existing deterministic comparator even with sparse matches; top-degree eligibility maintained; weak matches use cautious copy; synthetic Japan/overseas technical maritime/mining ambitions produce relevant heuristic direction without generic social text or unsupported guarantees.
+- [x] Add malformed JSON, MAX_TOKENS, empty/missing fields, Gemini output trying to alter ranked data, and bounded-retry/failure tests. Inspect queue status/error semantics so completed work does not retain misleading old errors.
+- [x] Implement the minimal fixes with strict structured output validation and bounded network behavior, preserving heuristic fallback availability. Do not invent a blanket retry policy or regex-repair arbitrary model text into supposedly valid analysis.
+- [x] Run recommendation and full unit tests as practical, typecheck, and report exact red/green evidence. No environment changes, DB writes, queue drain, commits, pushes or browser server starts.
 
 ## Task 3: Richer mobile results with evidence and preserved history
 
@@ -86,14 +86,14 @@
 
 **Interfaces:** Consume existing `Submission`, `RecommendationResult` and optional `report.narrative`. Keep ResultsView props and compact-admin mode. Render stored values/ranks as-is. No fetching/regeneration for presentation.
 
-- [ ] Inspect current layout and fields not being rendered. Propose a compact personal overview and evidence-driven comparison without changing scores or stored report ordering.
-- [ ] Add failing tests for meaningful summary display, explicit moderate/weak fit, aspiration details, component-score evidence, next steps, legacy safe rendering and preserved downloads; authored examples must be synthetic, not a copied real record.
-- [ ] Implement the agreed richer orange/white/black design with meaningful, concise sections and mobile-first comparison. Keep accessible keyboard/disclosure behavior, score limits and uncertainty. Avoid generic praise, irrelevant social copy and overseas eligibility promises.
-- [ ] Run unit/type checks; leave browser suite execution to the coordinator unless explicitly scheduled. Report owned files, tests, and visual tradeoffs. No commits/pushes or edits outside ownership.
+- [x] Inspect current layout and fields not being rendered. Propose a compact personal overview and evidence-driven comparison without changing scores or stored report ordering.
+- [x] Add failing tests for meaningful summary display, explicit moderate/weak fit, aspiration details, component-score evidence, next steps, legacy safe rendering and preserved downloads; authored examples must be synthetic, not a copied real record.
+- [x] Implement the agreed richer orange/white/black design with meaningful, concise sections and mobile-first comparison. Keep accessible keyboard/disclosure behavior, score limits and uncertainty. Avoid generic praise, irrelevant social copy and overseas eligibility promises.
+- [x] Run unit/type checks; leave browser suite execution to the coordinator unless explicitly scheduled. Report owned files, tests, and visual tradeoffs. No commits/pushes or edits outside ownership.
 
 ## Integration, review and one push (coordinator)
 
-- [ ] Verify each implementation against its task, read reports, inspect diffs, run existing and new browser tests serially, and resolve material gaps with the owning agent. Keep the existing 54-browser/77-unit baseline as regression coverage, adjusting only expectations intentionally changed by this request.
-- [ ] Run KB validation, lint, typecheck, full unit suite, full browser suite, and production build. Inspect representative synthetic desktop/phone screenshots; do not call the live Gemini worker or rewrite the reference report.
-- [ ] Obtain independent read-only review of the combined changes. Address critical/important findings with red/green regressions and rerun affected/full checks.
-- [ ] Update documentation with search scope/cost, output-validation behavior, historical report limitations, tested counts and any live-integration limits. Commit work in reviewable units, then push this branch exactly once. Do not merge or deploy production.
+- [x] Verify each implementation against its task, read reports, inspect diffs, run existing and new browser tests serially, and resolve material gaps with the owning agent. Keep the existing 54-browser/77-unit baseline as regression coverage, adjusting only expectations intentionally changed by this request.
+- [x] Run KB validation, lint, typecheck, full unit suite, full browser suite, and production build. Inspect representative synthetic desktop/phone screenshots; do not call the live Gemini worker or rewrite the reference report.
+- [x] Obtain independent read-only review of the combined changes. Address critical/important findings with red/green regressions and rerun affected/full checks.
+- [x] Update documentation with search scope/cost, output-validation behavior, historical report limitations, tested counts and any live-integration limits. Commit work in reviewable units, then push this branch exactly once. Do not merge or deploy production.

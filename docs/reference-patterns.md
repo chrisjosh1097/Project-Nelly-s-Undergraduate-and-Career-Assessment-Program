@@ -6,7 +6,7 @@ Project Nelly remains a Next.js/React application with its existing Firebase, de
 | --- | --- | --- |
 | [Formbricks](https://github.com/formbricks/formbricks) | `packages/surveys/src/components/general/progress-bar.tsx` | Focused survey progression and explicit progress. Nelly calculates progress from its own actual question/review steps. |
 | [SurveyJS](https://github.com/surveyjs/survey-library) | `packages/survey-core/src/question_paneldynamic.ts` | A declarative questionnaire structure. Nelly uses a small typed configuration rather than installing a survey platform. |
-| [shadcn/ui](https://github.com/shadcn-ui/ui) | `apps/v4/registry/new-york-v4/blocks/dashboard-01/page.tsx` | Composable dashboard summary cards, contextual navigation, and data records. Nelly adapts records into labeled phone cards. |
+| [shadcn/ui](https://github.com/shadcn-ui/ui) | `apps/v4/registry/new-york-v4/blocks/dashboard-01/page.tsx` | Composable dashboard summary cards, contextual navigation, and data records. Nelly uses summary rows with lazy details; the follow-up keeps a labeled table in a local horizontal-scroll region on phones so its tools remain visible. |
 
 No wholesale source or external branding was copied. Formbricks licensing is not assumed MIT; any future code reuse needs a separate license check.
 

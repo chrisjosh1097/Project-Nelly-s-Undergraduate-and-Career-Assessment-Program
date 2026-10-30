@@ -84,7 +84,7 @@ npm run build
 
 ## Mobile-First Experience and Education Pathways
 
-The app uses the actual Project Nelly logo and orange/white/black identity, with phone-first navigation, a short-step assessment, review/edit before submission, disclosed recommendation details, and counselor records that become labeled cards on phones.
+The app uses the actual Project Nelly logo and orange/white/black identity, with phone-first navigation, a short-step assessment, review/edit before submission, disclosed recommendation details, and a counselor table that scrolls within its own region on phones.
 
 The new assessment asks for `educationPathway` immediately after school background:
 - `university`: programs supporting S1.
@@ -95,7 +95,9 @@ Pathway is independent of SMA/SMK background and PTN/PTS preferences. Shared que
 
 The field is optional at the API/legacy-read boundary. Missing historical values display **Belum tercatat**, not an inferred preference. Existing reports are not rescored or migrated. New recommendations add optional `degreeTypes` metadata, and scoring version is `knowledge-base-heuristic-v3.0.0`. PDF/admin/CSV expose the recorded pathway. CSV preserves old columns and appends `educationPathway` and `topDegreeTypes`.
 
-Answers are kept in memory during the wizard, not persisted across reloads or devices. The counselor dashboard reports counts from up to 500 latest records matching applied filters, not an unbounded organization-wide total.
+Answers are kept in memory during the wizard, not persisted across reloads or devices. The counselor dashboard uses 50-row summary pages, always-visible filters/tools, and case-insensitive general search across name, email, school, class, top major, and cluster. Search combines with existing filters and covers all submissions, including those older than the former 500-record limit. Matching counts and analytics cover all matches; CSV exports all matches rather than the current page. Full reports load only when opened.
+
+Without an external search index, exact substring search/counts require bounded 200-document Firestore projection batches across the collection on each request. Browser payload and retained page rows are bounded, but database reads still grow with record count. Large datasets may require a dedicated search index, maintained aggregates, and streaming/background CSV exports. Admin requests time out after 15 seconds with a retry state; that deadline does not cancel an already-running server scan.
 
 See [reference patterns](docs/reference-patterns.md), the [approved design](docs/superpowers/specs/2026-10-30-mobile-first-app-remake-design.md), and the [implementation plan](docs/superpowers/plans/2026-10-30-mobile-first-app-remake.md).
 
@@ -128,8 +130,11 @@ skillScore * 0.25 +
 subjectScore * 0.15 +
 workStyleScore * 0.10 +
 problemAreaScore * 0.10 +
-constraintFitScore * 0.10
+constraintFitScore * 0.10 +
+aspirationMajorBoost
 ```
+
+The optional aspiration boost is a small deterministic adjustment, not a replacement for profile fit; the final score is rounded and bounded to 0–100.
 
 The engine returns exactly 10 unique recommendations. Sorting is deterministic:
 
@@ -250,3 +255,7 @@ Architecture is prepared through `RecommendationNarrativeEnhancer`:
 - Feature flag: `ENABLE_GEMINI_ENHANCEMENT=false`
 
 Gemini may only improve explanation text, tone, student-friendly narrative, or summary paragraphs. It must never change ranking, major IDs, scores, AI Future Resilience Score, or scoring breakdown. Generated narrative is stored with the submission so it is not regenerated every time a student opens the result.
+
+Enrichment now requires a `STOP` finish reason and complete structured JSON with the exact recommended major IDs, summary, strengths, reasons, and required career-personalization fields. Missing fields, unknown mutation fields, malformed JSON and `MAX_TOKENS` are failures, not successful partial enrichment. The parser does not repair arbitrary model output. Defaults remain one provider request per attempt, a 25-second fetch/body deadline and 5,200 output tokens; configuration cannot exceed those budgets. Retries use the existing bounded queue policy (three attempts by default). Stale workers cannot replace a newer job outcome; failed enrichment leaves the saved report available.
+
+Final deterministic sorting now also applies after fallback selection for **new reports**. Existing saved ranks, scores and narratives are not reordered, rescored or regenerated automatically. Narrative structure is validated, but that does not prove factual correctness or overseas admission, employment, licensing or visa eligibility. Provider schema acceptance and deployed completion rates still need an authorized live integration check.
