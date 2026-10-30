@@ -2,7 +2,7 @@
 
 Date: 2026-10-30
 Branch: `feat/app-remake-pathway-flows`
-Status: Design proposal — awaiting approval before implementation.
+Status: Approved by the user (“go”); implementation plan prepared separately.
 
 ## Intent
 
