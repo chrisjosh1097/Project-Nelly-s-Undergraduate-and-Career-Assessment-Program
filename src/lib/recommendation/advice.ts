@@ -5,6 +5,9 @@ export function generatePtnPtsVokasiAdvice(answer: StudentAnswer) {
   const advice: string[] = [];
   const preferences = answer.collegePathPreferences;
   const constraints = answer.personalConstraints;
+  if (answer.educationPathway === "university") advice.push("Untuk jalur S1, bandingkan kedalaman bidang ilmu, proyek, kurikulum, dan peluang riset maupun magang.");
+  if (answer.educationPathway === "vocational") advice.push("Untuk jalur D3 / D4, bandingkan fasilitas praktik, proyek terapan, magang, dan kemitraan industri.");
+  if (answer.educationPathway === "exploring") advice.push("Bandingkan S1 dengan D3 / D4 dari kurikulum, cara belajar, biaya, serta tujuan karier; keduanya dapat menjadi pilihan yang baik.");
 
   if (preferences.includes("PTN di Jawa")) {
     advice.push("PTN di Jawa bisa menjadi pilihan kuat jika jurusan yang dipilih benar-benar sesuai dan biaya masih realistis.");
@@ -24,7 +27,7 @@ export function generatePtnPtsVokasiAdvice(answer: StudentAnswer) {
       "Kuliah dekat rumah dapat membantu mengurangi biaya hidup dan menjaga support system, selama kualitas jurusan tetap diperhatikan."
     );
   }
-  if (preferences.includes("Diploma/vokasi")) {
+  if (preferences.includes("Diploma/vokasi") && answer.educationPathway !== "university") {
     advice.push("Jalur vokasi cocok jika kamu ingin pembelajaran yang lebih praktis dan dekat dengan kebutuhan industri.");
   }
   if (preferences.includes("Sertifikasi/bootcamp")) {

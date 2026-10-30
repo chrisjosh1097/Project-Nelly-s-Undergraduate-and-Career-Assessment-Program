@@ -1,3 +1,4 @@
+import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import type { Major as KnowledgeMajor } from "../../../data";
 import type {
   CareerPersonalization,
@@ -188,6 +189,7 @@ interface GeminiGenerateContentResponse {
 function buildGeminiPrompt(answers: StudentAnswer, recommendations: RecommendationResult[]) {
     const compactRecommendations = recommendations.map((recommendation) => ({
     rank: recommendation.rank,
+    degreeTypes: recommendation.degreeTypes ?? [],
     majorId: recommendation.majorId,
     majorName: recommendation.majorName,
     cluster: recommendation.cluster,
@@ -222,6 +224,7 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         "Tekankan AI sebagai alat bantu dan skill manusia tetap penting.",
         "Jangan menyebut bahwa kamu AI atau Gemini.",
         "Jangan menambah jurusan baru dan jangan mengubah urutan.",
+        "Ikuti educationPathway dan degreeTypes yang diberikan. Sertifikasi adalah pelengkap; jangan mengganti jalur S1 atau D3/D4 pilihan siswa.",
         "Karier niche boleh lebih spesifik, tetapi harus tetap masuk akal untuk jurusan dan cluster yang diberikan.",
         "Jangan menulis karier yang membutuhkan profesi berlisensi tanpa catatan jalur lanjut. Contoh: lawyer/advokat harus terkait jurusan hukum atau diberi konteks compliance/policy.",
         "Untuk rekomendasi #1, jika dreamProfession, futureVision, favoriteSubjectsOther, atau collegePathPreferenceOther terisi, aspirationReflection wajib menyebut minimal satu tema spesifik dari teks siswa.",
@@ -236,6 +239,7 @@ function buildGeminiPrompt(answers: StudentAnswer, recommendations: Recommendati
         school: promptText(answers.school, 120),
         className: promptText(answers.className, 40),
         schoolMajor: answers.currentSchoolMajor,
+        educationPathway: answers.educationPathway ?? "unrecorded",
         favoriteSubjects: promptArray(answers.favoriteSubjects),
         favoriteSubjectsOther: promptText(answers.favoriteSubjectsOther, 80),
         favoriteActivities: promptArray(answers.favoriteActivities),
@@ -579,10 +583,11 @@ function clusterPathwayAdviceFor(recommendation: RecommendationResult, answers?:
 
 function pathwayAdviceFor(recommendation: RecommendationResult, answers?: StudentAnswer) {
   const flags = aspirationFlags(answers);
+  const direction = answers?.educationPathway ? generatePtnPtsVokasiAdvice(answers)[0] : undefined;
   if (!flags.hasText) {
     return uniqueItems(
       [
-        `Gunakan ${recommendation.majorName} untuk mengubah ${profileSignalSummary(answers)} menjadi skill yang terarah.`,
+        direction ?? `Gunakan ${recommendation.majorName} untuk mengubah ${profileSignalSummary(answers)} menjadi skill yang terarah.`,
         `Cari proyek kecil, lomba, organisasi, magang, atau sertifikasi yang relevan dengan ${recommendation.careerDirection}.`,
         "Bangun portofolio dari tugas, riset mini, karya, atau pengalaman praktik yang bisa ditunjukkan."
       ],
@@ -591,7 +596,7 @@ function pathwayAdviceFor(recommendation: RecommendationResult, answers?: Studen
   }
 
   const steps = [
-    `Gunakan ${recommendation.majorName} untuk membangun dasar yang relevan dengan ${compactAspirationTheme(answers)}.`
+    direction ?? `Gunakan ${recommendation.majorName} untuk membangun dasar yang relevan dengan ${compactAspirationTheme(answers)}.`
   ];
 
   if (flags.hasRights || flags.hasEnvironment || flags.hasHelping) {
