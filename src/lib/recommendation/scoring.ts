@@ -19,9 +19,10 @@ import type {
   TechComfort,
 } from "@/lib/types";
 import { clamp, roundScore, unique } from "@/lib/utils";
-import { buildRecommendationNarrative } from "@/lib/recommendation/narrative";
+import { buildRecommendationNarrative, HEURISTIC_NARRATIVE_VERSION } from "@/lib/recommendation/narrative";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { scoreAspirationMajorIntent } from "@/lib/recommendation/aspirationIntent";
+import { aspirationFlags } from "@/lib/recommendation/aspirationThemes";
 
 import { eligibleMajors } from "@/lib/recommendation/eligibility";
 import { eligibleDegreeTypes } from "@/lib/assessment/pathways";
@@ -480,19 +481,11 @@ function costAlternativeText() {
   return names ? `Alternatif serumpun yang bisa dibandingkan: ${names}.` : "";
 }
 
-function answerText(answer: StudentAnswer) {
-  return `${answer.dreamProfession} ${answer.futureVision}`
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function buildAnswerPatternNotes(answer: StudentAnswer) {
   const normalized = normalizeStudentAnswer(answer);
   const notes: string[] = [];
   const clearInterests = normalized.interestIds.filter((id) => id !== "other");
-  const text = answerText(answer);
+  const flags = aspirationFlags(answer);
 
   if (clearInterests.length <= 2) {
     notes.push(
@@ -517,25 +510,17 @@ function buildAnswerPatternNotes(answer: StudentAnswer) {
       "Kamu belum terlalu nyaman dengan AI. Tidak apa-apa; mulai dari literasi digital dan penggunaan AI yang aman sebagai alat bantu.",
     );
   }
-  if (
-    /\bham\b|hak asasi|keadilan|advokasi|memperjuangkan|hukum|kebijakan/.test(
-      text,
-    )
-  ) {
+  if (flags.hasRights) {
     notes.push(
       "Aspirasi kamu menyebut isu HAM, keadilan, advokasi, atau kebijakan; ini ikut memberi sinyal ke jalur sosial, hukum, governance, dan public policy.",
     );
   }
-  if (
-    /lingkungan|iklim|climate|sustainability|keberlanjutan|konservasi|hutan|limbah|alam/.test(
-      text,
-    )
-  ) {
+  if (flags.hasEnvironment) {
     notes.push(
       "Aspirasi kamu menyebut lingkungan; ini ikut memberi sinyal ke jalur lingkungan, sustainability, kebijakan publik, dan dampak sosial.",
     );
   }
-  if (/membantu|bantu|menolong|mendampingi|melayani|pelayanan/.test(text)) {
+  if (flags.hasHelping) {
     notes.push(
       "Aspirasi kamu menyebut membantu orang; ini ikut memberi sinyal ke bidang yang banyak membutuhkan empati, komunikasi, dan kerja berdampak.",
     );
@@ -630,6 +615,13 @@ type ScoredMajor = {
   recommendation: RecommendationResult;
 };
 
+function compareScoredMajors(left: ScoredMajor, right: ScoredMajor) {
+  return right.recommendation.overallFitScore - left.recommendation.overallFitScore ||
+    right.recommendation.aiFutureResilienceScore - left.recommendation.aiFutureResilienceScore ||
+    jobFlexValue(right.major.jobMarketFlexibility) - jobFlexValue(left.major.jobMarketFlexibility) ||
+    left.recommendation.majorName.localeCompare(right.recommendation.majorName, "id-ID");
+}
+
 function selectedCountBy(
   selected: Map<string, ScoredMajor>,
   selector: (item: ScoredMajor) => string,
@@ -673,7 +665,6 @@ function addScoredRecommendation(
 
 function selectRecommendationPool(
   scored: ScoredMajor[],
-  answer: StudentAnswer,
 ) {
   const selected = new Map<string, ScoredMajor>();
   const strongMatches = scored.filter(
@@ -727,7 +718,8 @@ function selectRecommendationPool(
     addScoredRecommendation(selected, item);
   }
 
-  return Array.from(selected.values()).map((item) => item.recommendation);
+  return Array.from(selected.values()).sort(compareScoredMajors)
+    .map((item) => item.recommendation);
 }
 
 export function generateRecommendations(
@@ -739,36 +731,9 @@ export function generateRecommendations(
   const scored = candidates
     .map((major) => ({ major, recommendation: scoreMajor(answer, major) }))
     .filter(({ recommendation }) => validRecommendation(recommendation))
-    .sort((left, right) => {
-      if (
-        right.recommendation.overallFitScore !==
-        left.recommendation.overallFitScore
-      ) {
-        return (
-          right.recommendation.overallFitScore -
-          left.recommendation.overallFitScore
-        );
-      }
-      if (
-        right.recommendation.aiFutureResilienceScore !==
-        left.recommendation.aiFutureResilienceScore
-      ) {
-        return (
-          right.recommendation.aiFutureResilienceScore -
-          left.recommendation.aiFutureResilienceScore
-        );
-      }
-      const jobFlexDiff =
-        jobFlexValue(right.major.jobMarketFlexibility) -
-        jobFlexValue(left.major.jobMarketFlexibility);
-      if (jobFlexDiff !== 0) return jobFlexDiff;
-      return left.recommendation.majorName.localeCompare(
-        right.recommendation.majorName,
-        "id-ID",
-      );
-    });
+    .sort(compareScoredMajors);
 
-  const recommendations = selectRecommendationPool(scored, answer)
+  const recommendations = selectRecommendationPool(scored)
     .slice(0, 10)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
 
@@ -783,7 +748,7 @@ export function generateRecommendations(
     topRecommendation: recommendations[0],
     recommendations,
     scoringVersion: SCORING_VERSION,
-    narrativeVersion: "heuristic-template-v2.0.0",
+    narrativeVersion: HEURISTIC_NARRATIVE_VERSION,
     ptnPtsVokasiAdvice: generatePtnPtsVokasiAdvice(answer),
     answerPatternNotes: buildAnswerPatternNotes(answer),
   };

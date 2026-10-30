@@ -6,6 +6,7 @@ import {
   enhanceRecommendationReportWithGemini,
 } from "@/lib/recommendation/narrative";
 import { techAnswer } from "./fixtures";
+import { completeGeminiNarrative } from "./narrativeFixtures";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -46,16 +47,11 @@ describe("pathway advice", () => {
       return Response.json({
         candidates: [
           {
+            finishReason: "STOP",
             content: {
               parts: [
                 {
-                  text: JSON.stringify({
-                    summary: "Berdasarkan jawaban yang kamu isi.",
-                    recommendationReasons: {},
-                    recommendations: [
-                      { majorId: "fake", overallFitScore: 100 },
-                    ],
-                  }),
+                  text: JSON.stringify(completeGeminiNarrative(report)),
                 },
               ],
             },
