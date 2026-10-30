@@ -30,7 +30,8 @@ function friendlyLoginError(error: unknown) {
 export function LoginPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/assessment";
+  const requestedNext = searchParams.get("next");
+  const next = requestedNext && ["/assessment", "/result", "/already-submitted"].includes(requestedNext) ? requestedNext : "/assessment";
   const { user, loading, configured, signIn } = useAuth();
   const [error, setError] = useState("");
   const [isSigningIn, setSigningIn] = useState(false);
@@ -73,20 +74,20 @@ export function LoginPanel() {
 
   if (!configured) {
     return (
-      <div className="rounded-md border border-coral/30 bg-coral/10 p-5 text-sm text-ink">
-        Firebase belum dikonfigurasi. Isi environment variable di `.env.local` sebelum mencoba login.
+      <div role="alert" className="panel mx-auto max-w-md text-sm text-ink">
+        Layanan masuk belum dikonfigurasi. Hubungi pengelola sebelum memulai asesmen.
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-md rounded-md border border-black/10 bg-white p-6 shadow-soft">
+    <div className="panel mx-auto w-full max-w-md">
       <div className="mb-6 flex items-center gap-3">
         <div className="grid h-11 w-11 place-items-center rounded-md bg-leaf/10 text-leaf">
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-ink">Login untuk mulai tes</h1>
+          <h1 className="text-2xl font-extrabold text-ink">Langkah pertama untuk mengenal dirimu.</h1>
           <p className="text-sm text-ink/65">Gunakan email Google terverifikasi sebelum mengisi assessment.</p>
         </div>
       </div>
@@ -96,7 +97,8 @@ export function LoginPanel() {
           <span>{error}</span>
         </div>
       ) : null}
-      <Button className="w-full" onClick={handleLogin} disabled={loading || isSigningIn}>
+      <p className="mb-5 text-xs leading-6 text-stone-600">Satu email Google terverifikasi dapat mengirim satu asesmen. Akunmu juga digunakan untuk membuka kembali laporan.</p>
+      <Button className="brand-cta w-full" onClick={handleLogin} disabled={loading || isSigningIn}>
         <Chrome className="h-4 w-4" />
         {isSigningIn ? "Mengarahkan ke Google..." : "Masuk dengan Google"}
       </Button>

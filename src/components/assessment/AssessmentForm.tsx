@@ -1,526 +1,76 @@
 "use client";
+import {useEffect,useMemo,useRef,useState} from "react";
+import {useRouter} from "next/navigation";
+import {ArrowLeft,ArrowRight,Check} from "lucide-react";
+import {useAuth} from "@/components/auth/AuthProvider";
+import {Button} from "@/components/ui/Button";
+import {Field,Input,Textarea} from "@/components/ui/Input";
+import {Panel} from "@/components/ui/Panel";
+import {StatusMessage} from "@/components/ui/StatusMessage";
+import {ConfirmDialog} from "@/components/ui/ConfirmDialog";
+import {AssessmentReview} from "./AssessmentReview";
+import {getAssessmentSteps,assessmentSections} from "@/lib/assessment/steps";
+import {emptyAnswer,validateAssessmentStep,assessmentProgress} from "@/lib/assessment/formState";
+import {educationPathwayOptions} from "@/lib/assessment/pathways";
+import {genderOptions} from "@/lib/assessment/options";
+import {assessmentMultiSelectLimits} from "@/lib/validation";
+import type {StudentAnswer} from "@/lib/types";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Send } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Field, Input, Textarea } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
-import { useAuth } from "@/components/auth/AuthProvider";
-import {
-  collegePathPreferenceOptions,
-  favoriteActivityOptions,
-  favoriteSubjectOptions,
-  genderOptions,
-  personalConstraintOptions,
-  problemAreaOptions,
-  schoolMajorOptions,
-  skillStrengthOptions,
-  techComfortOptions,
-  workStyleOptions
-} from "@/lib/assessment/options";
-import type { Gender, SchoolMajor, StudentAnswer, TechComfort, WorkStyle } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { assessmentMultiSelectLimits, studentAnswerSchema } from "@/lib/validation";
-
-type Step =
-  | { key: keyof StudentAnswer; title: string; type: "text"; placeholder?: string }
-  | { key: keyof StudentAnswer; title: string; type: "email" }
-  | { key: "profileDetails"; title: string; type: "profile" }
-  | { key: keyof StudentAnswer; title: string; type: "textarea"; placeholder?: string }
-  | { key: keyof StudentAnswer; title: string; type: "single"; options: readonly string[] }
-  | { key: keyof StudentAnswer; title: string; type: "multi"; options: readonly string[] };
-
-const steps: Step[] = [
-  { key: "fullName", title: "Nama lengkap", type: "text", placeholder: "Nama sesuai data sekolah" },
-  { key: "email", title: "Email Google verified", type: "email" },
-  { key: "profileDetails", title: "Profil tambahan", type: "profile" },
-  { key: "school", title: "Asal sekolah", type: "text", placeholder: "Contoh: SMAN 1 Bandung" },
-  { key: "className", title: "Kelas", type: "text", placeholder: "Contoh: XI IPA 2" },
-  { key: "currentSchoolMajor", title: "Jurusan sekolah saat ini", type: "single", options: schoolMajorOptions },
-  { key: "favoriteSubjects", title: "Mata pelajaran yang paling disukai", type: "multi", options: favoriteSubjectOptions },
-  { key: "favoriteActivities", title: "Aktivitas yang paling disukai", type: "multi", options: favoriteActivityOptions },
-  { key: "skillStrengths", title: "Skill atau kekuatan utama", type: "multi", options: skillStrengthOptions },
-  { key: "workStyle", title: "Gaya kerja yang paling cocok", type: "single", options: workStyleOptions },
-  { key: "problemAreas", title: "Tipe masalah yang ingin kamu bantu selesaikan", type: "multi", options: problemAreaOptions },
-  { key: "collegePathPreferences", title: "Preferensi jalur kuliah", type: "multi", options: collegePathPreferenceOptions },
-  { key: "personalConstraints", title: "Batasan atau pertimbangan pribadi", type: "multi", options: personalConstraintOptions },
-  { key: "techComfort", title: "Seberapa nyaman kamu dengan teknologi dan AI?", type: "single", options: techComfortOptions },
-  {
-    key: "dreamProfession",
-    title: "Profesi impian atau bidang yang kamu penasaran",
-    type: "textarea",
-    placeholder: "Contoh: data analyst, dokter, desainer, pengusaha, guru..."
-  },
-  {
-    key: "futureVision",
-    title: "Ceritakan singkat: kamu ingin masa depan seperti apa?",
-    type: "textarea",
-    placeholder: "Tulis 2-4 kalimat singkat."
-  }
-];
-
-function emptyAnswer(email = ""): StudentAnswer {
-  return {
-    fullName: "",
-    email,
-    gender: "",
-    age: "",
-    school: "",
-    className: "",
-    currentSchoolMajor: "IPA",
-    favoriteSubjects: [],
-    favoriteSubjectsOther: "",
-    favoriteActivities: [],
-    skillStrengths: [],
-    workStyle: "Banyak bertemu orang",
-    problemAreas: [],
-    collegePathPreferences: [],
-    collegePathPreferenceOther: "",
-    personalConstraints: [],
-    techComfort: "Biasa saja",
-    dreamProfession: "",
-    futureVision: ""
-  };
-}
-
-function isEmptyValue(value: StudentAnswer[keyof StudentAnswer]) {
-  if (Array.isArray(value)) return value.length === 0;
-  return String(value ?? "").trim().length === 0;
-}
-
-function optionalTextError(value: string, label: string, min: number) {
-  const trimmed = value.trim();
-  if (trimmed.length > 0 && trimmed.length < min) return `${label} minimal ${min} karakter jika diisi.`;
-  return "";
-}
-
-function stepGuidance(step: Step) {
-  if (step.type === "multi") {
-    const limit = multiSelectLimitForKey(step.key);
-    if (limit) return `Pilih maksimal ${limit} jawaban yang paling menggambarkan kamu. Jangan pilih semua yang kamu bisa.`;
-    return "Boleh pilih lebih dari satu jawaban. Pilih minimal 1 yang paling menggambarkan kamu.";
-  }
-  if (step.type === "single") return "Pilih 1 jawaban yang paling sesuai.";
-  if (step.type === "email") return "Email otomatis dari akun Google yang sedang login dan tidak bisa diubah manual.";
-  if (step.type === "profile") return "Pilih gender dan isi umur. Data ini hanya untuk analytics admin, tidak mempengaruhi rekomendasi.";
-  if (step.type === "textarea") return "Opsional. Tulis singkat saja kalau kamu sudah punya gambaran.";
-  return "Isi sesuai data kamu. Pertanyaan ini wajib diisi.";
-}
-
-function multiSelectLimitForKey(key: keyof StudentAnswer) {
-  if (key === "favoriteSubjects") return assessmentMultiSelectLimits.favoriteSubjects;
-  if (key === "favoriteActivities") return assessmentMultiSelectLimits.favoriteActivities;
-  return null;
-}
-
-export function AssessmentForm() {
-  const router = useRouter();
-  const { user, loading, configured, getToken } = useAuth();
-  const [answer, setAnswer] = useState<StudentAnswer>(() => emptyAnswer(user?.email ?? ""));
-  const [stepIndex, setStepIndex] = useState(0);
-  const [error, setError] = useState("");
-  const [checkingStatus, setCheckingStatus] = useState(true);
-  const [isSubmitting, setSubmitting] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const step = steps[stepIndex];
-  const progress = useMemo(() => Math.round(((stepIndex + 1) / steps.length) * 100), [stepIndex]);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login?next=/assessment");
-    }
-  }, [loading, router, user]);
-
-  useEffect(() => {
-    if (user?.email) {
-      setAnswer((current) => ({ ...current, email: user.email ?? "" }));
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    async function checkStatus() {
-      if (!user) return;
-      setCheckingStatus(true);
-      try {
-        const token = await getToken();
-        const response = await fetch("/api/submissions/status", {
-          headers: { authorization: `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (data.status === "completed") router.replace("/already-submitted");
-        if (data.status === "processing") setError("Submission kamu sedang diproses. Coba buka halaman hasil sebentar lagi.");
-      } catch (statusError) {
-        setError(statusError instanceof Error ? statusError.message : "Gagal memeriksa status submission.");
-      } finally {
-        setCheckingStatus(false);
-      }
-    }
-
-    if (user) void checkStatus();
-  }, [getToken, router, user]);
-
-  function updateValue(key: keyof StudentAnswer, value: StudentAnswer[keyof StudentAnswer]) {
-    setAnswer((current) => ({ ...current, [key]: value }));
-    setError("");
-  }
-
-  function toggleArrayValue(key: keyof StudentAnswer, value: string) {
-    const current = answer[key];
-    if (!Array.isArray(current)) return;
-    const limit = multiSelectLimitForKey(key);
-    if (!current.includes(value) && limit && current.length >= limit) {
-      setError(`Pilih maksimal ${limit} jawaban untuk bagian ini.`);
-      return;
-    }
-    const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
-    setAnswer((currentAnswer) => ({
-      ...currentAnswer,
-      [key]: next,
-      ...(key === "favoriteSubjects" && value === "Lainnya" && current.includes(value) ? { favoriteSubjectsOther: "" } : {}),
-      ...(key === "collegePathPreferences" && value === "Lainnya" && current.includes(value) ? { collegePathPreferenceOther: "" } : {})
-    }));
-    setError("");
-  }
-
-  function validateCurrentStep() {
-    if (step.type === "profile") {
-      const age = Number(answer.age);
-      if (!answer.gender) {
-        setError("Gender wajib dipilih.");
-        return false;
-      }
-      if (!/^\d{1,2}$/.test(answer.age.trim()) || age < 10 || age > 30) {
-        setError("Umur wajib diisi dengan angka yang realistis.");
-        return false;
-      }
-      setError("");
-      return true;
-    }
-    const value = answer[step.key];
-    if (step.type !== "textarea" && isEmptyValue(value)) {
-      setError(`${step.title} wajib diisi.`);
-      return false;
-    }
-    if (step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya")) {
-      if (!answer.favoriteSubjectsOther.trim()) {
-        setError("Isi mata pelajaran lainnya.");
-        return false;
-      }
-      const otherError = optionalTextError(answer.favoriteSubjectsOther, "Mata pelajaran lainnya", 2);
-      if (otherError) {
-        setError(otherError);
-        return false;
-      }
-    }
-    if (step.key === "collegePathPreferences" && answer.collegePathPreferences.includes("Lainnya")) {
-      if (!answer.collegePathPreferenceOther.trim()) {
-        setError("Isi preferensi jalur kuliah lainnya.");
-        return false;
-      }
-      const otherError = optionalTextError(answer.collegePathPreferenceOther, "Preferensi jalur kuliah lainnya", 3);
-      if (otherError) {
-        setError(otherError);
-        return false;
-      }
-    }
-    if (step.key === "dreamProfession") {
-      const textError = optionalTextError(answer.dreamProfession, "Profesi impian atau bidang yang kamu penasaran", 3);
-      if (textError) {
-        setError(textError);
-        return false;
-      }
-    }
-    if (step.key === "futureVision") {
-      const textError = optionalTextError(answer.futureVision, "Cerita masa depan", 10);
-      if (textError) {
-        setError(textError);
-        return false;
-      }
-    }
-    setError("");
-    return true;
-  }
-
-  function goNext() {
-    if (!validateCurrentStep()) return;
-    if (stepIndex === steps.length - 1) {
-      const parsed = studentAnswerSchema.safeParse(answer);
-      if (!parsed.success) {
-        setError(parsed.error.errors[0]?.message ?? "Periksa kembali jawaban kamu.");
-        return;
-      }
-      setShowConfirm(true);
-      return;
-    }
-    setStepIndex((current) => current + 1);
-  }
-
-  async function submit() {
-    setSubmitting(true);
-    setError("");
-    try {
-      const token = await getToken();
-      const response = await fetch("/api/submissions", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify(answer)
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? "Gagal menyimpan submission.");
-      }
-      router.replace(data.created ? "/result" : "/already-submitted");
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Gagal menyimpan submission.");
-    } finally {
-      setSubmitting(false);
-      setShowConfirm(false);
-    }
-  }
-
-  if (!configured) {
-    return (
-      <div className="rounded-md border border-coral/30 bg-coral/10 p-5 text-sm text-ink">
-        Firebase belum dikonfigurasi. Isi `.env.local` agar login Google dan submission aktif.
-      </div>
-    );
-  }
-
-  if (loading || checkingStatus || !user) {
-    return <div className="rounded-md border border-black/10 bg-white p-6 text-sm text-ink/70">Memuat...</div>;
-  }
-
-  if (user.emailVerified === false) {
-    return (
-      <div className="rounded-md border border-coral/30 bg-coral/10 p-5 text-sm text-ink">
-        Email Google kamu belum terverifikasi.
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-5 flex items-center justify-between gap-4">
-        <div>
-          <Badge tone="blue">Pertanyaan {stepIndex + 1} dari {steps.length}</Badge>
-          <h1 className="mt-3 text-2xl font-bold text-ink">{step.title}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-ink/65">{stepGuidance(step)}</p>
-        </div>
-        <span className="text-sm font-semibold text-ink/60">{progress}%</span>
-      </div>
-
-      <div className="mb-6 h-2 rounded-full bg-black/10">
-        <div className="h-2 rounded-full bg-leaf transition-all" style={{ width: `${progress}%` }} />
-      </div>
-
-      <div className="rounded-md border border-black/10 bg-white p-5 shadow-soft sm:p-7">
-        {renderField(step, answer, updateValue, toggleArrayValue)}
-        {error ? (
-          <div className="mt-5 flex items-start gap-2 rounded-md bg-coral/10 p-3 text-sm text-coral">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex items-center justify-between gap-3">
-        <Button variant="secondary" onClick={() => setStepIndex((current) => Math.max(0, current - 1))} disabled={stepIndex === 0}>
-          <ChevronLeft className="h-4 w-4" />
-          Kembali
-        </Button>
-        <Button onClick={goNext}>
-          {stepIndex === steps.length - 1 ? <Send className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          {stepIndex === steps.length - 1 ? "Submit" : "Lanjut"}
-        </Button>
-      </div>
-
-      {showConfirm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-md bg-white p-6 shadow-soft">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-md bg-leaf/10 text-leaf">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <h2 className="text-lg font-bold text-ink">Konfirmasi Submit</h2>
-            </div>
-            <p className="text-sm leading-6 text-ink/75">
-              Kamu hanya bisa submit 1 kali dengan email ini. Pastikan jawabanmu sudah benar.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowConfirm(false)} disabled={isSubmitting}>
-                Periksa Lagi
-              </Button>
-              <Button onClick={submit} disabled={isSubmitting}>
-                <Send className="h-4 w-4" />
-                {isSubmitting ? "Menyimpan..." : "Ya, Submit"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function renderField(
-  step: Step,
-  answer: StudentAnswer,
-  updateValue: (key: keyof StudentAnswer, value: StudentAnswer[keyof StudentAnswer]) => void,
-  toggleArrayValue: (key: keyof StudentAnswer, value: string) => void
-) {
-  const value = step.type === "profile" ? "" : answer[step.key];
-
-  if (step.type === "email") {
-    return (
-      <Field label={step.title}>
-        <Input value={String(value)} readOnly aria-readonly />
-      </Field>
-    );
-  }
-
-  if (step.type === "profile") {
-    return (
-      <div className="space-y-5">
-        <div>
-          <div className="mb-3 text-sm font-semibold text-ink">Gender</div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {genderOptions.map((option) => {
-              const selected = answer.gender === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  className={cn(
-                    "flex min-h-12 items-center justify-between rounded-md border px-4 py-3 text-left text-sm font-semibold transition",
-                    selected ? "border-leaf bg-leaf/10 text-leaf" : "border-black/10 bg-white text-ink hover:bg-skysoft/35"
-                  )}
-                  onClick={() => updateValue("gender", option as Gender)}
-                >
-                  {option}
-                  {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <Field label="Umur">
-          <Input
-            inputMode="numeric"
-            value={answer.age}
-            placeholder="Contoh: 16"
-            onChange={(event) => updateValue("age", event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
-          />
-        </Field>
-      </div>
-    );
-  }
-
-  if (step.type === "text") {
-    return (
-      <Field label={step.title}>
-        <Input
-          value={String(value)}
-          placeholder={step.placeholder}
-          onChange={(event) => updateValue(step.key, event.target.value)}
-        />
-      </Field>
-    );
-  }
-
-  if (step.type === "textarea") {
-    return (
-      <Field label={step.title}>
-        <Textarea
-          value={String(value)}
-          placeholder={step.placeholder}
-          onChange={(event) => updateValue(step.key, event.target.value)}
-        />
-      </Field>
-    );
-  }
-
-  if (step.type === "single") {
-    return (
-      <div className="space-y-3">
-        {step.options.map((option) => {
-          const selected = value === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              className={cn(
-                "flex min-h-12 w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm font-semibold transition",
-                selected ? "border-leaf bg-leaf/10 text-leaf" : "border-black/10 bg-white text-ink hover:bg-skysoft/35"
-              )}
-              onClick={() => {
-                if (step.key === "currentSchoolMajor") updateValue(step.key, option as SchoolMajor);
-                if (step.key === "workStyle") updateValue(step.key, option as WorkStyle);
-                if (step.key === "techComfort") updateValue(step.key, option as TechComfort);
-              }}
-            >
-              {option}
-              {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const showSubjectOther = step.key === "favoriteSubjects" && answer.favoriteSubjects.includes("Lainnya");
-  const showCollegeOther = step.key === "collegePathPreferences" && answer.collegePathPreferences.includes("Lainnya");
-  const maxSelections = multiSelectLimitForKey(step.key);
-  const selectedCount = Array.isArray(value) ? value.length : 0;
-
-  return (
-    <div className="space-y-4">
-      {maxSelections ? (
-        <div className="rounded-md bg-[#FFF7ED] px-3 py-2 text-sm font-semibold text-ink/70">
-          {selectedCount}/{maxSelections} dipilih
-        </div>
-      ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {step.options.map((option) => {
-          const selected = Array.isArray(value) && value.includes(option);
-          return (
-            <button
-              key={option}
-              type="button"
-              className={cn(
-                "flex min-h-12 items-center justify-between rounded-md border px-4 py-3 text-left text-sm font-semibold transition",
-                selected ? "border-leaf bg-leaf/10 text-leaf" : "border-black/10 bg-white text-ink hover:bg-skysoft/35"
-              )}
-              onClick={() => toggleArrayValue(step.key, option)}
-            >
-              {option}
-              {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
-            </button>
-          );
-        })}
-      </div>
-      {showSubjectOther ? (
-        <Field label="Tulis mata pelajaran lainnya">
-          <Input
-            value={answer.favoriteSubjectsOther}
-            placeholder="Contoh: Geografi, Informatika, Agama, Bahasa Jepang"
-            onChange={(event) => updateValue("favoriteSubjectsOther", event.target.value)}
-          />
-        </Field>
-      ) : null}
-      {showCollegeOther ? (
-        <Field label="Tulis preferensi jalur kuliah lainnya">
-          <Input
-            value={answer.collegePathPreferenceOther}
-            placeholder="Contoh: sekolah kedinasan, kuliah sambil kerja, luar negeri"
-            onChange={(event) => updateValue("collegePathPreferenceOther", event.target.value)}
-          />
-        </Field>
-      ) : null}
-    </div>
-  );
+export function AssessmentForm(){
+ const router=useRouter();const {user,loading,configured,getToken}=useAuth();
+ const[answer,setAnswer]=useState<StudentAnswer>(()=>emptyAnswer(user?.email??""));
+ const[index,setIndex]=useState(0),[error,setError]=useState(""),[status,setStatus]=useState<"checking"|"ready"|"error">("checking"),[retry,setRetry]=useState(0);
+ const[confirm,setConfirm]=useState(false),[busy,setBusy]=useState(false),[editing,setEditing]=useState(false);
+ const submitting=useRef(false),heading=useRef<HTMLHeadingElement>(null),errorRef=useRef<HTMLDivElement>(null);
+ const steps=useMemo(()=>getAssessmentSteps(answer.educationPathway),[answer.educationPathway]);const step=steps[index];
+ useEffect(()=>{if(!loading&&!user)router.replace("/login?next=/assessment")},[loading,user,router]);
+ useEffect(()=>{if(user?.email)setAnswer(a=>({...a,email:user.email??""}))},[user?.email]);
+ useEffect(()=>{
+  if(!user)return;let active=true;setStatus("checking");
+  (async()=>{try{const token=await getToken();const response=await fetch("/api/submissions/status",{headers:{authorization:`Bearer ${token}`}});const data=await response.json();if(!response.ok)throw new Error(data.error??"Gagal memeriksa status.");
+   if(!active)return;if(data.status==="completed"){router.replace("/already-submitted");return}if(data.status==="processing"){router.replace("/result");return}setError("");setStatus("ready");
+  }catch(e){if(active){setError(e instanceof Error?e.message:"Gagal memeriksa status.");setStatus("error")}}})();
+  return()=>{active=false};
+ },[user,getToken,router,retry]);
+ useEffect(()=>{heading.current?.focus()},[index,status]);
+ useEffect(()=>{if(error)errorRef.current?.focus()},[error]);
+ function update(key:keyof StudentAnswer,value:StudentAnswer[keyof StudentAnswer]){setAnswer(a=>({...a,[key]:value}));setError("")}
+ function toggle(key:keyof StudentAnswer,value:string){
+  const current=answer[key];if(!Array.isArray(current))return;
+  const limit=key==="favoriteSubjects"?assessmentMultiSelectLimits.favoriteSubjects:key==="favoriteActivities"?assessmentMultiSelectLimits.favoriteActivities:undefined;
+  if(!current.includes(value)&&limit&&current.length>=limit){setError(`Pilih maksimal ${limit} jawaban yang paling menggambarkan kamu.`);return}
+  setAnswer(a=>({...a,[key]:current.includes(value)?current.filter(v=>v!==value):[...current,value],...(value==="Lainnya"&&current.includes(value)?key==="favoriteSubjects"?{favoriteSubjectsOther:""}:key==="collegePathPreferences"?{collegePathPreferenceOther:""}:{}:{})}));setError("");
+ }
+ function next(){
+  const invalid=validateAssessmentStep(step,answer);if(invalid){setError(invalid);return}
+  setError("");if(step.type==="review"){setConfirm(true);return}if(editing){setEditing(false);setIndex(steps.length-1)}else setIndex(i=>i+1);
+ }
+ async function submit(){
+  if(submitting.current)return;const invalid=validateAssessmentStep(steps[steps.length-1],answer);if(invalid){setError(invalid);return}
+  submitting.current=true;setBusy(true);setError("");
+  try{const token=await getToken();const response=await fetch("/api/submissions",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(answer)});const data=await response.json();if(!response.ok)throw new Error(data.error??"Gagal menyimpan jawaban.");router.replace(data.created?"/result":"/already-submitted")}
+  catch(e){setError(e instanceof Error?e.message:"Gagal menyimpan jawaban.");submitting.current=false;setBusy(false)}
+ }
+ const choice=(value:string,label:string,selected:boolean,onClick:()=>void,description?:string,multi=false)=><button key={value} type="button" role={multi?"checkbox":"radio"} aria-checked={selected} className="choice-button" onClick={onClick}><span><span className="block font-semibold">{label}</span>{description?<span className="mt-1 block text-xs leading-6 text-stone-600">{description}</span>:null}</span><span className="choice-marker" aria-hidden="true"/></button>;
+ if(!configured)return <StatusMessage tone="error">Layanan masuk belum dikonfigurasi. Hubungi pengelola sebelum mengisi asesmen.</StatusMessage>;
+ if(loading||!user||status==="checking")return <StatusMessage>Memeriksa akun dan status asesmen…</StatusMessage>;
+ if(status==="error")return <Panel><StatusMessage tone="error">{error}</StatusMessage><Button className="mt-5" onClick={()=>setRetry(v=>v+1)}>Coba lagi</Button></Panel>;
+ const value=step.type==="profile"||step.type==="review"?undefined:answer[step.key];
+ return <div className="wizard-layout">
+  <aside><div className="eyebrow">Asesmen dirimu</div><ol className="wizard-steps">{Object.entries(assessmentSections).map(([key,label],i)=><li key={key} aria-current={step.section===key?"step":undefined}><b>{i+1}</b>{label}</li>)}</ol><p className="wizard-aside-note mt-8 rounded-xl bg-orange-50 p-5 text-sm leading-7 text-stone-600">Tidak perlu sudah punya semua jawabannya. Mulai dari yang kamu tahu tentang dirimu.</p></aside>
+  <div className="min-w-0"><div className="mb-3 flex justify-between gap-3 text-xs text-stone-600"><span>{assessmentSections[step.section]}</span><span>{index+1} / {steps.length}</span></div><div className="mb-6 h-1.5 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-label="Kemajuan asesmen" aria-valuenow={assessmentProgress(index,steps.length)} aria-valuemin={0} aria-valuemax={100}><div className="h-full bg-leaf" style={{width:`${assessmentProgress(index,steps.length)}%`}}/></div>
+  <Panel className="wizard-question"><form onSubmit={e=>{e.preventDefault();next()}}><p className="eyebrow">{step.type==="review"?"Sebelum melangkah":assessmentSections[step.section]}</p><h1 ref={heading} tabIndex={-1}>{step.title}</h1><p className="mb-6 text-sm leading-7 text-stone-600">{step.guidance??(step.type==="multi"?"Pilih satu atau beberapa yang paling sesuai.":step.type==="single"?"Pilih satu jawaban yang paling sesuai.":"Isi sesuai data dirimu.")}</p>
+  {error&&!confirm?<div ref={errorRef} tabIndex={-1} className="mb-5"><StatusMessage tone="error">{error}</StatusMessage></div>:null}
+  {step.type==="text"||step.type==="email"?<Input aria-label={step.title} type={step.type==="email"?"email":"text"} value={String(value??"")} readOnly={step.type==="email"} onChange={e=>update(step.key,e.target.value)} autoComplete={step.key==="fullName"?"name":step.key==="email"?"email":"off"}/>:null}
+  {step.type==="textarea"?<Textarea aria-label={step.title} value={String(value??"")} maxLength={step.key==="futureVision"?480:240} onChange={e=>update(step.key,e.target.value)}/>:null}
+  {step.type==="profile"?<div className="space-y-6"><div><div className="mb-3 text-sm font-semibold">Gender</div><div role="radiogroup" aria-label="Gender" className="grid gap-3 sm:grid-cols-2">{genderOptions.map(g=>choice(g,g,answer.gender===g,()=>update("gender",g)))}</div></div><Field label="Umur"><Input aria-label="Umur" inputMode="numeric" maxLength={2} value={answer.age} onChange={e=>update("age",e.target.value)}/></Field></div>:null}
+  {step.type==="pathway"?<div role="radiogroup" aria-label={step.title} className="space-y-3">{educationPathwayOptions.map(o=>choice(o.value,o.title,answer.educationPathway===o.value,()=>update("educationPathway",o.value),o.description))}</div>:null}
+  {step.type==="single"||step.type==="multi"?<div role={step.type==="single"?"radiogroup":"group"} aria-label={step.title} className="grid gap-3 sm:grid-cols-2">{step.options?.map(option=>choice(option,option,Array.isArray(value)?value.includes(option):value===option,()=>step.type==="multi"?toggle(step.key,option):update(step.key,option),undefined,step.type==="multi"))}</div>:null}
+  {step.key==="favoriteSubjects"&&answer.favoriteSubjects.includes("Lainnya")?<div className="mt-5"><Field label="Mata pelajaran lainnya"><Input value={answer.favoriteSubjectsOther} onChange={e=>update("favoriteSubjectsOther",e.target.value)}/></Field></div>:null}
+  {step.key==="collegePathPreferences"&&answer.collegePathPreferences.includes("Lainnya")?<div className="mt-5"><Field label="Preferensi lainnya"><Input value={answer.collegePathPreferenceOther} onChange={e=>update("collegePathPreferenceOther",e.target.value)}/></Field></div>:null}
+  {step.type==="review"?<AssessmentReview answer={answer} onEdit={key=>{const target=steps.findIndex(s=>s.key===key||(key==="gender"&&s.type==="profile"));if(target>=0){setEditing(true);setIndex(target)}}}/>:null}
+  <div className="wizard-actions"><Button variant="secondary" disabled={index===0||busy} onClick={()=>{setError("");if(editing){setEditing(false);setIndex(steps.length-1)}else setIndex(i=>Math.max(0,i-1))}}><ArrowLeft size={16}/> {editing?"Batal ubah":"Kembali"}</Button><Button type="submit" className="brand-cta" disabled={busy}>{step.type==="review"?"Kirim asesmen":editing?"Simpan perubahan":"Lanjutkan"}{step.type==="review"?<Check size={16}/>:<ArrowRight size={16}/>}</Button></div>
+  </form></Panel><p className="mt-4 text-xs leading-6 text-stone-600">Jawaban tersimpan selama halaman ini terbuka. Jangan tutup atau muat ulang sebelum mengirim.</p></div>
+  <ConfirmDialog open={confirm} title="Kirim jawabanmu?" confirmLabel="Ya, kirim jawaban" busy={busy} onClose={()=>{setConfirm(false);setError("")}} onConfirm={submit}><p>Satu email Google hanya dapat mengirim satu asesmen. Pastikan jawaban sudah menggambarkan dirimu.</p>{error?<div className="mt-4"><StatusMessage tone="error">{error}</StatusMessage></div>:null}</ConfirmDialog>
+ </div>;
 }
