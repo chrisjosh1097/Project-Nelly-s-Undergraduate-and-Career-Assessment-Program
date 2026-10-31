@@ -8,10 +8,10 @@ describe("honest recommendation ordering and explanations", () => {
   it("sorts the selected sparse-match pool without changing membership, scores or degrees", () => {
     const report = generateRecommendations(answer);
     expect(report.recommendations.map(r => [r.majorId, r.overallFitScore])).toEqual([
+      ["teknik_mesin_terapan", 71], ["teknika_permesinan_kapal", 69],
       ["industrial_automation_applied", 65], ["teknik_elektronika", 58],
       ["teknik_otomotif", 56], ["teknik_pendingin_tata_udara", 56], ["vokasi_teknik", 56],
       ["teknik_geomatika_gis", 53], ["network_cloud_operations", 52],
-      ["teknologi_laboratorium_medis", 45], ["manajemen_informatika", 45],
       ["desain_komunikasi_visual", 39],
     ]);
     expect(report.recommendations.map(r => r.rank)).toEqual([1,2,3,4,5,6,7,8,9,10]);

@@ -28,7 +28,7 @@ import { aspirationFlags } from "@/lib/recommendation/aspirationThemes";
 import { eligibleMajors } from "@/lib/recommendation/eligibility";
 import { eligibleDegreeTypes } from "@/lib/assessment/pathways";
 
-export const SCORING_VERSION = "knowledge-base-heuristic-v3.0.0";
+export const SCORING_VERSION = "knowledge-base-heuristic-v3.1.0";
 
 const FLEXIBLE_FALLBACK_MAJOR_IDS = [
   "sistem_informasi",

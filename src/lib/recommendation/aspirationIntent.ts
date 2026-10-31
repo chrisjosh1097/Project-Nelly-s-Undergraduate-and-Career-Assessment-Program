@@ -190,6 +190,15 @@ const aspirationRulesByMajorId: Record<string, AspirationRule> = {
   },
   network_cloud_operations: {
     keywords: ["network", "cloud", "jaringan", "server", "operasi", "devops", "infrastruktur"]
+  },
+  teknika_permesinan_kapal: {
+    keywords: ["kapal", "pelaut", "pelayaran", "maritim", "laut", "mesin kapal", "galangan", "teknika", "engineer", "mesin"]
+  },
+  teknik_mesin_terapan: {
+    keywords: ["mesin", "mekanik", "mekanika", "maintenance", "perawatan", "manufaktur", "bengkel", "produksi", "engineer"]
+  },
+  teknik_pertambangan_terapan: {
+    keywords: ["tambang", "pertambangan", "mining", "mineral", "batubara", "alat berat", "geologi", "engineer"]
   }
 };
 
