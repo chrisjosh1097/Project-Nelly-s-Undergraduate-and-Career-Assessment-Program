@@ -10,9 +10,12 @@ import {
   skills,
   subjects,
   workStyles,
+  studentGuidance,
   type Major,
   type SampleStudentProfile,
   type WeightedTag,
+  type StudentGuidanceCatalog,
+  type WeekAction,
 } from "../data";
 import { validatePathwayCapacity } from "../src/lib/recommendation/eligibility";
 import { resolve } from "node:path";
@@ -115,10 +118,109 @@ function validateWeightedTags(
   }
 }
 
+export function validateStudentGuidance(catalog: StudentGuidanceCatalog = studentGuidance): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const normalize = (text: string) => text.normalize("NFKC").trim().toLocaleLowerCase("id-ID");
+  const issue = (path: string, message: string) => issues.push({ path: `studentGuidance.${path}`, message });
+  const text = (path: string, value: string) => {
+    if (!value.trim()) issue(path, "Teks tidak boleh kosong.");
+    for (const sentence of value.split(/[.!?]+/).filter(item => item.trim())) {
+      if (sentence.trim().split(/\s+/).length > 20) issue(path, "Gunakan kalimat paling banyak 20 kata.");
+    }
+  };
+  const action = (path: string, value: string) => {
+    text(path, value);
+    if (!/^(?:Pelajari|Buat|Tanyakan|Bandingkan|Cek|Periksa|Cari|Tentukan|Diskusikan|Ringkas|Pilih|Baca|Coba|Uji|Catat|Tunjukkan|Simpan|Tulis|Gambar|Minta|Susun|Gunakan|Tandai|Gambarkan|Cantumkan)\b/.test(value))
+      issue(path, "Mulai tindakan dengan kata kerja yang jelas.");
+  };
+  const unique = (path: string, values: string[]) => {
+    const normalized = values.map(normalize);
+    if (new Set(normalized).size !== normalized.length) issue(path, "Terdapat entri duplikat.");
+  };
+  const frequency = new Map<string, number>();
+  for (const major of majors) for (const gap of new Set([
+    ...major.relatedSkills.map(skill => skill.label), ...major.certificationSuggestions, ...major.portfolioSuggestions,
+  ])) frequency.set(gap, (frequency.get(gap) ?? 0) + 1);
+  const topGaps = [...frequency].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "id-ID")).slice(0, 40);
+  unique("skillTargets", catalog.skillTargets.map(item => item.gap));
+  const targets = new Set(catalog.skillTargets.map(item => item.gap));
+  for (const [gap] of topGaps) if (!targets.has(gap)) issue("skillTargets", `Target untuk label sering muncul belum ada: ${gap}`);
+  for (const [index, entry] of catalog.skillTargets.entries()) {
+    const path = `skillTargets.${index}`;
+    if (!frequency.has(entry.gap)) issue(`${path}.gap`, "Label target tidak ditemukan dalam sumber gap katalog.");
+    text(`${path}.target`, entry.target);
+    if (!/^Bisa\s/.test(entry.target)) issue(`${path}.target`, "Target harus diawali Bisa dan dapat diamati.");
+    action(`${path}.proof`, entry.proof);
+  }
+
+  const checkPlan = (path: string, plan: WeekAction[]) => {
+    if (plan.length !== 4 || plan.some((item, index) => item.week !== index + 1))
+      issue(path, "Rencana harus berisi minggu 1, 2, 3, dan 4 secara berurutan.");
+    for (const [index, item] of plan.entries()) {
+      action(`${path}.${index}.action`, item.action);
+      action(`${path}.${index}.proof`, item.proof);
+      if (!/^\d+(?:[–-]\d+)? (jam|menit)$/.test(item.durationLabel))
+        issue(`${path}.${index}.durationLabel`, "Cantumkan durasi latihan dalam jam atau menit.");
+    }
+  };
+  const clusters = new Set(majors.map(major => major.cluster));
+  const subClusters = new Set(majors.map(major => major.subCluster));
+  for (const [field, expected] of [["weekPlansByCluster", clusters], ["weekPlansBySubCluster", subClusters]] as const) {
+    for (const key of expected) if (!catalog[field][key]) issue(`${field}.${key}`, "Rencana bidang belum ada.");
+    for (const [key, plan] of Object.entries(catalog[field])) {
+      if (!expected.has(key)) issue(`${field}.${key}`, "Bidang tidak dikenal dalam katalog.");
+      checkPlan(`${field}.${key}`, plan);
+    }
+  }
+  checkPlan("genericWeekPlan", catalog.genericWeekPlan);
+
+  unique("aspirationRoutes", catalog.aspirationRoutes.map(route => route.id));
+  const routes = new Map(catalog.aspirationRoutes.map(route => [route.id, route]));
+  for (const [index, route] of catalog.aspirationRoutes.entries()) {
+    const path = `aspirationRoutes.${index}`;
+    text(`${path}.id`, route.id); text(`${path}.title`, route.title);
+    if (!route.keywords.length || !route.steps.length) issue(path, "Rute perlu kata kunci dan langkah eksplorasi.");
+    unique(`${path}.keywords`, route.keywords);
+    route.keywords.forEach((word, i) => text(`${path}.keywords.${i}`, word));
+    route.steps.forEach((step, i) => action(`${path}.steps.${i}`, step));
+    action(`${path}.verify`, route.verify);
+    if (!route.verify.startsWith("Cek sumber resmi")) issue(`${path}.verify`, "Cantumkan instruksi cek sumber resmi.");
+    if (!catalog.aspirationRouteKeywordRules.some(rule => rule.routeId === route.id && rule.keywords.length))
+      issue(path, "Rute tidak dirujuk aturan kata kunci.");
+  }
+  for (const [index, rule] of catalog.aspirationRouteKeywordRules.entries()) {
+    const route = routes.get(rule.routeId);
+    if (!route) issue(`aspirationRouteKeywordRules.${index}.routeId`, "Rute kata kunci tidak dikenal.");
+    if (!rule.keywords.length) issue(`aspirationRouteKeywordRules.${index}.keywords`, "Aturan perlu kata kunci.");
+    for (const word of rule.keywords) if (!route?.keywords.includes(word))
+      issue(`aspirationRouteKeywordRules.${index}.keywords`, "Kata kunci tidak sesuai definisi rute.");
+  }
+
+  const glossaryNames: string[] = [];
+  catalog.glossary.forEach((entry, index) => {
+    text(`glossary.${index}.term`, entry.term); text(`glossary.${index}.plain`, entry.plain);
+    glossaryNames.push(entry.term, ...(entry.aliases ?? []));
+    entry.aliases?.forEach((alias, i) => text(`glossary.${index}.aliases.${i}`, alias));
+  });
+  unique("glossary", glossaryNames);
+  unique("fieldAiNotes.cluster", catalog.fieldAiNotes.map(entry => entry.cluster));
+  unique("fieldAiNotes.note", catalog.fieldAiNotes.map(entry => entry.note.replace(/[^\p{L}\p{N}]/gu, "")));
+  for (const cluster of clusters) if (!catalog.fieldAiNotes.some(entry => entry.cluster === cluster))
+    issue("fieldAiNotes", `Catatan AI belum ada untuk ${cluster}.`);
+  catalog.fieldAiNotes.forEach((entry, index) => {
+    if (!clusters.has(entry.cluster)) issue(`fieldAiNotes.${index}.cluster`, "Cluster catatan AI tidak dikenal.");
+    text(`fieldAiNotes.${index}.note`, entry.note);
+    if (entry.note.split(/[.!?]+/).filter(sentence => sentence.trim()).length > 2)
+      issue(`fieldAiNotes.${index}.note`, "Catatan AI paling banyak dua kalimat.");
+  });
+  return issues;
+}
+
 export function validateKnowledgeBase(): ValidationIssue[] {
   const issues: ValidationIssue[] = validatePathwayCapacity(majors).map(
     (message) => ({ path: "majors.degreeTypes", message }),
   );
+  issues.push(...validateStudentGuidance());
   const majorIds = setOf(majors);
   const careerIds = setOf(careers);
   const profileIds = setOf(aiResilienceProfiles);
