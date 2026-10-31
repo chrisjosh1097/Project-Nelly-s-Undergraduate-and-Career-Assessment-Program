@@ -173,6 +173,26 @@ export interface RecommendationResult {
   recommendedNextSteps: string[];
   cautionNotes: string[];
   scoringBreakdown: ScoringBreakdown;
+  /** Optional curated guidance; absent on reports saved before guidance existed. */
+  actionGuidance?: ActionGuidance;
+}
+
+export interface GuidanceSkillTarget { gap: string; target: string; proof: string }
+export interface GuidanceWeekAction { week: 1 | 2 | 3 | 4; action: string; durationLabel: string; proof: string }
+export interface GuidanceGlossaryTerm { term: string; plain: string; aliases?: string[] }
+
+export interface ActionGuidance {
+  skillTargets: GuidanceSkillTarget[];
+  weekPlan: GuidanceWeekAction[];
+  aiNote?: string;
+  comparisonNote?: string;
+}
+
+export interface StudentGuidance {
+  evidenceSummary: string;
+  tensions: string[];
+  aspirationRoutes: { title: string; steps: string[]; verify: string }[];
+  glossary: GuidanceGlossaryTerm[];
 }
 
 export interface CareerPersonalization {
@@ -202,6 +222,7 @@ export interface RecommendationReport {
   ptnPtsVokasiAdvice?: string[];
   answerPatternNotes?: string[];
   narrative?: EnhancedNarrative;
+  studentGuidance?: StudentGuidance;
 }
 
 export interface Submission {

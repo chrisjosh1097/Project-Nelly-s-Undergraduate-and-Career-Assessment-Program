@@ -81,7 +81,7 @@ function fourWeeks([basics, project, proof, practitioner]: PlanSeed): WeekAction
   return [
     { week: 1, action: `Pelajari dasar ${basics} dengan materi gratis di peramban; catat tiga hal baru.`, durationLabel: "2 jam", proof: "Tunjukkan satu halaman catatan dan satu pertanyaan." },
     { week: 2, action: `Buat ${project} memakai kertas atau alat digital gratis.`, durationLabel: "2–3 jam", proof: `Simpan ${proof}.` },
-    { week: 3, action: `Tanyakan tiga tugas harian kepada ${practitioner} melalui guru; catat jawaban setelah mendapat izin.`, durationLabel: "20–30 menit", proof: "Catat tiga tugas dan satu tantangan tanpa merekam data pribadi." },
+    { week: 3, action: practitioner.startsWith("guru") ? `Tanyakan tiga tugas harian kepada ${practitioner}; catat jawaban setelah mendapat izin.` : `Tanyakan tiga tugas harian kepada ${practitioner} melalui guru; catat jawaban setelah mendapat izin.`, durationLabel: "20–30 menit", proof: "Catat tiga tugas dan satu tantangan tanpa merekam data pribadi." },
     { week: 4, action: "Bandingkan pengalamanmu; tulis apa yang kamu suka, tidak suka, dan ingin dicoba lagi.", durationLabel: "1 jam", proof: "Susun satu halaman refleksi dan satu pilihan percobaan berikutnya." },
   ];
 }

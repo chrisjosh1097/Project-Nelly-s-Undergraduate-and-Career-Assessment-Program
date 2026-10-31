@@ -17,7 +17,7 @@ import type {
   StudentAnswer,
 } from "@/lib/types";
 
-export const HEURISTIC_NARRATIVE_VERSION = "heuristic-template-v2.0.0";
+export const HEURISTIC_NARRATIVE_VERSION = "heuristic-template-v2.1.0";
 
 export interface RecommendationNarrativeEnhancer {
   enhance(input: {

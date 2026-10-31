@@ -22,6 +22,7 @@ import { clamp, roundScore, unique } from "@/lib/utils";
 import { buildRecommendationNarrative, HEURISTIC_NARRATIVE_VERSION } from "@/lib/recommendation/narrative";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { scoreAspirationMajorIntent } from "@/lib/recommendation/aspirationIntent";
+import { attachStudentGuidance } from "@/lib/recommendation/guidance";
 import { aspirationFlags } from "@/lib/recommendation/aspirationThemes";
 
 import { eligibleMajors } from "@/lib/recommendation/eligibility";
@@ -743,7 +744,8 @@ export function generateRecommendations(
     );
   }
 
-  return {
+  // Guidance is attached after ranking; it never changes scores, ranks or IDs.
+  return attachStudentGuidance(answer, {
     generatedAt: new Date().toISOString(),
     topRecommendation: recommendations[0],
     recommendations,
@@ -751,5 +753,5 @@ export function generateRecommendations(
     narrativeVersion: HEURISTIC_NARRATIVE_VERSION,
     ptnPtsVokasiAdvice: generatePtnPtsVokasiAdvice(answer),
     answerPatternNotes: buildAnswerPatternNotes(answer),
-  };
+  });
 }
