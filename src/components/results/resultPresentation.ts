@@ -53,3 +53,15 @@ export function comparisonSignalFor(r: RecommendationResult) {
   ])[0];
   return match ? `Sinyal dari jawabanmu: ${match}` : "Rincian kecocokan dapat dilihat di bawah.";
 }
+
+/** Generic career-level AI cautions; hidden only when the saved report carries a per-field AI note. */
+export const GENERIC_CAREER_AI_CAUTIONS = [
+  "Pekerjaan ini tidak hilang, tetapi cara kerjanya akan berubah.",
+  "AI bisa menjadi alat bantu, bukan pengganti penuh.",
+  "Tetap bangun skill manusia seperti komunikasi, empati, kreativitas, dan judgement.",
+];
+
+export function visibleCareerCautions(r: RecommendationResult): string[] {
+  const cautions = r.careerCautions ?? [];
+  return r.actionGuidance?.aiNote ? cautions.filter(line => !GENERIC_CAREER_AI_CAUTIONS.includes(line.trim())) : cautions;
+}

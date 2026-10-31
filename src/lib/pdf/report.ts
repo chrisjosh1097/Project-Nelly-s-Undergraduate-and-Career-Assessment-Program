@@ -7,7 +7,7 @@ import { formatDateTime } from "@/lib/utils";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { studentStrengthHighlightsFor } from "@/lib/recommendation/display";
 // These shared display helpers are pure and have no React/browser dependencies.
-import { cleanLines, componentEvidenceFor, fitContextFor, scoreText } from "@/components/results/resultPresentation";
+import { cleanLines, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "@/components/results/resultPresentation";
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
@@ -67,6 +67,11 @@ function reportBlocks(submission: Submission): Block[] {
     savedText(summary);
   }
   list("Kelebihan kamu", studentStrengthHighlightsFor(submission), topSeen);
+  const guidance = report.studentGuidance;
+  if (guidance) {
+    savedText(guidance.evidenceSummary);
+    list("Hal yang perlu kamu ketahui", guidance.tensions, topSeen);
+  }
 
   add("section", "02 / Bukti dan langkah eksplorasi");
   for (const row of componentEvidenceFor(top, answers.workStyle)) {
@@ -81,9 +86,15 @@ function reportBlocks(submission: Submission): Block[] {
   list("Karier untuk dieksplorasi", careers(top), topSeen);
   savedText(top.careerPersonalizationReason);
   savedText(top.aspirationReflection);
-  list("Keterampilan yang perlu dikembangkan", top.skillGaps, topSeen);
-  list("Langkah berikutnya", [...top.recommendedNextSteps, ...(top.careerPathwayAdvice ?? [])], topSeen);
-  list("Hal yang perlu dicek", [...top.cautionNotes, ...(top.careerCautions ?? [])], topSeen);
+  const action = top.actionGuidance;
+  if (action) {
+    list("Target skill yang bisa kamu tunjukkan", action.skillTargets.map(t => `${t.gap}: ${t.target} Bukti: ${t.proof}`), topSeen);
+    list("Rencana 4 minggu", action.weekPlan.map(w => `Minggu ${w.week} (${w.durationLabel}): ${w.action} Bukti: ${w.proof}`), topSeen);
+  } else list("Keterampilan yang perlu dikembangkan", top.skillGaps, topSeen);
+  const nextSteps = [...top.recommendedNextSteps, ...(top.careerPathwayAdvice ?? [])];
+  if (action) list("Langkah lanjutan setelah 4 minggu", [...(top.careerPathwayAdvice ?? []), ...top.recommendedNextSteps.slice(0, 3)].slice(0, 5), topSeen);
+  else list("Langkah berikutnya", nextSteps, topSeen);
+  list("Hal yang perlu dicek", [...top.cautionNotes, ...visibleCareerCautions(top)], topSeen);
 
   const alternatives = report.recommendations.slice(1);
   if (alternatives.length) {
@@ -96,13 +107,23 @@ function reportBlocks(submission: Submission): Block[] {
     if (r.degreeTypes?.length) add("text", `Jalur program: ${cleanLines(r.degreeTypes).join(" / ")}`, true);
     add("text", fitLine(r), true);
     add("text", `Ketahanan AI: ${scoreText(r.aiFutureResilienceScore)} (${r.aiFutureResilienceLabel}).`);
+    if (r.actionGuidance?.comparisonNote) add("text", r.actionGuidance.comparisonNote);
     add("text", directionFor(r));
     seen.add(directionFor(r).trim());
     list("Karier untuk dieksplorasi", careers(r), seen);
     // Keep unique saved guidance; shared actions already printed above need not repeat.
     list("Langkah eksplorasi", r.careerPathwayAdvice ?? [], topSeen);
+    if (r.rank <= 3 && r.actionGuidance) list("Target skill", r.actionGuidance.skillTargets.map(t => `${t.gap}: ${t.target}`), topSeen);
   }
 
+  if (guidance?.aspirationRoutes.length) {
+    add("section", "Langkah menuju cita-citamu");
+    for (const route of guidance.aspirationRoutes) {
+      add("heading", route.title, true);
+      route.steps.forEach(step => add("bullet", step));
+      add("text", route.verify);
+    }
+  }
   list("Kampus dan jalur belajar", report.ptnPtsVokasiAdvice ?? generatePtnPtsVokasiAdvice(answers), topSeen);
   add("section", "04 / Profil dan jawaban");
   const profile: [string, string][] = [
@@ -124,9 +145,10 @@ function reportBlocks(submission: Submission): Block[] {
 
   add("section", "05 / Memahami laporan");
   list("Catatan pola jawaban", report.answerPatternNotes ?? [], topSeen);
+  if (guidance?.glossary.length) list("Arti istilah", guidance.glossary.map(t => `${t.term}: ${t.plain}`));
   add("heading", "AI Future Resilience Score");
   add("text", "Skor ini menunjukkan seberapa besar bidang karier ini tetap membutuhkan kemampuan manusia seperti kreativitas, empati, judgement, problem solving kompleks, kerja praktik, dan kemampuan menggunakan AI sebagai alat bantu.");
-  add("text", "Skor tinggi bukan berarti tanpa dampak AI. Bidang ini tetap relevan, tetapi cara kerjanya akan banyak berubah dengan AI. Skill manusia seperti komunikasi, empati, kreativitas, dan judgement tetap penting.");
+  if (!guidance) add("text", "Skor tinggi bukan berarti tanpa dampak AI. Bidang ini tetap relevan, tetapi cara kerjanya akan banyak berubah dengan AI. Skill manusia seperti komunikasi, empati, kreativitas, dan judgement tetap penting.");
   add("text", `Versi penilaian: ${report.scoringVersion}. Versi narasi: ${report.narrativeVersion}.`);
   add("heading", "Disclaimer");
   add("text", "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.");

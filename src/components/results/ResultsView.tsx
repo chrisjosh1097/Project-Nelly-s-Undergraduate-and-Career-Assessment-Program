@@ -12,6 +12,7 @@ import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
+import { AspirationRoutesPanel, StudentGuidanceSummary } from "./StudentGuidancePanel";
 import { createInstagramCardBlob } from "./shareCard";
 import { cleanLines, fitContextFor, scoreText } from "./resultPresentation";
 export function ResultsView({
@@ -128,6 +129,7 @@ export function ResultsView({
             <section>
               <h3 className="flex items-center gap-2 text-base font-bold"><Compass size={18} className="shrink-0 text-leaf" aria-hidden="true" />Ringkasan laporan</h3>
               <p className="mt-2 text-sm leading-7 text-stone-700">{summary}</p>
+              {submission.report.studentGuidance ? <StudentGuidanceSummary guidance={submission.report.studentGuidance} /> : null}
             </section>
             {strengths.length ? <section>
               <h3 className="flex items-center gap-2 text-base font-bold"><Sparkles size={18} className="shrink-0 text-leaf" aria-hidden="true" />Kekuatan dari jawabanmu</h3>
@@ -142,6 +144,7 @@ export function ResultsView({
         </div>
       </section>
       <RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} />
+      {submission.report.studentGuidance ? <AspirationRoutesPanel guidance={submission.report.studentGuidance} /> : null}
       <section>
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
         <div className="space-y-3">

@@ -347,3 +347,38 @@ for (const width of [320, 390, 1280])
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
   });
+test("curated guidance renders on a phone and legacy reports keep old skill wording", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  const top = submission.report.topRecommendation;
+  const actionGuidance = {
+    skillTargets: [{ gap: "Ketelitian", target: "Bisa mencocokkan sepuluh label pada diagram latihan.", proof: "Simpan diagram bertanda." }],
+    weekPlan: [1, 2, 3, 4].map(week => ({ week, durationLabel: "1 jam", action: `Langkah minggu ${week} sintetis.`, proof: `Bukti minggu ${week}.` })),
+  };
+  const guided: Submission = {
+    ...submission,
+    report: {
+      ...submission.report,
+      topRecommendation: { ...top, actionGuidance },
+      recommendations: [{ ...top, actionGuidance }, ...submission.report.recommendations.slice(1)],
+      studentGuidance: {
+        evidenceSummary: "Ringkasan bukti sintetis.",
+        tensions: ["Ketegangan sintetis."],
+        aspirationRoutes: [{ title: "Rute sintetis", steps: ["Langkah rute satu.", "Langkah rute dua."], verify: "Cek sumber resmi sintetis." }],
+        glossary: [{ term: "K3", plain: "Keselamatan dan kesehatan kerja." }],
+      },
+    },
+  } as Submission;
+  const component = await mount(<ResultsView submission={guided} />);
+  await expect(page.getByText("Ketegangan sintetis.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Rencana 4 minggu" })).toBeVisible();
+  await expect(page.getByText("Langkah minggu 4 sintetis.")).toBeVisible();
+  await expect(page.getByText("Cek sumber resmi sintetis.")).toBeVisible();
+  const main = page.locator("article.panel").first();
+  await expect(main.getByText("Target skill yang bisa kamu tunjukkan")).toBeVisible();
+  await expect(main.getByText("Skill yang perlu ditingkatkan")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  await component.unmount();
+  await mount(<ResultsView submission={submission} />);
+  await expect(page.getByRole("heading", { name: "Rencana 4 minggu" })).toHaveCount(0);
+  await expect(page.getByText("Skill yang perlu ditingkatkan").first()).toBeVisible();
+});

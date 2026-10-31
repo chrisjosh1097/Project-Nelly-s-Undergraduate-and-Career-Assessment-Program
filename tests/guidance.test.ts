@@ -9,6 +9,7 @@ import {
 import type { RecommendationReport, StudentAnswer } from "@/lib/types";
 import { techAnswer } from "./fixtures";
 import { majorsById } from "../data";
+import { GENERIC_CAREER_AI_CAUTIONS, visibleCareerCautions } from "@/components/results/resultPresentation";
 
 const vocationalAnswer: StudentAnswer = {
   ...techAnswer,
@@ -114,7 +115,12 @@ describe("student guidance builder", () => {
     for (const recommendation of report.recommendations) {
       for (const line of GENERIC_AI_LINES) expect(recommendation.cautionNotes).not.toContain(line);
       const note = recommendation.actionGuidance!.aiNote;
-      if (note) expect(recommendation.cautionNotes.filter((line) => line === note)).toHaveLength(1);
+      expect(note, recommendation.majorId).toBeTruthy();
+      for (const line of GENERIC_CAREER_AI_CAUTIONS) {
+        expect(visibleCareerCautions(recommendation)).not.toContain(line);
+        expect(recommendation.cautionNotes).not.toContain(line);
+      }
+      expect(recommendation.cautionNotes.filter((line) => line === note)).toHaveLength(1);
     }
   });
 

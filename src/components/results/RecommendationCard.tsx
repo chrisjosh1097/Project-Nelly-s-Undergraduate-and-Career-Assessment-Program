@@ -1,7 +1,7 @@
-import type { RecommendationResult } from "@/lib/types";
+import type { ActionGuidance, RecommendationResult } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 import { ChevronDown, ListChecks, Footprints } from "lucide-react";
-import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText } from "./resultPresentation";
+import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "./resultPresentation";
 
 function Lines({ title, items }: { title: string; items?: string[] }) {
   const lines = cleanLines(items);
@@ -16,6 +16,31 @@ function Lines({ title, items }: { title: string; items?: string[] }) {
   );
 }
 
+function ActionGuidanceBlock({ guidance }: { guidance: ActionGuidance }) {
+  return <>
+    {guidance.skillTargets.length ? <section>
+      <h3 className="mb-2 text-sm font-bold text-ink">Target skill yang bisa kamu tunjukkan</h3>
+      <ul className="space-y-3 text-sm leading-6 text-stone-700">
+        {guidance.skillTargets.map(t => <li key={t.gap} className="rounded-xl border border-stone-200 p-3">
+          <span className="block font-semibold text-ink">{t.gap}</span>
+          <span className="block">{t.target}</span>
+          <span className="mt-1 block text-xs leading-5 text-stone-600">Bukti: {t.proof}</span>
+        </li>)}
+      </ul>
+    </section> : null}
+    {guidance.weekPlan.length ? <section aria-label="Rencana 4 minggu">
+      <h3 className="mb-2 text-sm font-bold text-ink">Rencana 4 minggu</h3>
+      <ol className="space-y-3 text-sm leading-6 text-stone-700">
+        {guidance.weekPlan.map(w => <li key={w.week} className="border-l-2 border-orange-300 pl-3">
+          <span className="block text-xs font-bold text-leaf">Minggu {w.week} · {w.durationLabel}</span>
+          <span className="block">{w.action}</span>
+          <span className="block text-xs leading-5 text-stone-600">Bukti: {w.proof}</span>
+        </li>)}
+      </ol>
+    </section> : null}
+  </>;
+}
+
 export function RecommendationCard({ recommendation: r, expanded = false, workStyle }: {
   recommendation: RecommendationResult; expanded?: boolean; workStyle?: string;
 }) {
@@ -24,7 +49,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   const bonus = r.scoringBreakdown?.aspirationMajorBoost;
   const signals = cleanLines(r.scoringBreakdown?.matchedAspirationMajorSignals);
   const steps = cleanLines(r.recommendedNextSteps);
-  const cautions = cleanLines([...(r.cautionNotes ?? []), ...(r.careerCautions ?? [])]);
+  const cautions = cleanLines([...(r.cautionNotes ?? []), ...visibleCareerCautions(r)]);
   const careers = cleanLines(r.nicheCareerPaths).length ? r.nicheCareerPaths : r.relatedCareers;
   const hasExplanation = cleanLines(r.reasonBullets).length || cleanLines(careers).length ||
     cleanLines(r.skillStrengthMatches).length || r.careerPersonalizationReason?.trim() || r.aspirationReflection?.trim();
@@ -37,6 +62,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   </div>;
   const body = (
     <div className="min-w-0 space-y-5 pt-4 [overflow-wrap:anywhere]">
+      {r.actionGuidance?.comparisonNote ? <p className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-700">{r.actionGuidance.comparisonNote}</p> : null}
       {!expanded ? <>
         <p className="text-sm leading-6 text-stone-600">{r.personalizedCareerDirection?.trim() || r.careerDirection}</p>
         <p className="text-sm leading-6 text-stone-600">{fit.explanation}</p>
@@ -69,7 +95,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
               <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{steps.slice(3).map(line => <li key={line}>{line}</li>)}</ul>
             </details> : null}
           </section> : null}
-          <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />
+          {r.actionGuidance ? <ActionGuidanceBlock guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
           <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
           <Lines title="Hal yang perlu dicek" items={cautions} />
         </div>

@@ -37,7 +37,8 @@ describe("curated student guidance", () => {
       expect(plan[0].action).toMatch(/gratis/);
       expect(plan[1].action).toMatch(/^Buat /);
       expect(plan[2].action).toMatch(/^Tanyakan /);
-      expect(plan[3].action).toMatch(/suka.*tidak suka/);
+      expect(plan[3].action).toMatch(/^Ulangi .*minggu 3/);
+      expect(plan[3].proof).toMatch(/nikmati.*berat/);
       for (const item of plan) {
         expect(item.action.trim().split(/\s+/).length).toBeLessThanOrEqual(20);
         expect(item.durationLabel).toMatch(/^\d+(?:[–-]\d+)? (jam|menit)$/);
@@ -58,7 +59,7 @@ describe("curated student guidance", () => {
     }
     for (const id of ["maritime", "mining"]) {
       const route = aspirationRoutes.find(item => item.id === id)!;
-      expect(route.steps.join(" ")).toMatch(/di luar daftar/);
+      expect(route.steps.join(" ")).toMatch(/D3\/D4/);
       expect(route.steps.join(" ")).toMatch(/bukan|jangan anggap/);
       expect(route.verify).toMatch(/sekolah|lembaga/);
     }

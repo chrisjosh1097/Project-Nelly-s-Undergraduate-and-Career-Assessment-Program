@@ -20,4 +20,4 @@ export { constraints, constraintsById, constraintRules, constraintRulesById } fr
 export { recommendationTemplates } from "./recommendationTemplates";
 export { sampleScoringExamples } from "./scoringExamples";
 export type { SkillTarget, WeekAction, AspirationRoute, GlossaryTerm, FieldAiNote, AspirationRouteKeywordRule, StudentGuidanceCatalog } from "./studentGuidance";
-export { studentGuidance, skillTargets, weekPlansBySubCluster, weekPlansByCluster, genericWeekPlan, aspirationRoutes, aspirationRouteKeywordRules, glossary, fieldAiNotes } from "./studentGuidance";
+export { studentGuidance, skillTargets, skillTargetsBySubCluster, weekPlansBySubCluster, weekPlansByCluster, genericWeekPlan, aspirationRoutes, aspirationRouteKeywordRules, glossary, fieldAiNotes } from "./studentGuidance";

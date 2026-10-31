@@ -7,6 +7,7 @@ export interface FieldAiNote { cluster: string; note: string }
 export interface AspirationRouteKeywordRule { routeId: string; keywords: string[] }
 export interface StudentGuidanceCatalog {
   skillTargets: SkillTarget[];
+  skillTargetsBySubCluster: Record<string, SkillTarget[]>;
   weekPlansBySubCluster: Record<string, WeekAction[]>;
   weekPlansByCluster: Record<string, WeekAction[]>;
   genericWeekPlan: WeekAction[];
@@ -76,13 +77,52 @@ const targetRows: [string, string, string][] = [
 ];
 export const skillTargets: SkillTarget[] = targetRows.map(([gap, target, proof]) => ({ gap, target, proof }));
 
+type FieldTargetRow = [gap: string, target: string, proof: string];
+const fieldTargetRows: Record<string, FieldTargetRow[]> = {
+  "Otomasi dan instrumentasi": [
+    ["Teknologi", "Bisa menjelaskan alur sensor, pengendali, dan aktuator pada satu mesin sederhana.", "Simpan diagram blok berlabel dan contoh pembacaan rekaan."],
+    ["Problem solving", "Bisa menelusuri tiga penyebab lampu indikator tidak menyala pada diagram rekaan.", "Tulis urutan pemeriksaan dan alasan tiap langkah."],
+    ["Ketelitian", "Bisa mencocokkan sepuluh label kabel dan simbol pada diagram latihan.", "Simpan diagram bertanda dan daftar kesalahan yang kamu temukan."],
+  ],
+  "Elektronika terapan": [
+    ["Teknologi", "Bisa membaca nilai lima komponen dari kode warna atau label.", "Simpan tabel komponen dan cara kamu membaca nilainya."],
+    ["Ketelitian", "Bisa memeriksa satu diagram rangkaian rekaan dan menemukan tiga sambungan salah.", "Tandai sambungan salah dan tulis perbaikannya."],
+  ],
+  "HVAC dan instalasi": [
+    ["Teknologi", "Bisa menjelaskan fungsi kompresor, kondensor, dan evaporator pada diagram.", "Simpan diagram berlabel dan ringkasan tiga kalimat."],
+    ["Ketelitian", "Bisa menyusun daftar pemeriksaan rutin AC dari buku petunjuk resmi.", "Tunjukkan daftar pemeriksaan dan sumber petunjuknya."],
+  ],
+  "Kendaraan dan perawatan otomotif": [
+    ["Teknologi", "Bisa menjelaskan fungsi lima komponen mesin motor dari gambar.", "Simpan gambar berlabel dan penjelasan singkat tiap komponen."],
+    ["Ketelitian", "Bisa menyusun jadwal servis berkala dari buku manual kendaraan.", "Tunjukkan tabel jadwal dan halaman manual yang dipakai."],
+  ],
+  "Mesin terapan dan perawatan": [
+    ["Problem solving", "Bisa menyusun tiga kemungkinan penyebab mesin rekaan berbunyi kasar.", "Tulis urutan pemeriksaan dan alasan tiap langkah."],
+    ["Ketelitian", "Bisa mengukur lima benda dengan penggaris dan mencatat ukurannya rapi.", "Simpan tabel ukuran dan gambar sederhana tiap benda."],
+    ["Logika", "Bisa menjelaskan urutan kerja mesin empat langkah dengan diagram.", "Simpan diagram berurutan dan penjelasan tiap langkah."],
+  ],
+  "Permesinan kapal dan maritim": [
+    ["Disiplin", "Bisa mengikuti jadwal latihan fisik dan belajar selama dua minggu.", "Catat jadwal harian dan hari yang terlewat beserta alasannya."],
+    ["Kerja tim", "Bisa membagi tugas dalam simulasi jaga bergiliran bersama dua teman.", "Simpan jadwal giliran dan catatan serah terima rekaan."],
+    ["Problem solving", "Bisa menelusuri tiga penyebab mesin diesel rekaan sulit menyala.", "Tulis urutan pemeriksaan dan alasan tiap langkah."],
+  ],
+  "Operasi tambang terapan": [
+    ["Disiplin", "Bisa menyusun dan mengikuti daftar keselamatan sebelum kegiatan lapangan sekolah.", "Simpan daftar keselamatan dan catatan pemeriksaannya."],
+    ["Kerja tim", "Bisa membagi peran dalam simulasi rapat keselamatan bersama tiga teman.", "Simpan pembagian peran dan ringkasan keputusan rapat."],
+    ["Problem solving", "Bisa membandingkan dua cara mengurangi debu di lokasi kerja rekaan.", "Tulis kelebihan, kekurangan, dan pilihanmu."],
+  ],
+};
+export const skillTargetsBySubCluster: Record<string, SkillTarget[]> = Object.fromEntries(
+  Object.entries(fieldTargetRows).map(([key, rows]) => [key, rows.map(([gap, target, proof]) => ({ gap, target, proof }))]),
+);
+
 type PlanSeed = [basics: string, project: string, proof: string, practitioner: string];
 function fourWeeks([basics, project, proof, practitioner]: PlanSeed): WeekAction[] {
   return [
     { week: 1, action: `Pelajari dasar ${basics} dengan materi gratis di peramban; catat tiga hal baru.`, durationLabel: "2 jam", proof: "Tunjukkan satu halaman catatan dan satu pertanyaan." },
     { week: 2, action: `Buat ${project} memakai kertas atau alat digital gratis.`, durationLabel: "2–3 jam", proof: `Simpan ${proof}.` },
-    { week: 3, action: practitioner.startsWith("guru") ? `Tanyakan tiga tugas harian kepada ${practitioner}; catat jawaban setelah mendapat izin.` : `Tanyakan tiga tugas harian kepada ${practitioner} melalui guru; catat jawaban setelah mendapat izin.`, durationLabel: "20–30 menit", proof: "Catat tiga tugas dan satu tantangan tanpa merekam data pribadi." },
-    { week: 4, action: "Bandingkan pengalamanmu; tulis apa yang kamu suka, tidak suka, dan ingin dicoba lagi.", durationLabel: "1 jam", proof: "Susun satu halaman refleksi dan satu pilihan percobaan berikutnya." },
+    { week: 3, action: `Tanyakan kepada ${practitioner}${practitioner.startsWith("guru") ? "" : " melalui guru"}: tugas harian, alat yang dipakai, dan skill paling dibutuhkan.`, durationLabel: "20–30 menit", proof: "Catat tiga jawaban dan satu tantangan tanpa merekam data pribadi." },
+    { week: 4, action: `Ulangi ${project} dengan satu perbaikan dari jawaban minggu 3.`, durationLabel: "1–2 jam", proof: "Tulis bagian yang kamu nikmati, bagian yang berat, dan keputusan lanjut atau ganti." },
   ];
 }
 
@@ -171,6 +211,9 @@ const subClusterSeeds: Record<string, PlanSeed> = {
   "Operasi keamanan digital": ["pencatatan risiko digital", "tabel risiko akun rekaan", "tabel tanpa pengujian sistem nyata", "pendidik keamanan digital"],
   "Optimasi sistem dan proses": ["perbandingan proses", "dua alur antrean rekaan", "diagram dan perbandingan jumlah langkah", "pengajar teknik industri"],
   "Otomasi dan instrumentasi": ["masukan dan keluaran sensor", "diagram kendali sensor dan lampu", "diagram dan tabel pembacaan rekaan", "guru otomasi"],
+  "Permesinan kapal dan maritim": ["cara kerja mesin diesel kapal", "diagram aliran bahan bakar dan pendingin mesin rekaan", "diagram dan daftar pemeriksaan jaga mesin rekaan", "alumni sekolah pelayaran"],
+  "Mesin terapan dan perawatan": ["membaca gambar teknik mesin", "gambar tiga pandangan satu benda sederhana", "gambar beserta ukuran dan catatan pemeriksaan", "guru teknik mesin"],
+  "Operasi tambang terapan": ["jenis batuan dan mineral", "peta alur kerja tambang dari eksplorasi sampai reklamasi", "peta alur dan daftar risiko keselamatan", "alumni bidang pertambangan"],
   "Pajak dan kepatuhan": ["istilah perpajakan", "ringkasan tiga istilah pajak resmi", "ringkasan sumber tanpa nasihat pajak", "pengajar perpajakan"],
   "Pelaporan dan audit": ["pemeriksaan catatan uang", "pemeriksaan sepuluh transaksi rekaan", "tabel kesalahan dan koreksinya", "pengajar akuntansi"],
   "Pelayanan dan tata kelola publik": ["alur layanan publik", "diagram pengurusan dokumen rekaan", "diagram dan pertanyaan kejelasan layanan", "praktisi pelayanan publik"],
@@ -241,7 +284,7 @@ export const aspirationRoutes: AspirationRoute[] = [
     id: "maritime", keywords: ["maritim", "maritime", "kelautan", "perkapalan", "kapal", "pelayaran"], title: "Menjelajahi pekerjaan kapal dan maritim",
     steps: [
       "Gunakan rekomendasi ini untuk eksplorasi; jangan anggap sebagai jalur langsung menjadi pelaut atau pekerja kapal.",
-      "Periksa pilihan pendidikan pelayaran atau teknika kapal yang mungkin tersedia di luar daftar ini.",
+      "Pelajari program Teknika / Permesinan Kapal (D3/D4); programnya biasanya ada di sekolah atau politeknik pelayaran.",
       "Tanyakan tugas, kebutuhan pendidikan, keselamatan, dan sertifikat kepada lembaga resmi sebelum mempertimbangkan program.",
     ], verify: "Cek sumber resmi sekolah pelayaran dan lembaga terkait; konfirmasi program, persyaratan profesi, dan sertifikat untuk peran tujuan.",
   },
@@ -249,7 +292,7 @@ export const aspirationRoutes: AspirationRoute[] = [
     id: "mining", keywords: ["tambang", "pertambangan", "mining", "mineral"], title: "Menjelajahi bidang pertambangan",
     steps: [
       "Bandingkan peran lapangan, pengolahan data, dan pendukung operasi; rekomendasi ini bukan bukti jalur langsung bekerja di tambang.",
-      "Cek apakah program D3 atau D4 pertambangan tersedia di luar daftar ini melalui lembaga resmi.",
+      "Pelajari program Teknik Pertambangan Terapan (D3/D4); cek politeknik yang membukanya melalui sumber resmi.",
       "Tanyakan kebutuhan pendidikan, keselamatan, dan kompetensi untuk peran pilihan; hindari mencoba pekerjaan tambang sebagai latihan mandiri.",
     ], verify: "Cek sumber resmi sekolah, lembaga pendidikan, dan instansi pertambangan; konfirmasi ketersediaan program serta persyaratan peran tujuan.",
   },
@@ -366,6 +409,6 @@ export const fieldAiNotes: FieldAiNote[] = [
 ];
 
 export const studentGuidance: StudentGuidanceCatalog = {
-  skillTargets, weekPlansBySubCluster, weekPlansByCluster, genericWeekPlan,
+  skillTargets, skillTargetsBySubCluster, weekPlansBySubCluster, weekPlansByCluster, genericWeekPlan,
   aspirationRoutes, aspirationRouteKeywordRules, glossary, fieldAiNotes,
 };

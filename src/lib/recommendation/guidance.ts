@@ -1,5 +1,7 @@
 import {
   aspirationRoutes as curatedRoutes,
+  careersById,
+  skillTargetsBySubCluster,
   fieldAiNotes,
   genericWeekPlan,
   glossary as curatedGlossary,
@@ -26,6 +28,13 @@ export const GENERIC_AI_LINES = [
   "Bidang ini tetap relevan, tetapi cara kerjanya akan banyak berubah dengan AI.",
   "AI dapat menjadi alat bantu untuk meningkatkan produktivitas.",
   "Skill manusia seperti komunikasi, empati, kreativitas, dan judgement tetap penting.",
+];
+
+/** Career-level generic AI cautions; replaced only when a per-field note exists. */
+const GENERIC_CAREER_AI_LINES = [
+  "Pekerjaan ini tidak hilang, tetapi cara kerjanya akan berubah.",
+  "AI bisa menjadi alat bantu, bukan pengganti penuh.",
+  "Tetap bangun skill manusia seperti komunikasi, empati, kreativitas, dan judgement.",
 ];
 
 const MAX_SKILL_TARGETS = 3;
@@ -58,7 +67,9 @@ function listText(values: string[]) {
   return `${values.slice(0, -1).join(", ")} dan ${values[values.length - 1]}`;
 }
 
-export function skillTargetFor(gap: string): SkillTarget {
+export function skillTargetFor(gap: string, subCluster?: string): SkillTarget {
+  const field = subCluster ? skillTargetsBySubCluster[subCluster]?.find((item) => normalize(item.gap) === normalize(gap)) : undefined;
+  if (field) return { ...field };
   const curated = targetsByGap.get(normalize(gap));
   if (curated) return { ...curated };
   return {
@@ -71,7 +82,7 @@ export function skillTargetFor(gap: string): SkillTarget {
 function weekPlanFor(recommendation: RecommendationResult): WeekAction[] {
   const major = majorsById[recommendation.majorId];
   const plan = (major && weekPlansBySubCluster[major.subCluster])
-    ?? weekPlansByCluster[recommendation.cluster]
+    ?? weekPlansByCluster[catalogClusterFor(recommendation)]
     ?? genericWeekPlan;
   return plan.map((item) => ({ ...item }));
 }
@@ -93,14 +104,19 @@ function comparisonNoteFor(
   return undefined;
 }
 
+function catalogClusterFor(recommendation: RecommendationResult) {
+  return majorsById[recommendation.majorId]?.cluster ?? recommendation.cluster;
+}
+
 function buildActionGuidance(
   recommendation: RecommendationResult,
   recommendations: RecommendationResult[],
 ): ActionGuidance {
-  const aiNote = notesByCluster.get(recommendation.cluster);
+  const aiNote = notesByCluster.get(catalogClusterFor(recommendation));
   const comparisonNote = comparisonNoteFor(recommendation, recommendations);
   return {
-    skillTargets: recommendation.skillGaps.slice(0, MAX_SKILL_TARGETS).map(skillTargetFor),
+    skillTargets: recommendation.skillGaps.slice(0, MAX_SKILL_TARGETS)
+      .map((gap) => skillTargetFor(gap, majorsById[recommendation.majorId]?.subCluster)),
     weekPlan: weekPlanFor(recommendation),
     ...(aiNote ? { aiNote } : {}),
     ...(comparisonNote ? { comparisonNote } : {}),
@@ -143,6 +159,15 @@ function evidenceSummaryFor(top: RecommendationResult) {
 
 const PEOPLE_ROLE_PATTERN = /advisor|support|service|sales|entrepreneur|trainer|konsult|consult|layanan|pelayanan|helpdesk/i;
 
+const PEOPLE_SKILL_IDS = new Set(["communication", "public_speaking", "leadership", "negotiation", "empathy"]);
+
+function peopleCareerFor(careerIds: string[]) {
+  const career = careerIds
+    .map((id) => careersById[id])
+    .find((item) => item?.requiredSkills.some((skill) => PEOPLE_SKILL_IDS.has(skill.id)));
+  return career?.title;
+}
+
 function tensionsFor(answers: StudentAnswer, top: RecommendationResult) {
   const tensions: string[] = [];
   const breakdown = top.scoringBreakdown;
@@ -165,7 +190,8 @@ function tensionsFor(answers: StudentAnswer, top: RecommendationResult) {
   const peopleFacing = answers.workStyle === "Banyak bertemu orang";
   const majorPeopleFacing = major?.relatedWorkStyles.some((tag) => tag.id === "people_facing") ?? false;
   if (peopleFacing && !majorPeopleFacing) {
-    const role = major?.careerDirections.find((direction) => PEOPLE_ROLE_PATTERN.test(direction));
+    const role = major?.careerDirections.find((direction) => PEOPLE_ROLE_PATTERN.test(direction))
+      ?? peopleCareerFor(major?.relatedCareers ?? []);
     tensions.push(role
       ? `Kamu suka banyak bertemu orang, sedangkan ${top.majorName} lebih banyak kerja praktik. Peran yang lebih sering bertemu orang: ${role}.`
       : `Kamu suka banyak bertemu orang, sedangkan ${top.majorName} lebih banyak kerja praktik. Tanyakan peran yang melayani pelanggan saat wawancara minggu 3.`);
@@ -248,7 +274,7 @@ export function attachStudentGuidance(
   const recommendations = report.recommendations.map((recommendation) => {
     const actionGuidance = buildActionGuidance(recommendation, report.recommendations);
     const cautionNotes = [
-      ...recommendation.cautionNotes.filter((note) => !GENERIC_AI_LINES.includes(note)),
+      ...recommendation.cautionNotes.filter((note) => !GENERIC_AI_LINES.includes(note) && !(actionGuidance.aiNote && GENERIC_CAREER_AI_LINES.includes(note.trim()))),
       ...(actionGuidance.aiNote ? [actionGuidance.aiNote] : []),
     ];
     return { ...recommendation, cautionNotes, actionGuidance };

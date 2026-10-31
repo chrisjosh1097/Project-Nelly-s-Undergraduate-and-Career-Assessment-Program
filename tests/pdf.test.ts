@@ -11,6 +11,10 @@ function syntheticPdfSubmission() {
   const value = buildSubmission({ ...techAnswer, fullName: "Synthetic Export Student",
     email: "synthetic-export@example.test", school: "Synthetic School",
     dreamProfession: "UNIQUE_DREAM_ANSWER", futureVision: "UNIQUE_FUTURE_ANSWER" });
+  // Legacy-shaped report: older saved records have no curated guidance fields.
+  delete value.report.studentGuidance;
+  value.report.recommendations.forEach(r => { delete r.actionGuidance; });
+  delete value.report.topRecommendation.actionGuidance;
   const top = value.report.topRecommendation;
   Object.assign(top, { rank: 7, majorName: "Synthetic Main Program", overallFitScore: 65, fitLabel: "Cukup Cocok",
     careerDirection: "UNIQUE_DIRECTION", personalizedCareerDirection: undefined,
@@ -176,6 +180,19 @@ describe("PDF report generation", () => {
       const metadataPages = new Set(rows.slice(heading, heading + aiOffset + 1).map(row => row.page));
       expect(metadataPages.size, `metadata split for rank ${r.rank} / variation ${variation}`).toBe(1);
     }
+  });
+  it("prints curated guidance once for new reports and keeps old wording for legacy reports", async () => {
+    const value = buildSubmission({ ...techAnswer, educationPathway: "vocational",
+      dreamProfession: "Ingin kerja di Jepang di kapal atau tambang", futureVision: "Bekerja di bidang teknik." });
+    const guidance = value.report.studentGuidance!;
+    const action = value.report.topRecommendation.actionGuidance!;
+    const text = buildSubmissionPdfTextSnapshot(value);
+    expect(text).toContain("Rencana 4 minggu");
+    expect(text).toContain("Target skill yang bisa kamu tunjukkan");
+    expect(text.split(action.weekPlan[0].action)).toHaveLength(2);
+    for (const route of guidance.aspirationRoutes) expect(text).toContain(route.verify);
+    expect(text).not.toContain("Keterampilan yang perlu dikembangkan");
+    expect((await PDFDocument.load(await generateSubmissionPdf(value))).getPageCount()).toBeLessThanOrEqual(7);
   });
   it("packs an ordinary ten-result report within six pages without a sparse ending or shrinking body type", async () => {
     const draw = vi.spyOn(PDFPage.prototype, "drawText");

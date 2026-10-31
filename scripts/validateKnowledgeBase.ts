@@ -130,7 +130,7 @@ export function validateStudentGuidance(catalog: StudentGuidanceCatalog = studen
   };
   const action = (path: string, value: string) => {
     text(path, value);
-    if (!/^(?:Pelajari|Buat|Tanyakan|Bandingkan|Cek|Periksa|Cari|Tentukan|Diskusikan|Ringkas|Pilih|Baca|Coba|Uji|Catat|Tunjukkan|Simpan|Tulis|Gambar|Minta|Susun|Gunakan|Tandai|Gambarkan|Cantumkan)\b/.test(value))
+    if (!/^(?:Pelajari|Buat|Tanyakan|Bandingkan|Cek|Periksa|Cari|Tentukan|Diskusikan|Ringkas|Pilih|Baca|Coba|Uji|Catat|Tunjukkan|Simpan|Tulis|Gambar|Minta|Susun|Gunakan|Tandai|Gambarkan|Cantumkan|Ulangi)\b/.test(value))
       issue(path, "Mulai tindakan dengan kata kerja yang jelas.");
   };
   const unique = (path: string, values: string[]) => {
@@ -151,6 +151,17 @@ export function validateStudentGuidance(catalog: StudentGuidanceCatalog = studen
     text(`${path}.target`, entry.target);
     if (!/^Bisa\s/.test(entry.target)) issue(`${path}.target`, "Target harus diawali Bisa dan dapat diamati.");
     action(`${path}.proof`, entry.proof);
+  }
+
+  for (const [key, rows] of Object.entries(catalog.skillTargetsBySubCluster)) {
+    if (!majors.some(major => major.subCluster === key)) issue(`skillTargetsBySubCluster.${key}`, "Bidang tidak dikenal dalam katalog.");
+    unique(`skillTargetsBySubCluster.${key}`, rows.map(item => item.gap));
+    for (const [index, entry] of rows.entries()) {
+      const path = `skillTargetsBySubCluster.${key}.${index}`;
+      text(`${path}.target`, entry.target);
+      if (!/^Bisa\s/.test(entry.target)) issue(`${path}.target`, "Target harus diawali Bisa dan dapat diamati.");
+      action(`${path}.proof`, entry.proof);
+    }
   }
 
   const checkPlan = (path: string, plan: WeekAction[]) => {
