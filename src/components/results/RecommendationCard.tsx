@@ -1,7 +1,10 @@
+"use client";
+import { useState } from "react";
 import type { ActionGuidance, RecommendationResult } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 import { ChevronDown, ListChecks, Footprints } from "lucide-react";
 import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "./resultPresentation";
+import { CampusExamples } from "./CampusExamples";
 
 function Lines({ title, items }: { title: string; items?: string[] }) {
   const lines = cleanLines(items);
@@ -42,9 +45,10 @@ function WeekPlan({ guidance }: { guidance: ActionGuidance }) {
     </section> : null;
 }
 
-export function RecommendationCard({ recommendation: r, expanded = false, workStyle }: {
-  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string;
+export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences }: {
+  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[];
 }) {
+  const [opened, setOpened] = useState(false);
   const fit = fitContextFor(r);
   const rows = componentEvidenceFor(r, workStyle);
   const bonus = r.scoringBreakdown?.aspirationMajorBoost;
@@ -102,6 +106,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
             </details> : null}
           </section> : null}
           {r.actionGuidance ? <WeekPlan guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+          {expanded || opened ? <CampusExamples majorId={r.majorId} majorName={r.majorName} degreeTypes={r.degreeTypes} preferences={preferences} /> : null}
           <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
           <Lines title="Hal yang perlu dicek" items={cautions} />
         </div>
@@ -122,7 +127,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   );
   return expanded ? <article className="panel min-w-0">
     <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{body}
-  </article> : <details className="recommendation-details panel min-w-0 open:lg:col-span-2">
+  </article> : <details className="recommendation-details panel min-w-0 open:lg:col-span-2" onToggle={(event) => { if (event.currentTarget.open) setOpened(true); }}>
     <summary className="flex min-h-14 items-start gap-3 rounded-lg [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf">
       <span className="pt-1 text-xs font-bold tabular-nums text-leaf">{String(r.rank).padStart(2, "0")}</span>
       <span className="min-w-0 flex-1">

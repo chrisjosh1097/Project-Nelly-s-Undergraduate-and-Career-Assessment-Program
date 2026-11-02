@@ -219,7 +219,8 @@ function richerSubmission(): Submission {
 test("saved summary, moderate fit, aspirations and component evidence are visible without expansion", async ({ mount, page }) => {
   const value = richerSubmission();
   const apiRequests: string[] = [];
-  page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/")) apiRequests.push(request.url()); });
+  page.on("request", request => { const path = new URL(request.url()).pathname; if (path.startsWith("/api/") && !path.startsWith("/api/campus/")) apiRequests.push(request.url()); });
+  await page.route("**/api/campus/**", route => route.fulfill({ json: { items: [], total: 0, maritimeNote: false, source: "" } }));
   await mount(<ResultsView submission={value} />);
   const overview = page.getByRole("region", { name: "Ringkasan arahmu" });
   await expect(overview.getByText(value.report.narrative!.summary, { exact: true })).toBeVisible();

@@ -12,6 +12,8 @@ import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
+import { campusMajorMap } from "../../../data/campusMajorMap";
+import Link from "next/link";
 import { AspirationRoutesPanel, GuidanceTensions, StudentGuidanceSummary } from "./StudentGuidancePanel";
 import { createInstagramCardBlob } from "./shareCard";
 import { cleanLines, fitContextFor, scoreText } from "./resultPresentation";
@@ -40,12 +42,14 @@ export function ResultsView({
   const tensions = cleanLines(guidance?.tensions);
   const hasRoutes = !!guidance && (guidance.aspirationRoutes.length > 0 || guidance.glossary.length > 0);
   const hasAdvice = cleanLines(advice).length > 0;
+  const topRule = campusMajorMap[top.majorId];
+  const campusQuery = topRule && "include" in topRule ? topRule.include[0] : top.majorName;
   const jumpLinks = [
     ["ringkasan", "Ringkasan"],
     ["rencana", "Rencana"],
     ...(hasRoutes ? [["cita-cita", "Cita-cita"]] : []),
     ["alternatif", "Alternatif"],
-    ...(hasAdvice ? [["kampus", "Kampus"]] : []),
+    ["kampus", "Kampus"],
   ];
   async function download(kind: "pdf" | "image") {
     if (busy) return;
@@ -160,25 +164,28 @@ export function ResultsView({
           </section> : null}
         </div>
       </section>
-      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} /></div>
+      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} /></div>
       {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
       <section id="alternatif" className="scroll-mt-16">
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
         <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
           {submission.report.recommendations.slice(1).map((r) => (
-            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} />
+            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} />
           ))}
         </div>
       </section>
       <div className="result-grid">
-        {hasAdvice ? <Panel id="kampus" className="scroll-mt-16">
+        <Panel id="kampus" className="scroll-mt-16">
           <h2 className="text-xl font-bold">Kampus dan jalur belajarmu</h2>
-          <ul className="mt-5 list-disc space-y-3 pl-5 text-sm leading-7 text-stone-600">
+          {hasAdvice ? <ul className="mt-5 list-disc space-y-3 pl-5 text-sm leading-7 text-stone-600">
             {cleanLines(advice).map((a, i) => (
               <li key={i}>{a}</li>
             ))}
-          </ul>
-        </Panel> : null}
+          </ul> : null}
+          <Link href={`/kampus?q=${encodeURIComponent(campusQuery)}`} className="touch-link mt-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
+            Cari kampus & jurusan lain<ArrowUpRight size={16} aria-hidden="true" />
+          </Link>
+        </Panel>
         <Panel>
           <h2 className="text-xl font-bold">Memahami kedua skor</h2>
           <p className="mt-4 text-sm leading-7 text-stone-600">
