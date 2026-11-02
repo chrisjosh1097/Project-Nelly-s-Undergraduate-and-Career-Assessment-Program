@@ -112,3 +112,14 @@ test("results page links to the campus search", async ({ mount, page }) => {
   await expect(link).toBeVisible();
   expect(await link.getAttribute("href")).toMatch(/^\/kampus\?q=/);
 });
+
+test("explains terms on tap and shows the competition ratio with its caveat", async ({ mount, page }) => {
+  await stub(page, ok({ items: [item("Politeknik Negeri Samarinda", { province: "Kalimantan Timur", quota2024: 70, applicants2024: 1924 }), item("Kampus Tanpa Kuota", { quota2024: 0, applicants2024: 10 })] }));
+  const component = await mount(<CampusExamples majorId="teknik_pertambangan_terapan" majorName="Teknik Pertambangan Terapan" degreeTypes={["D3"]} preferences={[]} />);
+  await expect(component.getByTestId("campus-ratio")).toHaveCount(1);
+  await expect(component.getByTestId("campus-ratio")).toHaveText("± 1 kursi : 27 peminat (SNPMB 2024). Bukan passing grade atau peluang diterima.");
+  await component.getByRole("button", { name: "D3: arti istilah" }).first().click();
+  await expect(component.getByRole("note")).toContainText("Diploma tiga");
+  await page.keyboard.press("Escape");
+  await expect(component.getByRole("note")).toHaveCount(0);
+});

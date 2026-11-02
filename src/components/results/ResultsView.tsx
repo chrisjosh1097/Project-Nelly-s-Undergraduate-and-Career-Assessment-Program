@@ -12,6 +12,7 @@ import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
+import { CampusDegree } from "@/components/campus/CampusRowMeta";
 import { campusMajorMap } from "../../../data/campusMajorMap";
 import Link from "next/link";
 import { AspirationRoutesPanel, GuidanceTensions, StudentGuidanceSummary } from "./StudentGuidancePanel";
@@ -125,7 +126,7 @@ export function ResultsView({
           <p className="text-xs font-bold tracking-wide text-orange-200">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h2 className="min-w-0 text-3xl font-extrabold sm:text-4xl">{top.majorName}</h2>
-            {cleanLines(top.degreeTypes).map(degree => <Badge key={degree}>{degree}</Badge>)}
+            {cleanLines(top.degreeTypes).map(degree => <CampusDegree key={degree} degree={degree} />)}
           </div>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-200">{top.personalizedCareerDirection?.trim() || top.careerDirection}</p>
           <dl className="mt-5 grid min-w-0 grid-cols-2 gap-4 border-t border-white/20 pt-4">
@@ -133,7 +134,7 @@ export function ResultsView({
               <dt className="text-xs text-stone-200">Kecocokan profil</dt>
               <dd className="mt-1 text-2xl font-extrabold tabular-nums text-orange-200">{scoreText(top.overallFitScore)}</dd>
               <dd className="mt-1 text-sm font-bold">{fit.interpretation}</dd>
-              {fit.savedLabel ? <dd className="mt-1 text-xs leading-5 text-stone-300">Label laporan tersimpan: {fit.savedLabel}</dd> : null}
+              {fit.conflicts && fit.savedLabel ? <dd className="mt-1 text-xs leading-5 text-stone-300">Label laporan tersimpan: {fit.savedLabel}</dd> : null}
             </div>
             <div className="min-w-0">
               <dt className="text-xs text-stone-200">Ketahanan terhadap perubahan AI</dt>
@@ -164,13 +165,13 @@ export function ResultsView({
           </section> : null}
         </div>
       </section>
-      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} /></div>
+      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} /></div>
       {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
       <section id="alternatif" className="scroll-mt-16">
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
         <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
           {submission.report.recommendations.slice(1).map((r) => (
-            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} />
+            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} />
           ))}
         </div>
       </section>

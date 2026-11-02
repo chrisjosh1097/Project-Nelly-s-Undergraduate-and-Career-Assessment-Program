@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ExternalLink, School } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
+import { CampusDegree, CampusPlace, CampusStats } from "@/components/campus/CampusRowMeta";
 
 interface CampusItem {
   campus: string;
@@ -83,13 +83,10 @@ export function CampusExamples({ majorId, majorName, degreeTypes, preferences }:
         <span className="block font-semibold text-ink">{item.campus}</span>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-stone-700">
           <span>{item.program}</span>
-          <Badge>{item.degree}</Badge>
-          <span className="text-xs text-stone-600">{item.type}{item.province ? ` · ${item.province}` : item.lldikti ? ` · Wilayah LLDikti ${item.lldikti}` : ""}</span>
+          <CampusDegree degree={item.degree} />
+          <CampusPlace item={item} />
         </span>
-        {typeof item.quota2024 === "number" || typeof item.applicants2024 === "number" ? <span className="block text-xs leading-5 text-stone-600">
-          {[typeof item.quota2024 === "number" ? `Daya tampung ${number(item.quota2024)}` : "",
-            typeof item.applicants2024 === "number" ? `peminat ${number(item.applicants2024)}` : ""].filter(Boolean).join(" · ")} (SNPMB 2024)
-        </span> : null}
+        <CampusStats item={item} />
         <a href={item.pddiktiUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
           Cek di PDDikti<ExternalLink size={14} aria-hidden="true" />
         </a>

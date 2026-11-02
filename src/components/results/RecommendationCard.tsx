@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ActionGuidance, RecommendationResult } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 import { ChevronDown, ListChecks, Footprints } from "lucide-react";
@@ -32,21 +32,64 @@ function SkillTargets({ guidance }: { guidance: ActionGuidance }) {
     </section> : null;
 }
 
-function WeekPlan({ guidance }: { guidance: ActionGuidance }) {
-  return guidance.weekPlan.length ? <section aria-label="Rencana 4 minggu">
-      <h3 className="mb-2 text-sm font-bold text-ink">Rencana 4 minggu</h3>
-      <ol className="space-y-3 text-sm leading-6 text-stone-700">
-        {guidance.weekPlan.map(w => <li key={w.week} className="border-l-2 border-orange-300 pl-3">
-          <span className="block text-xs font-bold text-leaf">Minggu {w.week} · {w.durationLabel}</span>
-          <span className="block">{w.action}</span>
-          <span className="block text-xs leading-5 text-stone-600">Bukti: {w.proof}</span>
-        </li>)}
-      </ol>
-    </section> : null;
+function planStorageKey(planKey: string, majorId: string) {
+  return `nelly-plan:${planKey}:${majorId}`;
 }
 
-export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences }: {
-  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[];
+function readDone(key: string): number[] {
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= 4) : [];
+  } catch { return []; }
+}
+
+function WeekPlan({ guidance, planKey, majorId }: { guidance: ActionGuidance; planKey?: string; majorId: string }) {
+  const storageKey = planKey ? planStorageKey(planKey, majorId) : null;
+  const [done, setDone] = useState<number[]>([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (storageKey) setDone(readDone(storageKey));
+    setOpen(window.matchMedia?.("(min-width: 640px)").matches ?? true);
+  }, [storageKey]);
+  if (!guidance.weekPlan.length) return null;
+  const toggle = (week: number) => {
+    const next = done.includes(week) ? done.filter(n => n !== week) : [...done, week].sort();
+    setDone(next);
+    if (storageKey) { try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* storage unavailable */ } }
+  };
+  const total = guidance.weekPlan.length;
+  const count = guidance.weekPlan.filter(w => done.includes(w.week)).length;
+  return <section aria-label="Rencana 4 minggu">
+      <details open={open} onToggle={e => setOpen(e.currentTarget.open)} className="group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-ink">
+          <span>Rencana {total} minggu ({total} langkah)</span>
+          <span className="flex items-center gap-2 text-xs font-semibold text-leaf">
+            <span data-testid="plan-progress">{count} dari {total} selesai</span>
+            <ChevronDown aria-hidden className="h-4 w-4 transition group-open:rotate-180" />
+          </span>
+        </summary>
+        <ol className="mt-2 space-y-3 text-sm leading-6 text-stone-700">
+          {guidance.weekPlan.map(w => {
+            const checked = done.includes(w.week);
+            const id = `plan-${majorId}-${w.week}`;
+            return <li key={w.week} className="flex gap-3 border-l-2 border-orange-300 pl-3">
+              <input id={id} type="checkbox" checked={checked} onChange={() => toggle(w.week)} className="mt-1 h-5 w-5 shrink-0 accent-orange-600" />
+              <label htmlFor={id} className="min-w-0 cursor-pointer">
+                <span className="block text-xs font-bold text-leaf">Minggu {w.week} · {w.durationLabel}</span>
+                <span className={`block ${checked ? "text-stone-500 line-through" : ""}`}>{w.action}</span>
+                <span className="block text-xs leading-5 text-stone-600">Bukti: {w.proof}</span>
+              </label>
+            </li>;
+          })}
+        </ol>
+        <p className="mt-2 text-xs leading-5 text-stone-500">Centang tersimpan di perangkat ini saja.</p>
+      </details>
+    </section>;
+}
+
+export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, planKey }: {
+  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; planKey?: string;
 }) {
   const [opened, setOpened] = useState(false);
   const fit = fitContextFor(r);
@@ -105,7 +148,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
               <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{steps.slice(3).map(line => <li key={line}>{line}</li>)}</ul>
             </details> : null}
           </section> : null}
-          {r.actionGuidance ? <WeekPlan guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+          {r.actionGuidance ? <WeekPlan guidance={r.actionGuidance} planKey={planKey} majorId={r.majorId} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
           {expanded || opened ? <CampusExamples majorId={r.majorId} majorName={r.majorName} degreeTypes={r.degreeTypes} preferences={preferences} /> : null}
           <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
           <Lines title="Hal yang perlu dicek" items={cautions} />
@@ -136,7 +179,6 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
         <span className="block text-xs leading-6 text-stone-600">Ketahanan AI {scoreText(r.aiFutureResilienceScore)} · {r.aiFutureResilienceLabel}</span>
         <span className="mt-1 flex flex-wrap gap-2">
           {cleanLines(r.degreeTypes).map(d => <Badge key={d}>{d}</Badge>)}
-          {!fit.conflicts && fit.savedLabel ? <Badge>{fit.savedLabel}</Badge> : null}
         </span>
         {fit.conflicts && fit.savedLabel ? <span className="mt-1 block text-xs leading-5 text-stone-600">Label laporan tersimpan: {fit.savedLabel}</span> : null}
         <span className="mt-2 block text-xs leading-5 text-stone-600">{comparisonSignalFor(r)}</span>

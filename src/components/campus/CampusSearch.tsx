@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ExternalLink, Search } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
+import { CampusDegree, CampusPlace, CampusStats } from "./CampusRowMeta";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import { StatusMessage } from "@/components/ui/StatusMessage";
@@ -157,13 +157,10 @@ export function CampusSearch({ initial }: { initial?: Partial<CampusFilters> }) 
             <span className="block text-base font-bold text-ink">{item.program}</span>
             <span className="block text-sm leading-6 text-stone-700">{item.campus}</span>
             <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-600">
-              <Badge>{item.degree}</Badge>
-              <span>{item.type} · {item.province ?? (item.lldikti ? `Wilayah LLDikti ${item.lldikti}` : "Lokasi belum tercatat")}</span>
+              <CampusDegree degree={item.degree} />
+              <CampusPlace item={item} fallback="Lokasi belum tercatat" />
             </span>
-            {typeof item.quota2024 === "number" || typeof item.applicants2024 === "number" ? <span className="mt-1 block text-xs leading-5 text-stone-600">
-              {[typeof item.quota2024 === "number" ? `Daya tampung ${number(item.quota2024)}` : "",
-                typeof item.applicants2024 === "number" ? `peminat ${number(item.applicants2024)}` : ""].filter(Boolean).join(" · ")} (SNPMB 2024)
-            </span> : null}
+            <CampusStats item={item} className="mt-1 block text-xs leading-5 text-stone-600" />
             <a href={item.pddiktiUrl} target="_blank" rel="noopener noreferrer" className="touch-link -ml-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
               Cek di PDDikti<ExternalLink size={14} aria-hidden="true" />
             </a>

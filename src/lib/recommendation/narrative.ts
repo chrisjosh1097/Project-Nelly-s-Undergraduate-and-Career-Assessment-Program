@@ -36,9 +36,7 @@ export class HeuristicTemplateNarrativeEnhancer implements RecommendationNarrati
   }): Promise<EnhancedNarrative> {
     const top = recommendations[0];
     return {
-      summary: top
-        ? `Rekomendasi utama untuk ${answers.fullName} adalah ${top.majorName} dengan skor kecocokan ${top.overallFitScore}/100.`
-        : "Belum ada rekomendasi yang bisa ditampilkan.",
+      summary: top ? buildHeuristicSummary(top) : "Belum ada rekomendasi yang bisa ditampilkan.",
       studentStrengths: buildStudentStrengthHighlights(answers, top),
       recommendationReasons: Object.fromEntries(
         recommendations.map((recommendation) => [
@@ -392,6 +390,41 @@ function readableList(items: string[], fallback: string) {
   return `${values[0]}, ${values[1]}, dan ${values[2]}`;
 }
 
+const SUMMARY_COMPONENTS: [keyof RecommendationResult["scoringBreakdown"], string][] = [
+  ["interestScore", "minat"],
+  ["skillScore", "skill"],
+  ["subjectScore", "mata pelajaran"],
+  ["workStyleScore", "gaya kerja"],
+  ["problemAreaScore", "bidang masalah"],
+  ["constraintFitScore", "pertimbangan pribadi"],
+];
+
+// Deterministic two-sentence summary: strongest evidence + one concrete next step.
+export function buildHeuristicSummary(top: RecommendationResult) {
+  const breakdown = top.scoringBreakdown;
+  const strongest = SUMMARY_COMPONENTS
+    .map(([key, label]) => ({ label, score: Number(breakdown?.[key]) }))
+    .filter((item) => Number.isFinite(item.score))
+    .sort((a, b) => b.score - a.score)[0];
+  const subjects = (breakdown?.matchedSubjects ?? []).slice(0, 2);
+  const evidence = subjects.length
+    ? `pelajaran ${readableList(subjects, "")}`
+    : strongest
+      ? `jawaban ${strongest.label}mu`
+      : "jawabanmu";
+  const first = `${top.majorName} paling cocok untukmu, terutama karena ${evidence}.`;
+  const step = top.actionGuidance?.weekPlan?.[0]?.action?.trim()
+    || top.recommendedNextSteps?.find((line) => line.trim())?.trim();
+  const second = step
+    ? `Mulai minggu ini: ${step.charAt(0).toLowerCase()}${step.slice(1).replace(/[.!]+$/, "")}.`
+    : `Mulai dengan membaca kurikulum ${top.majorName} di dua kampus.`;
+  return `${first} ${second}`;
+}
+
+function shortReadableList(items: string[], fallback: string) {
+  return readableList(items.slice(0, 2), fallback);
+}
+
 function buildStudentStrengthHighlights(
   answers: StudentAnswer,
   top?: RecommendationResult,
@@ -406,37 +439,31 @@ function buildStudentStrengthHighlights(
   const problemAreas = answers.problemAreas.filter(Boolean);
   const strengths: string[] = [];
 
-  const skillText = readableList(
+  const skillText = shortReadableList(
     matchedSkills.length > 0 ? matchedSkills : selectedSkills,
     "kekuatan utama yang kamu pilih",
   );
-  strengths.push(
-    `Kamu punya modal awal di ${skillText}, yang membantu kamu belajar dan memecahkan masalah dengan lebih terarah.`,
-  );
+  strengths.push(`Kamu punya modal awal di ${skillText}. Pakai ini saat belajar dan memecahkan masalah.`);
 
   if (subjects.length > 0 || activities.length > 0) {
     const signalText =
       subjects.length > 0 && activities.length > 0
-        ? `${readableList(subjects, "mata pelajaran pilihanmu")} serta aktivitas seperti ${readableList(activities, "aktivitas pilihanmu")}`
+        ? `${shortReadableList(subjects, "mata pelajaran pilihanmu")} serta ${shortReadableList(activities, "aktivitas pilihanmu").toLowerCase()}`
         : subjects.length > 0
-          ? readableList(subjects, "mata pelajaran pilihanmu")
-          : `aktivitas seperti ${readableList(activities, "aktivitas pilihanmu")}`;
-    strengths.push(
-      `Minatmu pada ${signalText} memberi sinyal bahwa kamu bisa berkembang lewat latihan dan eksplorasi yang konsisten.`,
-    );
+          ? shortReadableList(subjects, "mata pelajaran pilihanmu")
+          : shortReadableList(activities, "aktivitas pilihanmu").toLowerCase();
+    strengths.push(`Kamu suka ${signalText}. Ini bahan bagus untuk eksplorasi jurusan.`);
   }
 
-  strengths.push(
-    `Gaya kerja ${answers.workStyle.toLowerCase()} bisa menjadi kelebihan kalau kamu menggunakannya untuk membangun kebiasaan belajar dan portofolio.`,
-  );
+  strengths.push(`Gaya kerja ${answers.workStyle.toLowerCase()} cocok untuk membangun kebiasaan belajar dan portofolio.`);
 
   if (problemAreas.length > 0) {
     strengths.push(
-      `Kamu tertarik membantu area seperti ${readableList(problemAreas, "masalah yang kamu pilih")}, jadi hasil ini bisa diarahkan ke proyek yang punya dampak nyata.`,
+      `Kamu ingin membantu di ${shortReadableList(problemAreas, "masalah yang kamu pilih")}. Pilih proyek yang berdampak di sana.`,
     );
   }
 
-  return uniqueItems(strengths, 150).slice(0, 3);
+  return uniqueItems(strengths, 220).slice(0, 3);
 }
 
 function aspirationThemeSummary(answers?: StudentAnswer) {
