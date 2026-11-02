@@ -20,6 +20,8 @@ import {
 import { validatePathwayCapacity } from "../src/lib/recommendation/eligibility";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { campusMajorMap } from "../data/campusMajorMap";
+import { programsForRule } from "../src/lib/campus/catalog";
 
 export interface ValidationIssue {
   path: string;
@@ -546,11 +548,29 @@ export function scoreSampleProfile(
     });
 }
 
+export function validateCampusMap(): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const major of majors) {
+    const rule = campusMajorMap[major.id];
+    if (!rule) {
+      issues.push({ path: `campusMajorMap.${major.id}`, message: "missing campus mapping" });
+      continue;
+    }
+    if ("none" in rule) continue;
+    for (const phrase of rule.include) {
+      if (programsForRule({ include: [phrase], exclude: rule.exclude }).length === 0) {
+        issues.push({ path: `campusMajorMap.${major.id}`, message: `include "${phrase}" matches 0 programs` });
+      }
+    }
+  }
+  return issues;
+}
+
 if (
   process.argv[1] &&
   fileURLToPath(import.meta.url) === resolve(process.argv[1])
 ) {
-  const issues = validateKnowledgeBase();
+  const issues = [...validateKnowledgeBase(), ...validateCampusMap()];
   if (issues.length > 0) {
     console.error(`Knowledge base invalid: ${issues.length} issue(s)`);
     for (const issue of issues) {
@@ -562,4 +582,6 @@ if (
   console.log(
     `Knowledge base valid: ${majors.length} majors, ${careers.length} careers.`,
   );
+  const noneCount = majors.filter((major) => "none" in (campusMajorMap[major.id] ?? {})).length;
+  console.log(`campus map: ${majors.length - noneCount} mapped, ${noneCount} none`);
 }

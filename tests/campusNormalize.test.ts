@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeRows, nameKey, normalizeDegree, normalizeName } from "@/lib/campus/normalize";
+import { mergeRows, nameKey, normalizeDegree, normalizeName, normalizeProvince } from "@/lib/campus/normalize";
 
 describe("campus normalization", () => {
   it("maps degree spellings to D3/D4/S1 and drops the rest", () => {
@@ -50,5 +50,12 @@ describe("campus normalization", () => {
     ], "2026-11-02");
     expect(catalog.campuses).toEqual([{ id: 0, name: "Universitas Palangkaraya", type: "Negeri", province: "Kalimantan Tengah" }]);
     expect(catalog.programs).toHaveLength(1);
+  });
+});
+
+describe("normalizeProvince", () => {
+  it("uses one spelling for Yogyakarta", () => {
+    expect(normalizeProvince("D.I. Yogyakarta")).toBe("DI Yogyakarta");
+    expect(normalizeProvince(" Jawa  Barat ")).toBe("Jawa Barat");
   });
 });

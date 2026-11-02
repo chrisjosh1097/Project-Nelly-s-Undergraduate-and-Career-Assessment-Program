@@ -77,6 +77,13 @@ export function nameKey(raw: string): string {
     .trim();
 }
 
+const PROVINCE_ALIASES: Record<string, string> = { "D.I. Yogyakarta": "DI Yogyakarta", "DIY": "DI Yogyakarta", "D.K.I. Jakarta": "DKI Jakarta" };
+
+export function normalizeProvince(raw: string): string {
+  const name = raw.replace(/\s+/g, " ").trim();
+  return PROVINCE_ALIASES[name] ?? name;
+}
+
 export function looksNegeri(name: string): boolean {
   return /\bnegeri\b/i.test(name);
 }
@@ -96,7 +103,7 @@ export function mergeRows(rows: RawProgramRow[], generatedAt: string): CampusCat
     if (row.source === "snpmb") {
       campus.negeri = true;
       campus.snpmbName ??= campusName;
-      campus.province ??= row.province;
+      if (row.province) campus.province ??= normalizeProvince(row.province);
     }
     if (looksNegeri(campusName)) campus.negeri = true;
     if (campus.lldikti === undefined && row.lldikti !== undefined) campus.lldikti = row.lldikti;
