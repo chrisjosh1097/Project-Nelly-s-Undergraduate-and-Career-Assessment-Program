@@ -14,6 +14,8 @@ describe("GET /api/campus/major/:majorId", () => {
     const response = await callMajor("teknika_permesinan_kapal", "?degree=D3&degree=D4&pref=PTN%20di%20Jawa");
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("public, max-age=3600");
+    expect(response.headers.get("Netlify-CDN-Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Netlify-Vary")).toBe("query");
     const body = await response.json();
     expect(body.source).toBe(CAMPUS_SOURCE_LINE);
     expect(body.maritimeNote).toBe(true);
@@ -43,6 +45,8 @@ describe("GET /api/campus/search", () => {
     const response = await callSearch("?q=pertambangan&degree=D3&page=1");
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("public, max-age=3600");
+    expect(response.headers.get("Netlify-CDN-Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Netlify-Vary")).toBe("query");
     const body = await response.json();
     expect(body.source).toBe(CAMPUS_SOURCE_LINE);
     expect(body.pageSize).toBe(20);
