@@ -12,7 +12,7 @@ import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
-import { AspirationRoutesPanel, StudentGuidanceSummary } from "./StudentGuidancePanel";
+import { AspirationRoutesPanel, GuidanceTensions, StudentGuidanceSummary } from "./StudentGuidancePanel";
 import { createInstagramCardBlob } from "./shareCard";
 import { cleanLines, fitContextFor, scoreText } from "./resultPresentation";
 export function ResultsView({
@@ -36,6 +36,17 @@ export function ResultsView({
   const aspirations = [submission.answers.dreamProfession, submission.answers.futureVision]
     .map(text => text?.trim()).filter(Boolean);
   const notes = cleanLines(submission.report.answerPatternNotes);
+  const guidance = submission.report.studentGuidance;
+  const tensions = cleanLines(guidance?.tensions);
+  const hasRoutes = !!guidance && (guidance.aspirationRoutes.length > 0 || guidance.glossary.length > 0);
+  const hasAdvice = cleanLines(advice).length > 0;
+  const jumpLinks = [
+    ["ringkasan", "Ringkasan"],
+    ["rencana", "Rencana"],
+    ...(hasRoutes ? [["cita-cita", "Cita-cita"]] : []),
+    ["alternatif", "Alternatif"],
+    ...(hasAdvice ? [["kampus", "Kampus"]] : []),
+  ];
   async function download(kind: "pdf" | "image") {
     if (busy) return;
     setBusy(kind);
@@ -100,7 +111,12 @@ export function ResultsView({
         ) : null}
       </header>
       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
-      <section aria-label="Ringkasan arahmu" className="min-w-0 overflow-hidden rounded-[22px] border border-stone-200 bg-white">
+      {!compact ? <nav aria-label="Lompat ke bagian" className="sticky top-0 z-20 border-b border-stone-200 bg-[#fcfaf8]/95 backdrop-blur lg:hidden">
+        <ul className="flex gap-1 overflow-x-auto py-1">
+          {jumpLinks.map(([id, label]) => <li key={id} className="shrink-0"><a href={`#${id}`} className="flex min-h-11 items-center rounded-full px-2.5 text-sm font-semibold text-stone-700 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf">{label}</a></li>)}
+        </ul>
+      </nav> : null}
+      <section id="ringkasan" aria-label="Ringkasan arahmu" className="scroll-mt-16 min-w-0 overflow-hidden rounded-[22px] border border-stone-200 bg-white">
         <div className="bg-ink p-5 text-white sm:p-6">
           <p className="text-xs font-bold tracking-wide text-orange-200">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -129,7 +145,7 @@ export function ResultsView({
             <section>
               <h3 className="flex items-center gap-2 text-base font-bold"><Compass size={18} className="shrink-0 text-leaf" aria-hidden="true" />Ringkasan laporan</h3>
               <p className="mt-2 text-sm leading-7 text-stone-700">{summary}</p>
-              {submission.report.studentGuidance ? <StudentGuidanceSummary guidance={submission.report.studentGuidance} /> : null}
+              {guidance ? <StudentGuidanceSummary guidance={guidance} showTensions={!aspirations.length} /> : null}
             </section>
             {strengths.length ? <section>
               <h3 className="flex items-center gap-2 text-base font-bold"><Sparkles size={18} className="shrink-0 text-leaf" aria-hidden="true" />Kekuatan dari jawabanmu</h3>
@@ -140,21 +156,22 @@ export function ResultsView({
             <h3 className="text-base font-bold">Aspirasi yang kamu tulis</h3>
             {aspirations.map((text, i) => <p key={i} className="mt-3 whitespace-pre-line text-sm leading-7 text-stone-700">{text}</p>)}
             <div className="mt-4 text-xs leading-6 text-stone-600">Gunakan tujuan ini untuk membandingkan kurikulum dan pengalaman praktik. Periksa persyaratan resmi pendidikan, profesi, dan kerja untuk arah yang kamu tuju.</div>
+            {tensions.length ? <GuidanceTensions tensions={tensions} /> : null}
           </section> : null}
         </div>
       </section>
-      <RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} />
-      {submission.report.studentGuidance ? <AspirationRoutesPanel guidance={submission.report.studentGuidance} /> : null}
-      <section>
+      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} /></div>
+      {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
+      <section id="alternatif" className="scroll-mt-16">
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
           {submission.report.recommendations.slice(1).map((r) => (
             <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} />
           ))}
         </div>
       </section>
       <div className="result-grid">
-        {cleanLines(advice).length ? <Panel>
+        {hasAdvice ? <Panel id="kampus" className="scroll-mt-16">
           <h2 className="text-xl font-bold">Kampus dan jalur belajarmu</h2>
           <ul className="mt-5 list-disc space-y-3 pl-5 text-sm leading-7 text-stone-600">
             {cleanLines(advice).map((a, i) => (

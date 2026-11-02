@@ -382,3 +382,48 @@ test("curated guidance renders on a phone and legacy reports keep old skill word
   await expect(page.getByRole("heading", { name: "Rencana 4 minggu" })).toHaveCount(0);
   await expect(page.getByText("Skill yang perlu ditingkatkan").first()).toBeVisible();
 });
+
+test("layout fills space: two-column alternatives, balanced main card, phone jump nav", async ({ mount, page }) => {
+  const top = submission.report.topRecommendation;
+  const second = submission.report.recommendations[1];
+  const actionGuidance = {
+    skillTargets: [1, 2, 3].map(n => ({ gap: `Skill ${n}`, target: `Bisa target ${n}.`, proof: `Simpan bukti ${n}.` })),
+    weekPlan: [1, 2, 3, 4].map(week => ({ week, durationLabel: "1 jam", action: `Langkah minggu ${week} sintetis.`, proof: `Bukti minggu ${week}.` })),
+  };
+  const guided = {
+    ...submission,
+    report: {
+      ...submission.report,
+      topRecommendation: { ...top, actionGuidance },
+      recommendations: [{ ...top, actionGuidance }, { ...second, actionGuidance: { ...actionGuidance, comparisonNote: "Catatan urutan sintetis." } }, ...submission.report.recommendations.slice(2)],
+      studentGuidance: { evidenceSummary: "Ringkasan bukti sintetis.", tensions: ["Ketegangan sintetis."], aspirationRoutes: [{ title: "Rute sintetis", steps: ["Langkah rute."], verify: "Cek sumber resmi sintetis." }], glossary: [] },
+    },
+  } as Submission;
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const component = await mount(<ResultsView submission={guided} />);
+  const cards = page.locator("details.recommendation-details");
+  const [a, b] = [await cards.nth(0).boundingBox(), await cards.nth(1).boundingBox()];
+  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2);
+  expect(a!.width).toBeLessThan(700);
+  await expect(cards.first().locator(":scope > summary")).toContainText("Catatan urutan sintetis.");
+  await expect(cards.first().locator(":scope > summary")).toContainText("Contoh karier:");
+  await expect(page.getByRole("region", { name: "Aspirasi yang kamu tulis" }).getByText("Ketegangan sintetis.")).toBeVisible();
+  await expect(page.getByText("Ketegangan sintetis.")).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "Lompat ke bagian" })).toBeHidden();
+  const main = page.locator("article.panel").first();
+  const evidence = await main.getByRole("region", { name: "Bukti dari jawabanmu" }).boundingBox();
+  const targets = await main.getByText("Target skill yang bisa kamu tunjukkan").boundingBox();
+  expect(Math.abs(targets!.x - evidence!.x)).toBeLessThan(2);
+  await cards.first().locator(":scope > summary").click();
+  expect((await cards.first().boundingBox())!.width).toBeGreaterThan(1000);
+  await component.unmount();
+  await page.setViewportSize({ width: 360, height: 800 });
+  await mount(<ResultsView submission={guided} />);
+  const nav = page.getByRole("navigation", { name: "Lompat ke bagian" });
+  await expect(nav.getByRole("link")).toHaveText(["Ringkasan", "Rencana", "Cita-cita", "Alternatif", "Kampus"]);
+  for (const link of await nav.getByRole("link").all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await nav.getByRole("link", { name: "Alternatif" }).click();
+  await expect(page.locator("#alternatif")).toBeInViewport();
+  await expect(nav).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+});

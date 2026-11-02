@@ -16,9 +16,8 @@ function Lines({ title, items }: { title: string; items?: string[] }) {
   );
 }
 
-function ActionGuidanceBlock({ guidance }: { guidance: ActionGuidance }) {
-  return <>
-    {guidance.skillTargets.length ? <section>
+function SkillTargets({ guidance }: { guidance: ActionGuidance }) {
+  return guidance.skillTargets.length ? <section>
       <h3 className="mb-2 text-sm font-bold text-ink">Target skill yang bisa kamu tunjukkan</h3>
       <ul className="space-y-3 text-sm leading-6 text-stone-700">
         {guidance.skillTargets.map(t => <li key={t.gap} className="rounded-xl border border-stone-200 p-3">
@@ -27,8 +26,11 @@ function ActionGuidanceBlock({ guidance }: { guidance: ActionGuidance }) {
           <span className="mt-1 block text-xs leading-5 text-stone-600">Bukti: {t.proof}</span>
         </li>)}
       </ul>
-    </section> : null}
-    {guidance.weekPlan.length ? <section aria-label="Rencana 4 minggu">
+    </section> : null;
+}
+
+function WeekPlan({ guidance }: { guidance: ActionGuidance }) {
+  return guidance.weekPlan.length ? <section aria-label="Rencana 4 minggu">
       <h3 className="mb-2 text-sm font-bold text-ink">Rencana 4 minggu</h3>
       <ol className="space-y-3 text-sm leading-6 text-stone-700">
         {guidance.weekPlan.map(w => <li key={w.week} className="border-l-2 border-orange-300 pl-3">
@@ -37,8 +39,7 @@ function ActionGuidanceBlock({ guidance }: { guidance: ActionGuidance }) {
           <span className="block text-xs leading-5 text-stone-600">Bukti: {w.proof}</span>
         </li>)}
       </ol>
-    </section> : null}
-  </>;
+    </section> : null;
 }
 
 export function RecommendationCard({ recommendation: r, expanded = false, workStyle }: {
@@ -55,19 +56,22 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
     cleanLines(r.skillStrengthMatches).length || r.careerPersonalizationReason?.trim() || r.aspirationReflection?.trim();
   const explanation = <div className="grid gap-5 px-2 pb-4 md:grid-cols-2">
     <Lines title="Dasar pertimbangan" items={r.reasonBullets} />
+    <div className="min-w-0 space-y-5">
     <Lines title="Arah karier untuk dijelajahi" items={careers} />
     <Lines title="Kekuatan yang mendukung" items={r.skillStrengthMatches} />
     {r.careerPersonalizationReason?.trim() ? <p className="text-sm leading-6 text-stone-600">{r.careerPersonalizationReason}</p> : null}
     {r.aspirationReflection?.trim() ? <p className="rounded-xl bg-orange-50 p-3 text-sm leading-6 text-stone-700">{r.aspirationReflection}</p> : null}
+    </div>
   </div>;
   const body = (
     <div className="min-w-0 space-y-5 pt-4 [overflow-wrap:anywhere]">
-      {r.actionGuidance?.comparisonNote ? <p className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-700">{r.actionGuidance.comparisonNote}</p> : null}
+      {expanded && r.actionGuidance?.comparisonNote ? <p className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-700">{r.actionGuidance.comparisonNote}</p> : null}
       {!expanded ? <>
         <p className="text-sm leading-6 text-stone-600">{r.personalizedCareerDirection?.trim() || r.careerDirection}</p>
         <p className="text-sm leading-6 text-stone-600">{fit.explanation}</p>
       </> : null}
       <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <div className="min-w-0 space-y-5">
         <section aria-label="Bukti dari jawabanmu" className="min-w-0">
           <h3 className="mb-3 flex items-center gap-2 text-base font-bold">
             <ListChecks size={18} className="shrink-0 text-leaf" aria-hidden="true" />Bukti dari jawabanmu
@@ -82,6 +86,8 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
           {typeof bonus === "number" && Number.isFinite(bonus) ? <p className="mt-3 text-xs leading-5 text-stone-600">Tambahan aspirasi tersimpan: {bonus} poin. Sudah termasuk dalam skor laporan.</p> : null}
           {signals.length ? <p className="mt-2 text-xs leading-5 text-stone-600">Sinyal aspirasi tersimpan: {signals.join(", ")}</p> : null}
         </section>
+          {r.actionGuidance ? <SkillTargets guidance={r.actionGuidance} /> : null}
+        </div>
         <div className="min-w-0 space-y-4">
           {steps.length ? <section className="rounded-xl border border-orange-200 bg-orange-50 p-4">
             <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink">
@@ -95,7 +101,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
               <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{steps.slice(3).map(line => <li key={line}>{line}</li>)}</ul>
             </details> : null}
           </section> : null}
-          {r.actionGuidance ? <ActionGuidanceBlock guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+          {r.actionGuidance ? <WeekPlan guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
           <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
           <Lines title="Hal yang perlu dicek" items={cautions} />
         </div>
@@ -116,7 +122,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   );
   return expanded ? <article className="panel min-w-0">
     <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{body}
-  </article> : <details className="recommendation-details panel min-w-0">
+  </article> : <details className="recommendation-details panel min-w-0 open:lg:col-span-2">
     <summary className="flex min-h-14 items-start gap-3 rounded-lg [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf">
       <span className="pt-1 text-xs font-bold tabular-nums text-leaf">{String(r.rank).padStart(2, "0")}</span>
       <span className="min-w-0 flex-1">
@@ -129,6 +135,8 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
         </span>
         {fit.conflicts && fit.savedLabel ? <span className="mt-1 block text-xs leading-5 text-stone-600">Label laporan tersimpan: {fit.savedLabel}</span> : null}
         <span className="mt-2 block text-xs leading-5 text-stone-600">{comparisonSignalFor(r)}</span>
+        {r.actionGuidance?.comparisonNote ? <span className="mt-2 block rounded-lg bg-stone-50 px-3 py-2 text-xs leading-5 text-stone-700"><span className="font-semibold text-ink">Catatan urutan: </span>{r.actionGuidance.comparisonNote}</span> : null}
+        {cleanLines(careers).length ? <span className="mt-2 hidden flex-wrap items-center gap-1.5 text-xs lg:flex leading-5 text-stone-600"><span className="font-semibold text-ink">Contoh karier:</span>{cleanLines(careers).slice(0, 3).map(c => <span key={c} className="rounded-full border border-stone-200 px-2 py-0.5">{c}</span>)}</span> : null}
       </span>
       <ChevronDown size={20} className="mt-1 shrink-0 text-leaf" aria-hidden="true" />
     </summary>

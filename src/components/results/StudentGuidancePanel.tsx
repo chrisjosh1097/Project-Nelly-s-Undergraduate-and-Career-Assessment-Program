@@ -1,14 +1,18 @@
 import type { StudentGuidance } from "@/lib/types";
 import { Route, Lightbulb, BookOpen } from "lucide-react";
 
+export function GuidanceTensions({ tensions, className = "mt-4" }: { tensions: string[]; className?: string }) {
+  return <section aria-label="Hal yang perlu kamu ketahui" className={className}>
+      <h3 className="flex items-center gap-2 text-base font-bold"><Lightbulb size={18} className="shrink-0 text-leaf" aria-hidden="true" />Hal yang perlu kamu ketahui</h3>
+      <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{tensions.map(line => <li key={line}>{line}</li>)}</ul>
+    </section>;
+}
+
 /** Renders curated guidance only when the saved report already contains it. */
-export function StudentGuidanceSummary({ guidance }: { guidance: StudentGuidance }) {
+export function StudentGuidanceSummary({ guidance, showTensions = true }: { guidance: StudentGuidance; showTensions?: boolean }) {
   return <>
     {guidance.evidenceSummary ? <p className="mt-2 text-sm leading-7 text-stone-700">{guidance.evidenceSummary}</p> : null}
-    {guidance.tensions.length ? <section aria-label="Hal yang perlu kamu ketahui" className="mt-4">
-      <h3 className="flex items-center gap-2 text-base font-bold"><Lightbulb size={18} className="shrink-0 text-leaf" aria-hidden="true" />Hal yang perlu kamu ketahui</h3>
-      <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{guidance.tensions.map(line => <li key={line}>{line}</li>)}</ul>
-    </section> : null}
+    {showTensions && guidance.tensions.length ? <GuidanceTensions tensions={guidance.tensions} /> : null}
   </>;
 }
 
