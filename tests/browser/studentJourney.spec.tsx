@@ -90,7 +90,7 @@ for (const field of [
     await next(page);
     await next(page);
     await page
-      .getByRole("checkbox", { name: "Teknologi", exact: true })
+      .getByRole("checkbox", { name: "Industri, Inovasi, dan Infrastruktur", exact: true })
       .click();
     await next(page);
     await page.getByRole("checkbox", { name: "Lainnya", exact: true }).click();
@@ -178,7 +178,7 @@ test("review editing and retry keep answers, duplicate clicks send one request",
   await page.getByRole("checkbox", { name: "Logika", exact: true }).click();
   await next(page);
   await next(page);
-  await page.getByRole("checkbox", { name: "Teknologi", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Industri, Inovasi, dan Infrastruktur", exact: true }).click();
   await next(page);
   await page
     .getByRole("checkbox", { name: "PTN di Jawa", exact: true })
@@ -217,4 +217,62 @@ test("review editing and retry keep answers, duplicate clicks send one request",
   expect(posts).toBe(2);
   expect(payload.fullName).toBe("Nelly Baru");
   expect(payload.educationPathway).toBe("vocational");
+});
+test("problem areas allow max 3, can be reordered, and keep order in review and payload", async ({
+  mount,
+  page,
+}) => {
+  let payload: any;
+  await page.route("**/api/submissions", async (r) => {
+    payload = r.request().postDataJSON();
+    await r.fulfill({ json: { created: true } });
+  });
+  await mount(<AssessmentForm />);
+  await school(page);
+  await page.getByRole("radio", { name: /Universitas \/ Akademik/ }).click();
+  await next(page);
+  await page.getByRole("checkbox", { name: "Matematika", exact: true }).click();
+  await next(page);
+  await page.getByRole("checkbox", { name: "Coding/teknologi", exact: true }).click();
+  await next(page);
+  await page.getByRole("checkbox", { name: "Logika", exact: true }).click();
+  await next(page);
+  await next(page);
+  await expect(page.getByRole("heading", { name: /Masalah apa/ })).toBeVisible();
+  const a = "Pemerataan Pendidikan dan Literasi";
+  const b = "Kepemudaan dan Kebugaran Jasmani";
+  const c = "Manajemen dan Transparansi";
+  for (const name of [a, b, c]) await page.getByRole("checkbox", { name, exact: true }).click();
+  await page.getByRole("checkbox", { name: "Seni Berekspresi, Bahasa, dan Estetika", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("maksimal 3");
+  await next(page);
+  await expect(page.getByRole("heading", { name: /Urutkan sesuai prioritas/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Naikkan ${a}` })).toBeDisabled();
+  await page.getByRole("button", { name: `Naikkan ${c}` }).click();
+  await page.getByRole("button", { name: `Naikkan ${c}` }).click();
+  await expect(page.getByText(`${c} sekarang di urutan 1 dari 3.`)).toBeAttached();
+  const items = page.getByRole("list", { name: "Urutan prioritas" }).getByRole("listitem");
+  await expect(items.first()).toContainText(c);
+  const box = await page.getByRole("button", { name: `Turunkan ${c}` }).boundingBox();
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  await next(page);
+  await page.getByRole("checkbox", { name: "PTN di Jawa", exact: true }).click();
+  await next(page);
+  await page.getByRole("checkbox", { name: "Biaya", exact: true }).click();
+  await next(page);
+  await next(page);
+  await page.getByRole("textbox", { name: /Profesi impian/ }).fill("belum tahu");
+  await expect(page.getByTestId("aspiration-hint")).toBeVisible();
+  await next(page);
+  await next(page);
+  await expect(page.getByText(`1. ${c} 2. ${a} 3. ${b}`)).toBeVisible();
+  await page.getByRole("button", { name: "Ubah Masalah apa yang ingin kamu selesaikan?", exact: true }).click();
+  await next(page);
+  await expect(page.getByRole("heading", { name: /Urutkan sesuai prioritas/ })).toBeVisible();
+  await page.getByRole("button", { name: `Turunkan ${c}` }).click();
+  await next(page);
+  await expect(page.getByText(`1. ${a} 2. ${c} 3. ${b}`)).toBeVisible();
+  await page.getByRole("button", { name: "Kirim asesmen", exact: true }).click();
+  await page.getByRole("button", { name: "Ya, kirim jawaban" }).click();
+  await expect.poll(() => payload?.problemAreas).toEqual([a, c, b]);
 });

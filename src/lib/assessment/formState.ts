@@ -68,3 +68,23 @@ export function assessmentReviewWarnings(answer: StudentAnswer): string[] {
       ]
     : [];
 }
+
+const ASPIRATION_FILLER = new Set([
+  "aku", "saya", "ingin", "mau", "jadi", "menjadi", "yang", "dan", "atau",
+  "belum", "tahu", "tau", "apa", "aja", "saja", "masih", "bingung", "sukses",
+  "kaya", "bahagia", "orang", "bisa", "punya", "hidup",
+]);
+
+/** True when non-empty aspiration text has no meaningful word (only filler like "ingin sukses"). */
+export function isLowInformationAspiration(text: string): boolean {
+  const words = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return false;
+  const meaningful = words.filter(
+    (word) => word.length >= 3 && !ASPIRATION_FILLER.has(word),
+  );
+  return meaningful.length === 0;
+}

@@ -22,7 +22,7 @@ export type AssessmentStep = Base &
   (
     | {
         key: keyof StudentAnswer;
-        type: "text" | "email" | "single" | "multi" | "textarea" | "pathway";
+        type: "text" | "email" | "single" | "multi" | "textarea" | "pathway" | "rank";
       }
     | { key: "profileDetails"; type: "profile" }
     | { key: "review"; type: "review" }
@@ -36,7 +36,17 @@ export const assessmentSections: Record<AssessmentSection, string> = {
 };
 export function getAssessmentSteps(
   pathway?: EducationPathway,
+  options: { problemAreaCount?: number } = {},
 ): AssessmentStep[] {
+  const rankStep: AssessmentStep[] = (options.problemAreaCount ?? 0) >= 2
+    ? [{
+        key: "problemAreas",
+        title: "Urutkan sesuai prioritas dan kapasitasmu",
+        section: "interests",
+        type: "rank",
+        guidance: "Taruh yang paling penting dan paling sanggup kamu kerjakan di urutan 1.",
+      }]
+    : [];
   const activityHelp =
     pathway === "vocational"
       ? "Pilih maksimal 3 aktivitas yang kamu sukai, misalnya praktik alat, proyek, atau kegiatan usaha."
@@ -114,11 +124,13 @@ export function getAssessmentSteps(
     },
     {
       key: "problemAreas",
-      title: "Masalah apa yang ingin kamu bantu selesaikan?",
+      title: "Masalah apa yang ingin kamu selesaikan?",
       section: "interests",
       type: "multi",
       options: problemAreaOptions,
+      guidance: "Pilih maksimal 3 yang paling sesuai.",
     },
+    ...rankStep,
     {
       key: "collegePathPreferences",
       title: "Preferensi kampus dan lokasi",

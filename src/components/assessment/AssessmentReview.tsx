@@ -2,6 +2,7 @@ import type { StudentAnswer } from "@/lib/types";
 import { getAssessmentSteps, assessmentSections } from "@/lib/assessment/steps";
 import { educationPathwayLabel } from "@/lib/assessment/pathways";
 import { assessmentReviewWarnings } from "@/lib/assessment/formState";
+import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import { Button } from "@/components/ui/Button";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 export function AssessmentReview({
@@ -23,7 +24,7 @@ export function AssessmentReview({
             <h2 className="eyebrow border-b border-stone-200 pb-3">{label}</h2>
             <dl>
               {getAssessmentSteps(answer.educationPathway)
-                .filter((s) => s.section === section)
+                .filter((s) => s.section === section && s.type !== "rank")
                 .map((s) => {
                   const key =
                     s.key === "profileDetails"
@@ -43,7 +44,9 @@ export function AssessmentReview({
                       <div className="min-w-0">
                         <dt className="text-xs text-stone-600">{s.title}</dt>
                         <dd className="mt-1 text-sm">
-                          {Array.isArray(value)
+                          {key === "problemAreas"
+                            ? formatProblemAreas(answer.problemAreas)
+                            : Array.isArray(value)
                             ? value.join(", ")
                             : value || "Belum diisi"}
                           {key === "favoriteSubjects" &&

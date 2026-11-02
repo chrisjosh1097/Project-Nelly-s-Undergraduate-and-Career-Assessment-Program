@@ -1,3 +1,4 @@
+import { usesRankedProblemAreas } from "@/lib/assessment/options";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { majorsById, type Major as KnowledgeMajor } from "../../../data";
 import { aspirationFlags } from "@/lib/recommendation/aspirationThemes";
@@ -303,6 +304,7 @@ function buildGeminiPrompt(
         skillStrengths: promptArray(answers.skillStrengths),
         workStyle: answers.workStyle,
         problemAreas: promptArray(answers.problemAreas),
+        problemAreasRankedByPriority: usesRankedProblemAreas(answers.problemAreas),
         collegePathPreferences: promptArray(answers.collegePathPreferences),
         collegePathPreferenceOther: promptText(
           answers.collegePathPreferenceOther,

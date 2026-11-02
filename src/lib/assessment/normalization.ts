@@ -1,5 +1,10 @@
 import type { NormalizedStudentAnswer, StudentAnswer } from "@/lib/types";
 import { unique } from "@/lib/utils";
+import {
+  PROBLEM_AREA_RANK_WEIGHTS,
+  problemAreaOptionTags,
+  usesRankedProblemAreas,
+} from "./options";
 
 const subjectMap: Record<string, string> = {
   Matematika: "mathematics",
@@ -122,6 +127,14 @@ const textSignalRules: Array<{
       /\bhukum\b/,
       /\bkebijakan\b/,
       /\bregulasi\b/,
+      /\bpemerintah/,
+      /\bstafsus\b/,
+      /staf khusus/,
+      /\bpns\b/,
+      /\basn\b/,
+      /\bkementerian\b/,
+      /\bgubernur\b/,
+      /\bdpr\b/,
     ],
     interestIds: ["law_debate", "speaking_writing"],
     skillIds: ["critical_thinking", "communication", "public_speaking"],
@@ -231,6 +244,20 @@ export function normalizeProblemAreaAnswer(value: string) {
   return problemAreaMap[value] ?? "other";
 }
 
+export function normalizeProblemAreaTags(value: string): string[] {
+  return problemAreaOptionTags[value] ?? [normalizeProblemAreaAnswer(value)];
+}
+
+// v3.2.0: answers using the new options are ranked by array order.
+export function rankedProblemAreas(answer: StudentAnswer) {
+  if (!usesRankedProblemAreas(answer.problemAreas)) return undefined;
+  return answer.problemAreas.slice(0, PROBLEM_AREA_RANK_WEIGHTS.length).map((label, index) => ({
+    label,
+    weight: PROBLEM_AREA_RANK_WEIGHTS[index],
+    tagIds: problemAreaOptionTags[label],
+  }));
+}
+
 export function normalizeConstraintAnswer(value: string) {
   return constraintMap[value] ?? "other";
 }
@@ -249,6 +276,7 @@ export function normalizeStudentAnswer(
     normalizeConstraintAnswer,
   );
   const textSignals = inferTextSignals(answer);
+  const ranked = rankedProblemAreas(answer);
 
   return {
     ...(answer.educationPathway
@@ -275,9 +303,10 @@ export function normalizeStudentAnswer(
     ]),
     workStyleId: normalizeWorkStyleAnswer(answer.workStyle),
     problemAreaIds: unique([
-      ...answer.problemAreas.map(normalizeProblemAreaAnswer),
+      ...answer.problemAreas.flatMap(normalizeProblemAreaTags),
       ...textSignals.problemAreaIds,
     ]),
+    ...(ranked ? { problemAreaRanked: ranked, textProblemAreaIds: textSignals.problemAreaIds } : {}),
     collegePreferenceIds,
     collegePathPreferenceOther: answer.collegePathPreferenceOther,
     constraintIds: unique([...explicitConstraintIds, ...collegePreferenceIds]),

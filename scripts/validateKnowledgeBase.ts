@@ -22,6 +22,23 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { campusMajorMap } from "../data/campusMajorMap";
 import { programsForRule } from "../src/lib/campus/catalog";
+import { problemAreaOptionTags } from "../src/lib/assessment/options";
+
+/** Every major must share a tag with at least one current problem-area option. */
+export function validateProblemAreaReachability(): ValidationIssue[] {
+  const known = new Set(problemAreas.map((area) => area.id));
+  const reachable = new Set(Object.values(problemAreaOptionTags).flat());
+  const issues: ValidationIssue[] = [];
+  for (const tag of reachable) {
+    if (!known.has(tag)) issues.push({ path: "problemAreaOptionTags", message: `unknown tag "${tag}"` });
+  }
+  for (const major of majors) {
+    if (!major.relatedProblemAreas.some((tag) => reachable.has(tag.id))) {
+      issues.push({ path: `majors.${major.id}.relatedProblemAreas`, message: "not reachable from any problem-area option" });
+    }
+  }
+  return issues;
+}
 
 export interface ValidationIssue {
   path: string;
@@ -570,7 +587,7 @@ if (
   process.argv[1] &&
   fileURLToPath(import.meta.url) === resolve(process.argv[1])
 ) {
-  const issues = [...validateKnowledgeBase(), ...validateCampusMap()];
+  const issues = [...validateKnowledgeBase(), ...validateCampusMap(), ...validateProblemAreaReachability()];
   if (issues.length > 0) {
     console.error(`Knowledge base invalid: ${issues.length} issue(s)`);
     for (const issue of issues) {

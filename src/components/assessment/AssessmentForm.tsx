@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
@@ -14,6 +14,7 @@ import {
   emptyAnswer,
   validateAssessmentStep,
   assessmentProgress,
+  isLowInformationAspiration,
 } from "@/lib/assessment/formState";
 import { educationPathwayOptions } from "@/lib/assessment/pathways";
 import { genderOptions } from "@/lib/assessment/options";
@@ -37,9 +38,13 @@ export function AssessmentForm() {
   const submitting = useRef(false),
     heading = useRef<HTMLHeadingElement>(null),
     errorRef = useRef<HTMLDivElement>(null);
+  const [rankAnnouncement, setRankAnnouncement] = useState("");
   const steps = useMemo(
-    () => getAssessmentSteps(answer.educationPathway),
-    [answer.educationPathway],
+    () =>
+      getAssessmentSteps(answer.educationPathway, {
+        problemAreaCount: answer.problemAreas.length,
+      }),
+    [answer.educationPathway, answer.problemAreas.length],
   );
   const step = steps[index];
   useEffect(() => {
@@ -104,10 +109,14 @@ export function AssessmentForm() {
         ? assessmentMultiSelectLimits.favoriteSubjects
         : key === "favoriteActivities"
           ? assessmentMultiSelectLimits.favoriteActivities
-          : undefined;
+          : key === "problemAreas"
+            ? assessmentMultiSelectLimits.problemAreas
+            : undefined;
     if (!current.includes(value) && limit && current.length >= limit) {
       setError(
-        `Pilih maksimal ${limit} jawaban yang paling menggambarkan kamu.`,
+        key === "problemAreas"
+          ? `Pilih maksimal ${limit} masalah. Hapus satu pilihan dulu untuk mengganti.`
+          : `Pilih maksimal ${limit} jawaban yang paling menggambarkan kamu.`,
       );
       return;
     }
@@ -126,6 +135,14 @@ export function AssessmentForm() {
     }));
     setError("");
   }
+  function moveProblemArea(from: number, to: number) {
+    const list = [...answer.problemAreas];
+    if (to < 0 || to >= list.length) return;
+    const [item] = list.splice(from, 1);
+    list.splice(to, 0, item);
+    update("problemAreas", list);
+    setRankAnnouncement(`${item} sekarang di urutan ${to + 1} dari ${list.length}.`);
+  }
   function next() {
     const invalid = validateAssessmentStep(step, answer);
     if (invalid) {
@@ -135,6 +152,10 @@ export function AssessmentForm() {
     setError("");
     if (step.type === "review") {
       setConfirm(true);
+      return;
+    }
+    if (editing && step.type === "multi" && steps[index + 1]?.type === "rank") {
+      setIndex((i) => i + 1);
       return;
     }
     if (editing) {
@@ -345,6 +366,62 @@ export function AssessmentForm() {
                 maxLength={step.key === "futureVision" ? 480 : 240}
                 onChange={(e) => update(step.key, e.target.value)}
               />
+            ) : null}
+            {step.type === "textarea" &&
+            isLowInformationAspiration(String(value ?? "")) ? (
+              <p
+                className="mt-3 text-sm leading-6 text-stone-600"
+                data-testid="aspiration-hint"
+              >
+                Tulis cita-cita yang lebih spesifik, misalnya profesi atau
+                masalah yang ingin kamu bantu.
+              </p>
+            ) : null}
+            {step.type === "rank" ? (
+              <div>
+                <ol className="space-y-3" aria-label="Urutan prioritas">
+                  {answer.problemAreas.map((item, i) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3"
+                    >
+                      <span
+                        className="grid size-9 shrink-0 place-items-center rounded-full bg-orange-100 font-semibold text-orange-800"
+                        aria-hidden="true"
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 text-sm font-semibold">
+                        <span className="sr-only">Urutan {i + 1}: </span>
+                        {item}
+                      </span>
+                      <span className="flex shrink-0 gap-1">
+                        <Button
+                          variant="ghost"
+                          className="min-h-11 min-w-11 px-2"
+                          aria-label={`Naikkan ${item}`}
+                          disabled={i === 0}
+                          onClick={() => moveProblemArea(i, i - 1)}
+                        >
+                          <ArrowUp size={18} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="min-h-11 min-w-11 px-2"
+                          aria-label={`Turunkan ${item}`}
+                          disabled={i === answer.problemAreas.length - 1}
+                          onClick={() => moveProblemArea(i, i + 1)}
+                        >
+                          <ArrowDown size={18} />
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                <p className="sr-only" aria-live="polite">
+                  {rankAnnouncement}
+                </p>
+              </div>
             ) : null}
             {step.type === "profile" ? (
               <div className="space-y-6">

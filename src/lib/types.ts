@@ -76,6 +76,9 @@ export interface NormalizedStudentAnswer {
   skillIds: string[];
   workStyleId: string;
   problemAreaIds: string[];
+  /** v3.2.0+: ranked new-option answers (weight 1.0 / 0.8 / 0.6). */
+  problemAreaRanked?: { label: string; weight: number; tagIds: string[] }[];
+  textProblemAreaIds?: string[];
   collegePreferenceIds: string[];
   collegePathPreferenceOther: string;
   constraintIds: string[];

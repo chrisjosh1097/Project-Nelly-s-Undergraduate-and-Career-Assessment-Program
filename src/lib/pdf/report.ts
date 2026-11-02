@@ -1,3 +1,4 @@
+import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
@@ -133,7 +134,7 @@ function reportBlocks(submission: Submission): Block[] {
     ["Mata pelajaran lainnya", answers.favoriteSubjectsOther],
     ["Aktivitas disukai", answers.favoriteActivities.join(", ")],
     ["Kekuatan utama", answers.skillStrengths.join(", ")], ["Gaya kerja", answers.workStyle],
-    ["Bidang masalah", answers.problemAreas.join(", ")],
+    ["Bidang masalah (urutan prioritas)", formatProblemAreas(answers.problemAreas)],
     ["Preferensi kuliah", answers.collegePathPreferences.join(", ")],
     ["Preferensi kuliah lainnya", answers.collegePathPreferenceOther],
     ["Pertimbangan pribadi", answers.personalConstraints.join(", ")],

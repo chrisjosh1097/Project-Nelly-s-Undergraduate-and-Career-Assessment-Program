@@ -134,3 +134,11 @@ Each step runs `npm test`, typecheck, lint, `validate:kb`, build, and the browse
 3. Rank weights 1.0 / 0.8 / 0.6 and `SCORING_VERSION` v3.2.0 approved.
 4. Government-aspiration keywords approved.
 5. S3 ratio wording approved.
+
+## Progress — Step 2 (v3.2.0)
+- [x] U1: 8 new problem-area options, max 3, legacy labels still validate; `problemAreaOptionTags` multi-tag map; new `youth_sport` tag on 3 sport majors; `validate:kb` reachability check.
+- [x] U2: ranking step (shown only for 2–3 choices); order = array order of `problemAreas` (no new field); weights 1.0/0.8/0.6 in `scoreRankedProblemAreas`, total weight still 10%; legacy answers use the old scorer.
+- [x] Review/CSV/PDF show "1. … 2. … 3. …" for ranked answers; Gemini prompt gets `problemAreasRankedByPriority`.
+- [x] U3.4: government keywords → public_service text signal + strong keyword boost for administrasi_publik / ilmu_politik.
+- [x] U3.5: non-blocking hint when aspiration text has no meaningful word.
+- [x] `SCORING_VERSION` → knowledge-base-heuristic-v3.2.0. Saved reports are not rescored.

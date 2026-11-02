@@ -8,7 +8,11 @@ const MIN_KEYWORD_PAIR_MATCHES = 2;
 
 type AspirationRule = {
   keywords: string[];
+  /** v3.2.0: one strong role keyword is enough for the keyword boost. */
+  strongKeywords?: string[];
 };
+
+const GOVERNMENT_ROLE_KEYWORDS = ["staf khusus", "stafsus", "pns", "asn", "kementerian", "kebijakan publik", "gubernur", "dpr", "birokrat", "pemerintahan"];
 
 const aspirationRulesByMajorId: Record<string, AspirationRule> = {
   informatika: {
@@ -84,7 +88,12 @@ const aspirationRulesByMajorId: Record<string, AspirationRule> = {
     keywords: ["hubungan internasional", "diplomasi", "diplomat", "global", "internasional", "politik luar negeri"]
   },
   administrasi_publik: {
-    keywords: ["administrasi publik", "kebijakan", "pemerintah", "layanan publik", "birokrasi", "governance"]
+    keywords: ["administrasi publik", "kebijakan", "pemerintah", "layanan publik", "birokrasi", "governance"],
+    strongKeywords: GOVERNMENT_ROLE_KEYWORDS
+  },
+  ilmu_politik: {
+    keywords: ["politik", "politisi", "partai", "demokrasi", "kebijakan", "pemilu", "parlemen", "pemerintah"],
+    strongKeywords: GOVERNMENT_ROLE_KEYWORDS
   },
   komunikasi: {
     keywords: ["komunikasi", "media", "public speaking", "campaign", "brand", "konten", "publik"]
@@ -268,10 +277,11 @@ export function scoreAspirationMajorIntent(answer: StudentAnswer, major: Knowled
   }
 
   const matchedKeywords = keywordPairMatches(text, major);
-  if (matchedKeywords.length >= MIN_KEYWORD_PAIR_MATCHES) {
+  const strongMatches = unique((aspirationRulesByMajorId[major.id]?.strongKeywords ?? []).filter((keyword) => hasPhrase(text, keyword)));
+  if (matchedKeywords.length >= MIN_KEYWORD_PAIR_MATCHES || strongMatches.length > 0) {
     return {
       boost: KEYWORD_PAIR_BOOST,
-      matchedSignals: matchedKeywords
+      matchedSignals: unique([...strongMatches, ...matchedKeywords]).slice(0, 5)
     };
   }
 

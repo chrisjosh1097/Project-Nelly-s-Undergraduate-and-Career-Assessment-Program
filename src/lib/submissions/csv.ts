@@ -1,3 +1,4 @@
+import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import type { Submission } from "@/lib/types";
 import { csvEscape } from "@/lib/api";
 export function serializeSubmissionsCsv(
@@ -60,7 +61,7 @@ export function serializeSubmissionsCsv(
       submission.answers.favoriteActivities.join("; "),
       submission.answers.skillStrengths.join("; "),
       submission.answers.workStyle,
-      submission.answers.problemAreas.join("; "),
+      formatProblemAreas(submission.answers.problemAreas, "; "),
       submission.answers.collegePathPreferences.join("; "),
       submission.answers.collegePathPreferenceOther ?? "",
       submission.answers.personalConstraints.join("; "),

@@ -28,7 +28,7 @@ import { aspirationFlags } from "@/lib/recommendation/aspirationThemes";
 import { eligibleMajors } from "@/lib/recommendation/eligibility";
 import { eligibleDegreeTypes } from "@/lib/assessment/pathways";
 
-export const SCORING_VERSION = "knowledge-base-heuristic-v3.1.0";
+export const SCORING_VERSION = "knowledge-base-heuristic-v3.2.0";
 
 const FLEXIBLE_FALLBACK_MAJOR_IDS = [
   "sistem_informasi",
@@ -100,6 +100,27 @@ function scoreWeightedTags(
     (matchedWeights.reduce((sum, weight) => sum + weight, 0) / denominator) *
     100;
   const breadthBonus = Math.min(matchedWeights.length * 5, 15);
+  return clamp(coverage + breadthBonus);
+}
+
+// v3.2.0: each ranked choice contributes its best matching tag weight,
+// weighted by priority (1.0 / 0.8 / 0.6). Free-text signals only add, never dilute.
+function scoreRankedProblemAreas(
+  ranked: NonNullable<NormalizedStudentAnswer["problemAreaRanked"]>,
+  textIds: string[],
+  tags: WeightedTag[],
+) {
+  if (ranked.length === 0 || tags.length === 0) return 35;
+  const weightById = new Map(tags.map((tag) => [tag.id, tag.weight]));
+  const best = (ids: string[]) => Math.max(0, ...ids.map((id) => weightById.get(id) ?? 0));
+  const items = ranked.map((item) => ({ weight: item.weight, match: best(item.tagIds) }));
+  const textMatch = best(textIds.filter((id) => id !== "other"));
+  if (textMatch > 0) items.push({ weight: 0.6, match: textMatch });
+  const matched = items.filter((item) => item.match > 0);
+  if (matched.length === 0) return 18;
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  const coverage = items.reduce((sum, item) => sum + item.weight * item.match, 0) / totalWeight;
+  const breadthBonus = Math.min(matched.length * 5, 15);
   return clamp(coverage + breadthBonus);
 }
 
@@ -355,10 +376,13 @@ export function calculateScoringBreakdown(
     normalized.workStyleId,
     major.relatedWorkStyles,
   );
-  const problemAreaScore = scoreWeightedTags(
-    normalized.problemAreaIds,
-    major.relatedProblemAreas,
-  );
+  const problemAreaScore = normalized.problemAreaRanked
+    ? scoreRankedProblemAreas(
+        normalized.problemAreaRanked,
+        normalized.textProblemAreaIds ?? [],
+        major.relatedProblemAreas,
+      )
+    : scoreWeightedTags(normalized.problemAreaIds, major.relatedProblemAreas);
   const constraint = scoreConstraints(answer, normalized, major);
   const aspirationMajorIntent = scoreAspirationMajorIntent(answer, major);
 

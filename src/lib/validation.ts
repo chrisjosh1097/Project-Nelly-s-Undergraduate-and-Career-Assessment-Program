@@ -6,6 +6,8 @@ import {
   genderOptions,
   personalConstraintOptions,
   problemAreaOptions,
+  legacyProblemAreaOptions,
+  PROBLEM_AREA_MAX,
   schoolMajorOptions,
   skillStrengthOptions,
   techComfortOptions,
@@ -23,6 +25,7 @@ const boundedText = (label: string, max = 120) =>
 export const assessmentMultiSelectLimits = {
   favoriteSubjects: 3,
   favoriteActivities: 3,
+  problemAreas: 3,
 } as const;
 
 const optionArray = (
@@ -83,7 +86,15 @@ export const studentAnswerSchema = z
     ),
     skillStrengths: optionArray(skillStrengthOptions, "skill"),
     workStyle: z.enum(workStyleOptions as [WorkStyle, ...WorkStyle[]]),
-    problemAreas: optionArray(problemAreaOptions, "tipe masalah"),
+    problemAreas: z
+      .array(z.enum([...problemAreaOptions, ...legacyProblemAreaOptions] as [string, ...string[]]))
+      .min(1, "Pilih minimal 1 masalah.")
+      .refine((values) => new Set(values).size === values.length, "Setiap masalah hanya boleh dipilih sekali.")
+      .refine(
+        (values) => !values.some((value) => problemAreaOptions.includes(value)) ||
+          (values.length <= PROBLEM_AREA_MAX && values.every((value) => problemAreaOptions.includes(value))),
+        `Pilih maksimal ${PROBLEM_AREA_MAX} masalah.`,
+      ),
     collegePathPreferences: optionArray(
       collegePathPreferenceOptions,
       "preferensi jalur kuliah",
