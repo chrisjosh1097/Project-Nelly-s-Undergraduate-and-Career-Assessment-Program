@@ -40,7 +40,7 @@ test("searches with debounce, shows results and source", async ({ mount, page })
   await expect(component.getByText("Menampilkan 1–20 dari 45")).toBeVisible();
   await expect(component.getByText("Kampus Contoh 1", { exact: true })).toBeVisible();
   await expect(component.getByText("Daya tampung 50 · peminat 1.200 (SNPMB 2024)").first()).toBeVisible();
-  await expect(component.getByText("· Wilayah LLDikti 4").first()).toBeVisible();
+  await expect(component.getByText("Swasta/Lainnya · Wilayah LLDikti 4").first()).toBeVisible();
   await expect(component.getByText(SOURCE, { exact: true })).toBeVisible();
   const before = calls.length;
   await component.getByRole("searchbox").fill("teknik mesin");

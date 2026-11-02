@@ -158,8 +158,7 @@ export function CampusSearch({ initial }: { initial?: Partial<CampusFilters> }) 
             <span className="block text-sm leading-6 text-stone-700">{item.campus}</span>
             <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-600">
               <Badge>{item.degree}</Badge>
-              <span>{item.type}</span>
-              <span>· {item.province ?? (item.lldikti ? `Wilayah LLDikti ${item.lldikti}` : "Lokasi belum tercatat")}</span>
+              <span>{item.type} · {item.province ?? (item.lldikti ? `Wilayah LLDikti ${item.lldikti}` : "Lokasi belum tercatat")}</span>
             </span>
             {typeof item.quota2024 === "number" || typeof item.applicants2024 === "number" ? <span className="mt-1 block text-xs leading-5 text-stone-600">
               {[typeof item.quota2024 === "number" ? `Daya tampung ${number(item.quota2024)}` : "",
