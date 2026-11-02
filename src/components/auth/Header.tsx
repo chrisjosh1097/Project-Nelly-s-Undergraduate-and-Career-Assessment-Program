@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Compass, LogOut, ArrowLeft } from "lucide-react";
+import { Home, ClipboardList, Compass, School, LogOut, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 
@@ -22,6 +22,7 @@ export function Header() {
       label: "Hasilmu",
       icon: Compass,
     },
+    { href: "/kampus", label: "Kampus", icon: School },
   ];
   return (
     <header className="site-header">
