@@ -127,3 +127,10 @@ Each step runs `npm test`, typecheck, lint, `validate:kb`, build, and the browse
 3. Approve the U3.4 government-aspiration keywords.
 4. Must it be exactly 3, or "maksimal 3"?
 5. Approve S3 ratio wording.
+
+## Decisions (user, 2026-11-03)
+1. U1 coverage gap: **(b)**, so "Lingkungan, Iklim, dan Kehidupan Laut" also maps to `food`.
+2. **Maksimal 3** (1–3 items), not exactly 3. The order step is skipped when only 1 item is chosen.
+3. Rank weights 1.0 / 0.8 / 0.6 and `SCORING_VERSION` v3.2.0 approved.
+4. Government-aspiration keywords approved.
+5. S3 ratio wording approved.
