@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/Badge";
 import { ChevronDown, ListChecks, Footprints } from "lucide-react";
 import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "./resultPresentation";
 import { CampusExamples } from "./CampusExamples";
+import { CompareToggle } from "./CompareMajors";
+
+export type CompareControl = { selected: boolean; disabled: boolean; onToggle: () => void };
 
 function Lines({ title, items }: { title: string; items?: string[] }) {
   const lines = cleanLines(items);
@@ -88,10 +91,12 @@ function WeekPlan({ guidance, planKey, majorId }: { guidance: ActionGuidance; pl
     </section>;
 }
 
-export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, planKey }: {
-  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; planKey?: string;
+export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, planKey, compare }: {
+  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; planKey?: string; compare?: CompareControl;
 }) {
   const [opened, setOpened] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const compareButton = compare ? <CompareToggle recommendation={r} {...compare} /> : null;
   const fit = fitContextFor(r);
   const rows = componentEvidenceFor(r, workStyle);
   const bonus = r.scoringBreakdown?.aspirationMajorBoost;
@@ -169,8 +174,11 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
     </div>
   );
   return expanded ? <article className="panel min-w-0">
-    <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{body}
-  </article> : <details className="recommendation-details panel min-w-0 open:lg:col-span-2" onToggle={(event) => { if (event.currentTarget.open) setOpened(true); }}>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{compareButton}
+    </div>{body}
+  </article> : <div className={`panel min-w-0 ${isOpen ? "lg:col-span-2" : ""}`}>
+  <details className="recommendation-details min-w-0" onToggle={(event) => { const open = event.currentTarget.open; setIsOpen(open); if (open) setOpened(true); }}>
     <summary className="flex min-h-14 items-start gap-3 rounded-lg [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf">
       <span className="pt-1 text-xs font-bold tabular-nums text-leaf">{String(r.rank).padStart(2, "0")}</span>
       <span className="min-w-0 flex-1">
@@ -188,5 +196,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
       <ChevronDown size={20} className="mt-1 shrink-0 text-leaf" aria-hidden="true" />
     </summary>
     {body}
-  </details>;
+  </details>
+  {compareButton ? <div className="mt-3 flex justify-end border-t border-stone-100 pt-3">{compareButton}</div> : null}
+  </div>;
 }

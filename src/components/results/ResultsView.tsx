@@ -12,6 +12,7 @@ import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
+import { COMPARE_MAX, CompareBar, CompareTable } from "./CompareMajors";
 import { CampusDegree } from "@/components/campus/CampusRowMeta";
 import { campusMajorMap } from "../../../data/campusMajorMap";
 import Link from "next/link";
@@ -29,6 +30,20 @@ export function ResultsView({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState("");
   const top = submission.report.topRecommendation;
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const allRecommendations = submission.report.recommendations.some(r => r.majorId === top.majorId)
+    ? submission.report.recommendations
+    : [top, ...submission.report.recommendations];
+  const compared = compareIds
+    .map(id => allRecommendations.find(r => r.majorId === id))
+    .filter((r): r is NonNullable<typeof r> => !!r);
+  const toggleCompare = (id: string) => setCompareIds(ids =>
+    ids.includes(id) ? ids.filter(x => x !== id) : ids.length >= COMPARE_MAX ? ids : [...ids, id]);
+  const compareFor = (id: string) => compact ? undefined : ({
+    selected: compareIds.includes(id),
+    disabled: compareIds.length >= COMPARE_MAX,
+    onToggle: () => toggleCompare(id),
+  });
   const advice =
     submission.report.ptnPtsVokasiAdvice ??
     generatePtnPtsVokasiAdvice(submission.answers);
@@ -165,16 +180,17 @@ export function ResultsView({
           </section> : null}
         </div>
       </section>
-      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} /></div>
+      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} compare={compareFor(top.majorId)} /></div>
       {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
       <section id="alternatif" className="scroll-mt-16">
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
         <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
           {submission.report.recommendations.slice(1).map((r) => (
-            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} />
+            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} compare={compareFor(r.majorId)} />
           ))}
         </div>
       </section>
+      {!compact ? <CompareTable selected={compared} /> : null}
       <div className="result-grid">
         <Panel id="kampus" className="scroll-mt-16">
           <h2 className="text-xl font-bold">Kampus dan jalur belajarmu</h2>
@@ -220,6 +236,8 @@ export function ResultsView({
         </strong>{" "}
         Gunakan untuk diskusi dengan orang tua, guru BK, atau mentor.
       </p>
+      {!compact ? <CompareBar selected={compared} onRemove={id => toggleCompare(id)} onClear={() => setCompareIds([])} /> : null}
+      {!compact && compared.length ? <div aria-hidden="true" className="h-32 sm:h-20" /> : null}
     </div>
   );
 }

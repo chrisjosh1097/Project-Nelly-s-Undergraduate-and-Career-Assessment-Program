@@ -142,3 +142,8 @@ Each step runs `npm test`, typecheck, lint, `validate:kb`, build, and the browse
 - [x] U3.4: government keywords → public_service text signal + strong keyword boost for administrasi_publik / ilmu_politik.
 - [x] U3.5: non-blocking hint when aspiration text has no meaningful word.
 - [x] `SCORING_VERSION` → knowledge-base-heuristic-v3.2.0. Saved reports are not rescored.
+
+## Progress — S4 (compare majors)
+- [x] "Bandingkan" toggle on the main card and every alternative (outside `<summary>`), max 3, `aria-pressed`.
+- [x] Sticky bottom bar: count, removable chips, "Lihat perbandingan" (≥2), "Hapus semua"; all controls ≥44px.
+- [x] Table `#bandingkan`: fit, AI resilience, degrees, 2 subjects, 2 skill gaps, 2 careers, catalog program count (`/api/campus/major` `total`); sticky first column, horizontal scroll on phone. Hidden in compact admin mode.
