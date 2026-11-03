@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CampusSearch } from "@/components/campus/CampusSearch";
 
 export const metadata: Metadata = { title: "Cari kampus & jurusan" };
@@ -16,6 +17,9 @@ export default async function CampusPage({ searchParams }: { searchParams: Searc
       <p className="max-w-2xl text-sm leading-6 text-stone-700">
         Cari prodi D3, D4 dan S1 di kampus Indonesia. Cek detail resmi di PDDikti sebelum mendaftar.
       </p>
+      <Link href="/jurusan" className="touch-link -ml-3 rounded-lg font-semibold text-leaf underline-offset-4 hover:underline">
+        Belum yakin jurusannya? Kenali semua jurusan
+      </Link>
     </header>
     <CampusSearch initial={{
       q: one(params.q).slice(0, 60),

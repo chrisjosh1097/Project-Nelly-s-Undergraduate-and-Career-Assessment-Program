@@ -147,3 +147,8 @@ Each step runs `npm test`, typecheck, lint, `validate:kb`, build, and the browse
 - [x] "Bandingkan" toggle on the main card and every alternative (outside `<summary>`), max 3, `aria-pressed`.
 - [x] Sticky bottom bar: count, removable chips, "Lihat perbandingan" (≥2), "Hapus semua"; all controls ≥44px.
 - [x] Table `#bandingkan`: fit, AI resilience, degrees, 2 subjects, 2 skill gaps, 2 careers, catalog program count (`/api/campus/major` `total`); sticky first column, horizontal scroll on phone. Hidden in compact admin mode.
+
+## Progress — admin labels + S5
+- [x] Admin labels (display only): "Versi skor: v3.2.0 (aturan tetap)", "Narasi: Gemini · selesai"; status badges in Indonesian (`src/lib/admin/labels.ts`).
+- [x] S5: `/jurusan` index (grouped by cluster) and 115 static `/jurusan/[id]` pages (`dynamicParams = false`, unknown id → 404) from KB only (`src/lib/majors/publicProfile.ts`): description, degrees (D3/D4/S1), subjects, skills, careers, AI resilience, study-load estimate, first steps, campus examples, CTA to the assessment.
+- [x] Links: "Kenali jurusan …" on each result card; "Kenali semua jurusan" on `/kampus`.

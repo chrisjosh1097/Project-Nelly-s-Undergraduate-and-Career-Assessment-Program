@@ -72,7 +72,7 @@ const CLUSTER_LABELS: Record<string, string> = {
   "Vocational & Applied Skills": "Vokasi & Skill Terapan",
 };
 
-function displayCluster(cluster: string) {
+export function displayCluster(cluster: string) {
   return CLUSTER_LABELS[cluster] ?? cluster;
 }
 

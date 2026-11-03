@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import type { ActionGuidance, RecommendationResult } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
-import { ChevronDown, ListChecks, Footprints } from "lucide-react";
+import { BookOpen, ChevronDown, ListChecks, Footprints } from "lucide-react";
+import { campusMajorMap } from "../../../data/campusMajorMap";
 import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "./resultPresentation";
 import { CampusExamples } from "./CampusExamples";
 import { CompareToggle } from "./CompareMajors";
@@ -155,6 +156,9 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
           </section> : null}
           {r.actionGuidance ? <WeekPlan guidance={r.actionGuidance} planKey={planKey} majorId={r.majorId} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
           {expanded || opened ? <CampusExamples majorId={r.majorId} majorName={r.majorName} degreeTypes={r.degreeTypes} preferences={preferences} /> : null}
+          {r.majorId in campusMajorMap ? <a href={`/jurusan/${r.majorId}`} className="touch-link -ml-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
+            <BookOpen size={16} aria-hidden="true" />Kenali jurusan {r.majorName}
+          </a> : null}
           <Lines title="Arah menuju kariermu" items={r.careerPathwayAdvice} />
           <Lines title="Hal yang perlu dicek" items={cautions} />
         </div>
