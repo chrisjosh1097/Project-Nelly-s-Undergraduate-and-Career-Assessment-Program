@@ -1,4 +1,5 @@
 "use client";
+import { narrativeLabel, scoringVersionLabel } from "@/lib/admin/labels";
 import { useEffect, useRef, useState } from "react";
 import { Download, Filter, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -378,9 +379,9 @@ export function AdminDashboard() {
               ["Status", selected.status],
               [
                 "Narasi",
-                `${selected.narrativeStatus ?? "skipped"} · ${selected.report?.narrativeVersion ?? "—"}`,
+                narrativeLabel(selected.narrativeStatus, selected.report?.narrativeVersion),
               ],
-              ["Versi penilaian", selected.report?.scoringVersion ?? "—"],
+              ["Versi skor", scoringVersionLabel(selected.report?.scoringVersion)],
             ].map(([k, v]) => (
               <div key={k}>
                 <dt className="text-xs text-stone-600">{k}</dt>

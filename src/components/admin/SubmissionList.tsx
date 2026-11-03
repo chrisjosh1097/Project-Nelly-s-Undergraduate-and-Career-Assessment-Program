@@ -1,4 +1,5 @@
 ﻿import type { AdminSubmissionSummary } from "@/lib/admin/submissions";
+import { narrativeStatusLabel } from "@/lib/admin/labels";
 import { educationPathwayLabel } from "@/lib/assessment/pathways";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -67,7 +68,7 @@ export function SubmissionList({
               <td className="max-w-44 align-top">
                 <div className="flex flex-wrap gap-2">
                   <Badge>{s.status}</Badge>
-                  <Badge>Narasi: {s.narrativeStatus ?? "skipped"}</Badge>
+                  <Badge>Narasi: {narrativeStatusLabel(s.narrativeStatus)}</Badge>
                 </div>
               </td>
               <td className="align-top">
