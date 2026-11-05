@@ -12,6 +12,7 @@ import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { downloadBlob, formatDateTime } from "@/lib/utils";
 import type { Submission } from "@/lib/types";
 import { RecommendationCard } from "./RecommendationCard";
+import { promptValuesFor } from "@/lib/prompts/fill";
 import { COMPARE_MAX, CompareBar, CompareTable } from "./CompareMajors";
 import { CampusDegree } from "@/components/campus/CampusRowMeta";
 import { campusMajorMap } from "../../../data/campusMajorMap";
@@ -180,13 +181,13 @@ export function ResultsView({
           </section> : null}
         </div>
       </section>
-      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} compare={compareFor(top.majorId)} /></div>
+      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} promptValues={compact ? undefined : promptValuesFor(submission.answers, top)} compare={compareFor(top.majorId)} /></div>
       {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
       <section id="alternatif" className="scroll-mt-16">
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
         <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
           {submission.report.recommendations.slice(1).map((r) => (
-            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} planKey={submission.id} compare={compareFor(r.majorId)} />
+            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} compare={compareFor(r.majorId)} />
           ))}
         </div>
       </section>

@@ -1,4 +1,5 @@
 import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
+import { fillPrompt, promptValuesFor, resultPrompts } from "@/lib/prompts/fill";
 import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -91,10 +92,11 @@ function reportBlocks(submission: Submission): Block[] {
   const action = top.actionGuidance;
   if (action) {
     list("Target skill yang bisa kamu tunjukkan", action.skillTargets.map(t => `${t.gap}: ${t.target} Bukti: ${t.proof}`), topSeen);
-    list("Rencana 4 minggu", action.weekPlan.map(w => `Minggu ${w.week} (${w.durationLabel}): ${w.action} Bukti: ${w.proof}`), topSeen);
+    const first = action.weekPlan[0];
+    if (first?.action?.trim()) list("Langkah pertama minggu ini", [`${first.action} (${first.durationLabel}) Bukti: ${first.proof}`], topSeen);
   } else list("Keterampilan yang perlu dikembangkan", top.skillGaps, topSeen);
   const nextSteps = [...top.recommendedNextSteps, ...(top.careerPathwayAdvice ?? [])];
-  if (action) list("Langkah lanjutan setelah 4 minggu", [...(top.careerPathwayAdvice ?? []), ...top.recommendedNextSteps.slice(0, 3)].slice(0, 5), topSeen);
+  if (action) list("Langkah lanjutan", [...(top.careerPathwayAdvice ?? []), ...top.recommendedNextSteps.slice(0, 3)].slice(0, 5), topSeen);
   else list("Langkah berikutnya", nextSteps, topSeen);
   list("Hal yang perlu dicek", [...top.cautionNotes, ...visibleCareerCautions(top)], topSeen);
 
@@ -155,6 +157,14 @@ function reportBlocks(submission: Submission): Block[] {
   add("heading", "Disclaimer");
   add("text", "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.");
   add("text", "Gunakan laporan ini sebagai bahan diskusi dengan orang tua, guru BK, mentor, atau pihak sekolah.");
+
+  add("section", "06 / Tanya AI tentang jurusan ini");
+  add("text", "Salin prompt ke ChatGPT, Gemini, atau AI lain. Jawaban AI bisa salah; cek ulang ke sumber resmi atau guru BK. Prompt lain: halaman /prompt.");
+  const values = promptValuesFor(answers, top);
+  for (const prompt of resultPrompts()) {
+    add("heading", prompt.title, true);
+    add("text", fillPrompt(prompt, values));
+  }
   return blocks;
 }
 

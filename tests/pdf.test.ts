@@ -187,18 +187,20 @@ describe("PDF report generation", () => {
     const guidance = value.report.studentGuidance!;
     const action = value.report.topRecommendation.actionGuidance!;
     const text = buildSubmissionPdfTextSnapshot(value);
-    expect(text).toContain("Rencana 4 minggu");
+    expect(text).toContain("Langkah pertama minggu ini");
+    expect(text).not.toContain("Rencana 4 minggu");
+    expect(text).not.toContain(action.weekPlan[1].action);
     expect(text).toContain("Target skill yang bisa kamu tunjukkan");
     expect(text.split(action.weekPlan[0].action)).toHaveLength(2);
     for (const route of guidance.aspirationRoutes) expect(text).toContain(route.verify);
     expect(text).not.toContain("Keterampilan yang perlu dikembangkan");
     expect((await PDFDocument.load(await generateSubmissionPdf(value))).getPageCount()).toBeLessThanOrEqual(7);
   });
-  it("packs an ordinary ten-result report within six pages without a sparse ending or shrinking body type", async () => {
+  it("packs an ordinary ten-result report within seven pages (incl. AI prompt page) without a sparse ending or shrinking body type", async () => {
     const draw = vi.spyOn(PDFPage.prototype, "drawText");
     const value = realisticPdfSubmission(1);
     const bytes = await generateSubmissionPdf(value);
-    expect((await PDFDocument.load(bytes)).getPageCount()).toBeLessThanOrEqual(6);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeLessThanOrEqual(7);
     const rows = draw.mock.calls.map(([text, options], index) => ({ text, options, page: draw.mock.contexts[index] }));
     const finalPage = rows.at(-1)!.page;
     const finalText = rows.filter(row => row.page === finalPage && row.options?.y !== 24).map(row => row.text).join(" ");

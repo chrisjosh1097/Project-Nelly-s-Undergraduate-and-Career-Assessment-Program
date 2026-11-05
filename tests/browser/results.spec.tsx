@@ -371,14 +371,10 @@ test("curated guidance renders on a phone and legacy reports keep old skill word
   } as Submission;
   const component = await mount(<ResultsView submission={guided} />);
   await expect(page.getByText("Ketegangan sintetis.")).toBeVisible();
-  const plan = page.getByRole("region", { name: "Rencana 4 minggu" });
-  await expect(plan.getByText("Rencana 4 minggu (4 langkah)")).toBeVisible();
-  await expect(page.getByText("Langkah minggu 4 sintetis.")).toBeHidden();
-  await plan.getByText("Rencana 4 minggu (4 langkah)").click();
-  await expect(page.getByText("Langkah minggu 4 sintetis.")).toBeVisible();
-  await plan.getByRole("checkbox").nth(1).check();
-  await expect(plan.getByTestId("plan-progress")).toHaveText("1 dari 4 selesai");
-  expect(await page.evaluate(([id, major]) => localStorage.getItem(`nelly-plan:${id}:${major}`), [guided.id, top.majorId])).toBe("[2]");
+  const first = page.getByRole("region", { name: "Langkah pertama minggu ini" }).first();
+  await expect(first.getByText("Langkah minggu 1 sintetis.")).toBeVisible();
+  await expect(page.getByText("Langkah minggu 2 sintetis.")).toHaveCount(0);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await expect(page.getByText("Cek sumber resmi sintetis.")).toBeVisible();
   const main = page.locator("article.panel").first();
   await expect(main.getByText("Target skill yang bisa kamu tunjukkan")).toBeVisible();
@@ -386,7 +382,7 @@ test("curated guidance renders on a phone and legacy reports keep old skill word
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   await component.unmount();
   await mount(<ResultsView submission={submission} />);
-  await expect(page.getByRole("region", { name: "Rencana 4 minggu" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Langkah pertama minggu ini" })).toHaveCount(0);
   await expect(page.getByText("Skill yang perlu ditingkatkan").first()).toBeVisible();
 });
 

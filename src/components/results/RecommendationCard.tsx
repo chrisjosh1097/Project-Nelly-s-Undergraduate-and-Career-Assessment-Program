@@ -1,8 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ActionGuidance, RecommendationResult } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
-import { BookOpen, ChevronDown, ListChecks, Footprints } from "lucide-react";
+import { BookOpen, ChevronDown, ListChecks, Footprints, MessageSquareText } from "lucide-react";
+import { fillPrompt, promptBankHref, resultPrompts, type PromptValues } from "@/lib/prompts/fill";
+import { PromptItem } from "@/components/prompts/PromptItem";
+import { PROMPT_CAUTION } from "@/components/prompts/CopyPrompt";
 import { campusMajorMap } from "../../../data/campusMajorMap";
 import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "./resultPresentation";
 import { CampusExamples } from "./CampusExamples";
@@ -36,64 +39,36 @@ function SkillTargets({ guidance }: { guidance: ActionGuidance }) {
     </section> : null;
 }
 
-function planStorageKey(planKey: string, majorId: string) {
-  return `nelly-plan:${planKey}:${majorId}`;
-}
-
-function readDone(key: string): number[] {
-  try {
-    const raw = window.localStorage.getItem(key);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= 4) : [];
-  } catch { return []; }
-}
-
-function WeekPlan({ guidance, planKey, majorId }: { guidance: ActionGuidance; planKey?: string; majorId: string }) {
-  const storageKey = planKey ? planStorageKey(planKey, majorId) : null;
-  const [done, setDone] = useState<number[]>([]);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (storageKey) setDone(readDone(storageKey));
-    setOpen(window.matchMedia?.("(min-width: 640px)").matches ?? true);
-  }, [storageKey]);
-  if (!guidance.weekPlan.length) return null;
-  const toggle = (week: number) => {
-    const next = done.includes(week) ? done.filter(n => n !== week) : [...done, week].sort();
-    setDone(next);
-    if (storageKey) { try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* storage unavailable */ } }
-  };
-  const total = guidance.weekPlan.length;
-  const count = guidance.weekPlan.filter(w => done.includes(w.week)).length;
-  return <section aria-label="Rencana 4 minggu">
-      <details open={open} onToggle={e => setOpen(e.currentTarget.open)} className="group">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-ink">
-          <span>Rencana {total} minggu ({total} langkah)</span>
-          <span className="flex items-center gap-2 text-xs font-semibold text-leaf">
-            <span data-testid="plan-progress">{count} dari {total} selesai</span>
-            <ChevronDown aria-hidden className="h-4 w-4 transition group-open:rotate-180" />
-          </span>
-        </summary>
-        <ol className="mt-2 space-y-3 text-sm leading-6 text-stone-700">
-          {guidance.weekPlan.map(w => {
-            const checked = done.includes(w.week);
-            const id = `plan-${majorId}-${w.week}`;
-            return <li key={w.week} className="flex gap-3 border-l-2 border-orange-300 pl-3">
-              <input id={id} type="checkbox" checked={checked} onChange={() => toggle(w.week)} className="mt-1 h-5 w-5 shrink-0 accent-orange-600" />
-              <label htmlFor={id} className="min-w-0 cursor-pointer">
-                <span className="block text-xs font-bold text-leaf">Minggu {w.week} · {w.durationLabel}</span>
-                <span className={`block ${checked ? "text-stone-500 line-through" : ""}`}>{w.action}</span>
-                <span className="block text-xs leading-5 text-stone-600">Bukti: {w.proof}</span>
-              </label>
-            </li>;
-          })}
-        </ol>
-        <p className="mt-2 text-xs leading-5 text-stone-500">Centang tersimpan di perangkat ini saja.</p>
-      </details>
+function FirstStep({ guidance }: { guidance: ActionGuidance }) {
+  const first = guidance.weekPlan[0];
+  if (!first?.action?.trim()) return null;
+  return <section aria-label="Langkah pertama minggu ini" className="border-l-2 border-orange-300 pl-3">
+      <h3 className="text-sm font-bold text-ink">Langkah pertama minggu ini</h3>
+      <p className="mt-1 text-xs font-bold text-leaf">{first.durationLabel}</p>
+      <p className="mt-1 text-sm leading-6 text-stone-700">{first.action}</p>
+      <p className="mt-1 text-xs leading-5 text-stone-600">Bukti: {first.proof}</p>
     </section>;
 }
 
-export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, planKey, compare }: {
-  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; planKey?: string; compare?: CompareControl;
+function AskAi({ values }: { values: PromptValues }) {
+  return <details className="group/ai rounded-xl border border-orange-200 bg-orange-50/60 px-3" aria-label="Tanya AI tentang jurusan ini">
+    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-bold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
+      <span className="flex items-center gap-2"><MessageSquareText size={18} className="shrink-0 text-leaf" aria-hidden="true" />Tanya AI tentang jurusan ini</span>
+      <ChevronDown aria-hidden className="h-4 w-4 shrink-0 transition group-open/ai:rotate-180" />
+    </summary>
+    <div className="space-y-3 pb-3">
+      <p className="text-sm leading-6 text-stone-700">Salin prompt, lalu tempel ke ChatGPT, Gemini, atau AI lain. Isian sudah diambil dari jawabanmu.</p>
+      <ul className="space-y-2">
+        {resultPrompts().map(p => <PromptItem key={p.id} id={`hasil-${p.id}`} title={p.title} purpose={p.purpose} text={fillPrompt(p, values)} headingLevel={4} />)}
+      </ul>
+      <p className="text-xs leading-5 text-stone-600">{PROMPT_CAUTION}</p>
+      <a href={promptBankHref(values)} className="touch-link -ml-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Lihat semua prompt →</a>
+    </div>
+  </details>;
+}
+
+export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, promptValues, compare }: {
+  recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; promptValues?: PromptValues; compare?: CompareControl;
 }) {
   const [opened, setOpened] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -154,7 +129,8 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
               <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{steps.slice(3).map(line => <li key={line}>{line}</li>)}</ul>
             </details> : null}
           </section> : null}
-          {r.actionGuidance ? <WeekPlan guidance={r.actionGuidance} planKey={planKey} majorId={r.majorId} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+          {r.actionGuidance ? <FirstStep guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+          {expanded && promptValues ? <AskAi values={promptValues} /> : null}
           {expanded || opened ? <CampusExamples majorId={r.majorId} majorName={r.majorName} degreeTypes={r.degreeTypes} preferences={preferences} /> : null}
           {r.majorId in campusMajorMap ? <a href={`/jurusan/${r.majorId}`} className="touch-link -ml-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
             <BookOpen size={16} aria-hidden="true" />Kenali jurusan {r.majorName}

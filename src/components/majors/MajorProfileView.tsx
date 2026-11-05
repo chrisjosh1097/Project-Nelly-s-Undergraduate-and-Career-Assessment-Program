@@ -71,6 +71,9 @@ export function MajorProfileView({ major }: { major: PublicMajorProfile }) {
 
     <Block icon={<Footprints size={18} className={iconClass} aria-hidden="true" />} title="Coba mulai dari sini">
       <Bullets items={major.firstSteps} />
+      <Link href={`/prompt?jurusanKuliah=${encodeURIComponent(major.name)}${major.careers[0] ? `&karier=${encodeURIComponent(major.careers[0])}` : ""}`} className="touch-link -ml-3 mt-1 rounded-lg font-semibold text-leaf underline-offset-4 hover:underline">
+        Tanya AI tentang jurusan ini →
+      </Link>
     </Block>
 
     {major.hasCampusData ? <section className="panel min-w-0">
