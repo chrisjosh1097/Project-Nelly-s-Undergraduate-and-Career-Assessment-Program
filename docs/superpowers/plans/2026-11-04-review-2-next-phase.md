@@ -232,3 +232,106 @@ Placeholders are filled from the top fields: `{karier}`, `{jurusanKuliah}`, `{ju
   - The others stay collapsed.
 - Prompts within a category are independent. A soft hint is allowed, e.g. on "Pertanyaan untuk kakak tingkat": "Lebih enak setelah prompt Bandingkan dua jurusan."
 - **Prompt texts are still pending user approval** ("prompt ok").
+
+## Prompt references (researched 2026-11-04)
+
+**Sources reviewed:**
+- **`f/prompts.chat`** (~176k★, formerly "awesome-chatgpt-prompts"; prompts licensed **CC0**, free to adapt).
+  - Of 2,880 prompts, 95 match career, student, interview or tutor topics.
+  - Most useful:
+    - *Career Counselor*, *Career Coach*, *Career Path Deliberation Assistant*;
+    - *Career Intelligence Analyst* (hidden-skill extraction interview);
+    - *Expert Discovery Interviewer Guide* (exactly 5 questions, one at a time);
+    - *Socratic Method*, *Adaptive Socratic Learning Coach*, *Socratic Universal Tutor* (3 common misconceptions, micro-exercise, reflection questions);
+    - *Study planner*, *Structured and Effective Learning Prompt*;
+    - *University Admission Interview Simulation*, *Interview Preparation Coach*.
+- **`dair-ai/Prompt-Engineering-Guide`** (~80k★, MIT): general principles only (role, context, clear task, constraints, output format, examples).
+- No good Indonesian or student-specific prompt repository was found on GitHub, so the prompts are adapted from the English sources.
+
+Local copies for reference only: `.superpowers/sdd/2026-11-04-review/refs/` (gitignored).
+
+**Patterns adopted:**
+1. **Clear structure:** role, then my context, then the task, then rules, then output format. Everything sits in one short paragraph plus bullets so it pastes cleanly.
+2. **"Interview me first" (one question at a time, exactly N questions).** This suits students who don't want to type much: the AI asks, and the student answers briefly. From *Expert Discovery Interviewer* and *Career Intelligence Analyst*.
+3. **Anti-vague follow-ups:** "Kalau jawabanku terlalu umum, tanya lagi minta contoh nyata." From *Expert Discovery* and *Adaptive Socratic*.
+4. **Misconceptions, a micro-exercise, and reflection questions without answers.** From *Socratic Universal Tutor*.
+5. **Bounded output:** a word limit, tables for comparisons, numbered steps. Use simple language for SMA/SMK students.
+6. **Hidden-skill extraction:** turn casual activities into skills with evidence. From *Career Intelligence Analyst*. Used for "connect the dots".
+7. **Objective trade-offs, no personal verdict.** From *Career Path Deliberation*. Used for comparing majors.
+
+**Nelly-specific rules added to every prompt:**
+- The context is Indonesia.
+- Use simple Indonesian.
+- No salary figures, admission chances or passing grades.
+- End with the line "Kalau tidak yakin, bilang tidak yakin dan sarankan sumber resmi untuk dicek."
+
+## Draft v2: Bank Prompt (supersedes the v1 draft above; for approval)
+
+Placeholders are filled automatically: `{jurusanSekolah}`, `{aktivitas}`, `{jurusanKuliah}`, `{karier}`. `[…]` placeholders are typed by the student.
+
+Shared ending, abbreviated as **⟨AKHIR⟩** below:
+
+> Gunakan bahasa Indonesia yang sederhana untuk siswa SMA/SMK dan konteks Indonesia. Jangan menyebut angka gaji, peluang diterima, atau passing grade. Kalau tidak yakin, bilang tidak yakin dan sarankan sumber resmi untuk dicek.
+
+### 1 · Kenali diri
+
+**1.1 Wawancarai aku dulu** (pattern 2+3)
+> Jadilah konselor karier untuk siswa SMA/SMK. Aku siswa {jurusanSekolah} dan suka {aktivitas}. Tanyakan tepat 5 pertanyaan, satu per satu, tentang hal yang membuatku semangat, pelajaran yang kusukai, dan cara aku suka bekerja. Tunggu jawabanku sebelum lanjut. Kalau jawabanku terlalu umum, minta contoh nyata. Setelah itu, rangkum 3 kekuatanku dan 3 bidang kuliah yang cocok beserta alasannya. ⟨AKHIR⟩
+
+**1.2 Temukan skill tersembunyiku** (pattern 6)
+> Aku siswa {jurusanSekolah}. Kegiatanku sehari-hari: {aktivitas}. Banyak orang tidak sadar kegiatan biasa sebenarnya melatih skill. Tanyakan 3 pertanyaan lanjutan, satu per satu, tentang apa yang benar-benar kulakukan di kegiatan itu. Lalu buat tabel: kegiatan, skill yang terlatih, dan bukti yang bisa kutunjukkan. ⟨AKHIR⟩
+
+### 2 · Pilih jurusan & kampus
+
+**2.1 Bandingkan dua jurusan** (pattern 7)
+> Bandingkan jurusan {jurusanKuliah} dengan [jurusan lain yang kupertimbangkan]. Buat tabel: mata kuliah utama, gaya belajar, tugas yang sering muncul, contoh karier, dan tipe siswa yang biasanya betah. Jangan memilihkan untukku. Akhiri dengan 3 pertanyaan untuk membantuku memutuskan sendiri. ⟨AKHIR⟩
+
+**2.2 Pertanyaan untuk kakak tingkat** (hint: lebih enak setelah 2.1)
+> Aku akan mengobrol dengan mahasiswa jurusan {jurusanKuliah}. Buatkan 8 pertanyaan yang jujur dan spesifik tentang tugas, beban belajar, praktikum atau magang, dan hal yang mereka harap diketahui sebelum masuk. Urutkan dari yang ringan ke yang lebih dalam. ⟨AKHIR⟩
+
+**2.3 Daftar periksa memilih kampus**
+> Bantu aku membuat daftar periksa untuk memilih kampus jurusan {jurusanKuliah}. Poinnya: akreditasi program studi, kurikulum, praktik atau magang, biaya, lokasi, dan dukungan beasiswa. Untuk tiap poin, beri tahu cara dan tempat mengeceknya, misalnya PDDikti, situs resmi kampus, atau BAN-PT/LAM. ⟨AKHIR⟩
+
+### 3 · Bayangkan kariernya
+
+**3.1 Mitos dan kebutuhan industri** (reviewer 1; pattern 4)
+> Aku sedang menimbang dunia {karier} di Indonesia. Jadilah mentor yang jujur dan blak-blakan. Sebutkan 3 mitos terbesar tentang pekerjaan ini dan kenyataannya. Lalu sebutkan industri yang paling membutuhkan peran ini, dan sumber apa yang bisa kucek untuk memastikannya. ⟨AKHIR⟩
+
+**3.2 Hari pertama magang** (reviewer 3)
+> Bayangkan aku magang hari pertama sebagai {karier} di sebuah [Perusahaan/Institusi]. Beri satu masalah tak terduga yang sering terjadi di profesi ini. Biarkan aku mencoba menjawab dulu. Setelah itu, jelaskan cara profesional menyelesaikannya dan sifat apa yang membuat orang bertahan atau menyerah di posisi ini. ⟨AKHIR⟩
+
+**3.3 Karier di era AI**
+> Bagaimana AI kemungkinan mengubah pekerjaan {karier} dalam 5–10 tahun? Pisahkan menjadi tiga daftar: tugas yang mungkin dibantu AI, tugas yang tetap butuh manusia, dan skill yang perlu kulatih dari sekarang. Beri satu latihan kecil untuk tiap skill. ⟨AKHIR⟩
+
+### 4 · Portofolio & persiapan
+
+**4.1 Connect the dots** (reviewer 2; pattern 6)
+> Aku siswa {jurusanSekolah}. Pengalamanku baru sebatas {aktivitas}. Aku ingin kuliah {jurusanKuliah}. Tanyakan 3 pertanyaan dulu, satu per satu, tentang pengalaman itu. Lalu bantu aku menghubungkannya menjadi satu cerita portofolio yang unik, maksimal 150 kata, dan sebutkan bukti yang perlu kukumpulkan. ⟨AKHIR⟩
+
+**4.2 Tools tahun pertama** (reviewer 4)
+> Kalau kamu mahasiswa baru {jurusanKuliah} yang mengulang dari awal, tools atau keahlian apa yang akan kamu pelajari di tahun pertama? Sebutkan tempat belajar atau sertifikasi gratis yang resmi atau terkenal agar bisa kucek sendiri. ⟨AKHIR⟩
+
+**4.3 Rencana latihan 4 minggu** (pattern 5; replaces the old 4-week plan)
+> Buat rencana latihan 4 minggu, 2–3 jam per minggu, untuk mencoba bidang {jurusanKuliah}. Tiap minggu berisi satu aksi kecil, alat gratis yang dipakai, dan bukti hasil yang bisa kusimpan. Tanyakan dulu berapa hari per minggu aku punya waktu. ⟨AKHIR⟩
+
+**4.4 Ide proyek kecil**
+> Beri 3 ide proyek kecil yang bisa kuselesaikan dalam 2 minggu untuk menunjukkan minat pada {jurusanKuliah}. Gunakan alat gratis. Untuk tiap ide, tulis langkah 1–2–3 dan hasil akhirnya. ⟨AKHIR⟩
+
+### 5 · Seleksi masuk
+
+**5.1 Jadwal belajar UTBK** (pattern from *Study planner*)
+> Aku punya [jumlah bulan] bulan sebelum UTBK dan bisa belajar [jam] jam per hari. Tanyakan dulu subtes mana yang paling sulit bagiku. Lalu buat jadwal mingguan yang realistis, termasuk hari istirahat. Ingatkan aku mengecek info subtes terbaru di situs resmi SNPMB. ⟨AKHIR⟩
+
+**5.2 Simulasi wawancara** (pattern from *University Admission Interview Simulation*)
+> Jadilah pewawancara seleksi kampus atau beasiswa untuk jurusan {jurusanKuliah}. Ajukan satu pertanyaan per giliran, total 5 pertanyaan. Setelah tiap jawabanku, beri satu hal yang sudah bagus dan satu yang bisa diperbaiki. Tutup dengan ringkasan singkat. ⟨AKHIR⟩
+
+### ✦ Bicara dengan orang tua
+
+**6.1 Jelaskan pilihanku**
+> Aku ingin kuliah {jurusanKuliah}, tetapi orang tuaku masih ragu. Bantu aku menyiapkan obrolan yang tenang dan sopan: alasanku dalam 3 poin, rencana cadangan, dan 3 pertanyaan yang bisa kami bahas bersama. Lalu ajak aku berlatih: kamu berperan sebagai orang tua yang khawatir. ⟨AKHIR⟩
+
+**What changed from v1:**
+- More "interview me first" and one-question-at-a-time prompts (1.1, 1.2, 3.2, 4.1, 4.3, 5.1, 5.2), so students type less up front.
+- Comparison prompts no longer give a verdict.
+- Bounded outputs: tables, word limits, numbered steps.
+- Verification sources are named: PDDikti, BAN-PT/LAM, SNPMB.
