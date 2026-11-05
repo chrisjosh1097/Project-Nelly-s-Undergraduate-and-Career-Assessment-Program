@@ -33,7 +33,7 @@ export function LoginPanel() {
   const requestedNext = searchParams.get("next");
   const next =
     requestedNext &&
-    ["/assessment", "/result", "/already-submitted"].includes(requestedNext)
+    ["/assessment", "/result", "/already-submitted", "/prompt"].includes(requestedNext)
       ? requestedNext
       : "/assessment";
   const { user, loading, configured, signIn } = useAuth();

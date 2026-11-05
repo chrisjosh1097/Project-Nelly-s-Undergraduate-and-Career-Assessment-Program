@@ -196,11 +196,11 @@ describe("PDF report generation", () => {
     expect(text).not.toContain("Keterampilan yang perlu dikembangkan");
     expect((await PDFDocument.load(await generateSubmissionPdf(value))).getPageCount()).toBeLessThanOrEqual(7);
   });
-  it("packs an ordinary ten-result report within seven pages (incl. AI prompt page) without a sparse ending or shrinking body type", async () => {
+  it("packs an ordinary ten-result report within six pages without a sparse ending or shrinking body type", async () => {
     const draw = vi.spyOn(PDFPage.prototype, "drawText");
     const value = realisticPdfSubmission(1);
     const bytes = await generateSubmissionPdf(value);
-    expect((await PDFDocument.load(bytes)).getPageCount()).toBeLessThanOrEqual(7);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeLessThanOrEqual(6);
     const rows = draw.mock.calls.map(([text, options], index) => ({ text, options, page: draw.mock.contexts[index] }));
     const finalPage = rows.at(-1)!.page;
     const finalText = rows.filter(row => row.page === finalPage && row.options?.y !== 24).map(row => row.text).join(" ");

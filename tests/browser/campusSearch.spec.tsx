@@ -106,6 +106,6 @@ test("header shows the Kampus link on 320px without overflow", async ({ mount, p
   await mount(<Header />);
   const nav = page.getByRole("navigation", { name: "Navigasi siswa" });
   await expect(nav.getByRole("link", { name: /Kampus/ })).toHaveAttribute("href", "/kampus");
-  await expect(nav.getByRole("link")).toHaveCount(4);
+  await expect(nav.getByRole("link")).toHaveCount(5);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

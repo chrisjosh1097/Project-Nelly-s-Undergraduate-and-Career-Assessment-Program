@@ -1,5 +1,4 @@
 import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
-import { fillPrompt, promptValuesFor, resultPrompts } from "@/lib/prompts/fill";
 import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -157,14 +156,6 @@ function reportBlocks(submission: Submission): Block[] {
   add("heading", "Disclaimer");
   add("text", "Disclaimer: laporan ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.");
   add("text", "Gunakan laporan ini sebagai bahan diskusi dengan orang tua, guru BK, mentor, atau pihak sekolah.");
-
-  add("section", "06 / Tanya AI tentang jurusan ini");
-  add("text", "Salin prompt ke ChatGPT, Gemini, atau AI lain. Jawaban AI bisa salah; cek ulang ke sumber resmi atau guru BK. Prompt lain: halaman /prompt.");
-  const values = promptValuesFor(answers, top);
-  for (const prompt of resultPrompts()) {
-    add("heading", prompt.title, true);
-    add("text", fillPrompt(prompt, values));
-  }
   return blocks;
 }
 

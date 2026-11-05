@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PromptBank } from "@/components/prompts/PromptBank";
+import { PromptGate } from "@/components/prompts/PromptGate";
 import { PROMPT_FIELD_MAX } from "@/lib/prompts/fill";
 
 export const metadata: Metadata = { title: "Bank Prompt" };
@@ -18,6 +18,6 @@ export default async function PromptPage({ searchParams }: { searchParams: Searc
       </p>
     </header>
     {/* Only non-identifying fields are read from the URL. */}
-    <PromptBank initial={{ jurusanSekolah: one(params.jurusanSekolah), jurusanKuliah: one(params.jurusanKuliah), karier: one(params.karier) }} />
+    <PromptGate initial={{ jurusanSekolah: one(params.jurusanSekolah), jurusanKuliah: one(params.jurusanKuliah), karier: one(params.karier) }} />
   </div>;
 }

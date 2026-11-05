@@ -2,6 +2,8 @@ import React from "react";
 import { test, expect } from "@playwright/experimental-ct-react";
 import { ResultsView } from "../../src/components/results/ResultsView";
 import { PromptBank } from "../../src/components/prompts/PromptBank";
+import { PromptGate } from "../../src/components/prompts/PromptGate";
+import { Header } from "../../src/components/auth/Header";
 import { submission } from "./fixtures";
 
 const mockClipboard = (page: import("playwright/test").Page, ok = true) => page.evaluate((ok) => {
@@ -73,4 +75,42 @@ test("prompt bank: fields fill every prompt; default category depends on major",
   await expect(karier.getByText("Cocok untukmu sekarang")).toBeVisible();
   await karier.locator("[data-prompt-id='mitos-industri'] summary").click();
   await expect(karier.getByText("Aku sedang menimbang dunia Data Analyst di Indonesia.", { exact: false })).toBeVisible();
+});
+
+test("gate: locked without a report, opens with report values, query wins", async ({ mount, page }) => {
+  await page.route("**/api/submissions/me", r => r.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "none" }) }));
+  const c = await mount(<PromptGate initial={{}} />);
+  await expect(page.getByText("Bank Prompt terbuka setelah kamu punya hasil")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mulai asesmen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Salin/ })).toHaveCount(0);
+  await c.unmount();
+  await page.unroute("**/api/submissions/me");
+  await page.route("**/api/submissions/me", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ submission }) }));
+  await mount(<PromptGate initial={{ karier: "Karier Query" }} />);
+  await expect(page.getByLabel("Jurusan kuliah yang kamu pertimbangkan")).toHaveValue(submission.report.topRecommendation.majorName);
+  await expect(page.getByLabel("Karier yang ingin kamu ketahui")).toHaveValue("Karier Query");
+  await expect(page.locator("details[data-category='karier']")).toHaveAttribute("open", "");
+});
+
+test("bottom nav fits five items at 320px", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await mount(<Header />);
+  const nav = page.getByRole("navigation", { name: "Navigasi siswa" });
+  await expect(nav.getByRole("link")).toHaveCount(5);
+  await expect(nav.getByRole("link", { name: /Prompt/ })).toHaveAttribute("href", "/prompt");
+  for (const link of await nav.getByRole("link").all()) {
+    const box = (await link.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x + box.width).toBeLessThanOrEqual(320);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("bottom nav labels stay on one line at 320px", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await mount(<Header />);
+  for (const label of await page.getByRole("navigation", { name: "Navigasi siswa" }).locator("a span").all()) {
+    const box = (await label.boundingBox())!;
+    expect(box.height, await label.textContent() ?? "").toBeLessThan(20);
+  }
 });

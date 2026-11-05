@@ -65,14 +65,10 @@ describe("promptBankHref", () => {
   });
 });
 
-describe("PDF prompt block", () => {
-  it("prints the four filled reviewer prompts at the end", () => {
-    const value = buildSubmission(techAnswer);
-    const text = buildSubmissionPdfTextSnapshot(value);
-    const start = text.indexOf("06 / Tanya AI tentang jurusan ini");
-    expect(start).toBeGreaterThan(text.indexOf("Disclaimer:"));
-    for (const p of resultPrompts()) expect(text.slice(start)).toContain(p.title);
-    expect(text.slice(start)).toContain(value.report.topRecommendation.majorName);
-    expect(text).not.toMatch(/\{(jurusanSekolah|aktivitas|jurusanKuliah|karier)\}/);
+describe("PDF", () => {
+  it("does not include AI prompts (user decision)", () => {
+    const text = buildSubmissionPdfTextSnapshot(buildSubmission(techAnswer));
+    expect(text).not.toContain("Tanya AI");
+    for (const p of aiPrompts) expect(text).not.toContain(p.template.slice(0, 40));
   });
 });

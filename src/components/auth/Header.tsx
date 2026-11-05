@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Compass, School, LogOut, ArrowLeft } from "lucide-react";
+import { Home, ClipboardList, Compass, School, LogOut, ArrowLeft, MessageSquareText } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 
@@ -21,6 +21,11 @@ export function Header() {
       href: user ? "/result" : "/login?next=/result",
       label: "Hasilmu",
       icon: Compass,
+    },
+    {
+      href: user ? "/prompt" : "/login?next=/prompt",
+      label: "Prompt",
+      icon: MessageSquareText,
     },
     { href: "/kampus", label: "Kampus", icon: School },
   ];
