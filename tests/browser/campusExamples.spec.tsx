@@ -36,7 +36,7 @@ test("lists campuses with degree, province, quota, PDDikti links and the source 
     ],
   }));
   const component = await mount(<CampusExamples majorId="teknik_pertambangan_terapan" majorName="Teknik Pertambangan Terapan" degreeTypes={["D3", "D4", "Vokasi"]} preferences={["PTN di Jawa"]} />);
-  await expect(component.getByRole("heading", { name: "Contoh kampus yang membuka jurusan ini" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Contoh kampus dengan program studi spesifik ini" })).toBeVisible();
   await expect(component.getByText("Politeknik Negeri Samarinda")).toBeVisible();
   await expect(component.getByText("Negeri · Kalimantan Timur")).toBeVisible();
   await expect(component.getByText("Swasta/Lainnya · Wilayah LLDikti 4")).toBeVisible();
@@ -79,7 +79,7 @@ for (const failure of ["500", "abort"] as const) {
     await stub(page, (route) => (failure === "500" ? route.fulfill({ status: 500, json: {} }) : route.abort()));
     await mount(<ResultsView submission={submission} />);
     await expect(page.getByRole("link", { name: "Cari di PDDikti" }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Contoh kampus yang membuka jurusan ini" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Contoh kampus dengan program studi spesifik ini" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: submission.report.topRecommendation.majorName, exact: true })).toBeVisible();
   });
 }

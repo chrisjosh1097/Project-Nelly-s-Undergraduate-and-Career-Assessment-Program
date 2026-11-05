@@ -76,7 +76,7 @@ export function CampusExamples({ majorId, majorName, degreeTypes, preferences }:
 
   return <section aria-label="Contoh kampus" className="min-w-0">
     <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-ink">
-      <School size={16} className="shrink-0 text-leaf" aria-hidden="true" />Contoh kampus yang membuka jurusan ini
+      <School size={16} className="shrink-0 text-leaf" aria-hidden="true" />Contoh kampus dengan program studi spesifik ini
     </h3>
     <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200 px-3">
       {items.map((item) => <li key={`${item.campus}|${item.program}|${item.degree}`} className="py-2.5 text-sm leading-6">
