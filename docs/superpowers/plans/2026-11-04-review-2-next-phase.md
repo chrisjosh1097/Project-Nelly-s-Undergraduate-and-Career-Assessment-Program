@@ -150,3 +150,67 @@ No scoring change is expected in this phase, so `SCORING_VERSION` stays at v3.2.
 - Live checks:
   - Gemini, Firestore and login on the preview;
   - the admin access delay.
+
+---
+
+## Decisions (user, 2026-11-04)
+
+These replace the open questions D1–D7 above.
+
+1. **R1 has two layers.**
+   - **Layer 1, results:** one collapsible block "Tanya AI tentang jurusan ini", on the **main recommendation only**. It holds the 4 reviewer prompts with auto-filled placeholders and a "Salin" button outside `<summary>`, plus a link "Lihat semua prompt →" to `/prompt`.
+   - **Layer 2, `/prompt` "Bank Prompt":** a public page with about 15 prompts in 6 categories.
+     - A few fields at the top (school major, target major or career, activities) fill every prompt.
+     - When coming from the results page, the fields are prefilled through query parameters with no personal identifiers: school major, major name and career only. No name or email.
+     - Each prompt shows a title, a one-line purpose and "Salin". The full text sits behind "Lihat isi prompt".
+   - **Rules for every prompt:**
+     - It ends with the safety line "Kalau tidak yakin, bilang tidak yakin dan sarankan sumber resmi untuk dicek."
+     - No prompts about salary figures, admission chances or passing grades.
+     - Reviewer prompt 1 becomes "industri mana yang paling membutuhkan peran ini, dan sumber apa yang bisa saya cek".
+     - Reviewer prompt 4 drops "belum banyak diketahui orang" and asks for official or well-known free sources to verify.
+   - **The 4-week plan** is replaced in the UI by a single "Langkah pertama minggu ini" (week 1 of the stored plan). The data is kept.
+2. **PDF:** a short prompt block (the 4 filled reviewer prompts) on the last page, and the first step instead of the 4-week plan.
+3. **No "Buka ChatGPT/Gemini/Claude" links.**
+4. **R3:** "kolom sekolah" means "Jurusan sekolah saat ini". Add the free-text field `currentSchoolMajorOther`.
+5. **R4:** the results header uses **deep orange** (orange-700/800 range, white text ≥4.5:1). The black CTAs on the results page also become orange.
+6. **R2:** use the alternative copy "Contoh kampus dengan program studi spesifik ini".
+7. **R5:** keep button ordering; no drag.
+
+**Prompt texts** (draft below) need the user's or reviewer's approval before release, like the glossary.
+
+## Draft: Bank Prompt (for approval)
+
+Placeholders are filled from the top fields: `{karier}`, `{jurusanKuliah}`, `{jurusanSekolah}`, `{aktivitas}`. Every prompt ends with the safety line.
+
+**🎯 Kenali diri**
+1. *Cari jurusan dari minatku.* "Saya siswa {jurusanSekolah}. Saya suka {aktivitas}. Sebutkan 5 jurusan kuliah yang cocok, alasan singkatnya, dan satu pertanyaan untuk menguji minat saya di tiap jurusan."
+2. *Kenali kekuatanku.* "Ajukan 8 pertanyaan singkat, satu per satu, untuk membantu saya mengenali kekuatan dan gaya belajar saya. Setelah saya menjawab semuanya, rangkum kekuatan saya dan bidang yang cocok."
+
+**🏫 Pilih jurusan & kampus**
+3. *Bandingkan dua jurusan.* "Bandingkan jurusan {jurusanKuliah} dengan satu jurusan lain yang mirip. Jelaskan perbedaan mata kuliah, gaya belajar, dan contoh karier dalam tabel sederhana."
+4. *Pertanyaan untuk kakak tingkat.* "Saya akan bertanya kepada mahasiswa {jurusanKuliah}. Buatkan 8 pertanyaan yang jujur dan spesifik tentang tugas, beban belajar, dan hal yang mereka sesali."
+5. *Cara memilih kampus.* "Bantu saya membuat daftar periksa untuk memilih kampus jurusan {jurusanKuliah}: akreditasi, kurikulum, magang, biaya, dan lokasi. Beri tahu di mana saya bisa mengecek tiap poin."
+
+**💼 Bayangkan kariernya**
+6. *Pemetaan industri (reviewer 1).* "Saya sedang menimbang dunia {karier} di Indonesia. Jadilah mentor yang jujur dan blak-blakan. Apa 3 mitos terbesar tentang pekerjaan ini? Industri mana yang paling membutuhkan peran ini, dan sumber apa yang bisa saya cek?"
+7. *Day-in-the-life (reviewer 3).* "Bayangkan saya magang hari pertama sebagai {karier} di sebuah [Perusahaan/Institusi]. Beri satu masalah tak terduga yang sering terjadi di profesi ini. Bagaimana profesional menyelesaikannya, dan karakter seperti apa yang biasanya menyerah?"
+8. *Karier yang tahan AI.* "Bagaimana AI mengubah pekerjaan {karier} dalam 5–10 tahun ke depan? Bagian mana yang tetap butuh manusia, dan skill apa yang perlu saya latih dari sekarang?"
+
+**📁 Portofolio & persiapan**
+9. *Connect the dots (reviewer 2).* "Saya siswa {jurusanSekolah}. Pengalaman saya baru sebatas {aktivitas}. Saya ingin kuliah {jurusanKuliah}. Bantu saya menghubungkan pengalaman ini menjadi narasi portofolio yang unik."
+10. *Tools & skill tahun pertama (reviewer 4).* "Kalau kamu mahasiswa baru {jurusanKuliah} yang mengulang dari awal, tools atau keahlian apa yang kamu pelajari di tahun pertama? Sebutkan tempat belajar atau sertifikasi gratis yang resmi atau terkenal agar bisa saya cek."
+11. *Rencana latihan 4 minggu.* "Buatkan rencana latihan 4 minggu, 2–3 jam per minggu, untuk mencoba bidang {jurusanKuliah}. Tiap minggu berisi satu aksi kecil dan bukti hasil yang bisa saya simpan."
+12. *Ide proyek kecil.* "Beri 3 ide proyek kecil yang bisa saya selesaikan dalam 2 minggu untuk menunjukkan minat pada {jurusanKuliah}. Alat yang dipakai harus gratis."
+
+**📝 Seleksi masuk**
+13. *Strategi belajar UTBK.* "Saya punya waktu [jumlah bulan] bulan sebelum UTBK. Bantu saya membuat jadwal belajar mingguan yang realistis berdasarkan subtes resmi. Sarankan saya mengecek info terbaru di situs SNPMB."
+14. *Latihan wawancara atau esai.* "Jadilah pewawancara beasiswa atau seleksi kampus untuk jurusan {jurusanKuliah}. Ajukan satu pertanyaan per giliran, lalu beri masukan singkat atas jawaban saya."
+
+**💬 Bicara dengan orang tua**
+15. *Jelaskan pilihanku.* "Saya ingin kuliah {jurusanKuliah}, tetapi orang tua saya ragu. Bantu saya menyiapkan penjelasan yang tenang dan sopan: alasan saya, rencana cadangan, dan pertanyaan yang bisa kami bahas bersama."
+
+## Revised order of work
+
+1. **R2 + R4 + R3:** small; start now.
+2. **R1 layer 1:** results block, first-step swap, and PDF.
+3. **R1 layer 2:** `/prompt` page, after the prompt texts are approved.
