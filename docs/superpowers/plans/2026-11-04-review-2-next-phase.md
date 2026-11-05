@@ -214,3 +214,21 @@ Placeholders are filled from the top fields: `{karier}`, `{jurusanKuliah}`, `{ju
 1. **R2 + R4 + R3:** small; start now.
 2. **R1 layer 1:** results block, first-step swap, and PDF.
 3. **R1 layer 2:** `/prompt` page, after the prompt texts are approved.
+
+## Decision: category structure for `/prompt` (user, 2026-11-04)
+
+- Categories are **independent**: nothing is locked, there is no progress state, and nothing is stored.
+- They are shown in a **suggested order** as a journey:
+  1. Kenali diri
+  2. Pilih jurusan & kampus
+  3. Bayangkan kariernya
+  4. Portofolio & persiapan
+  5. Seleksi masuk
+  - ✦ Bicara dengan orang tua (any time)
+- Intro line: "Belum tahu mulai dari mana? Ikuti urutan 1–5. Sudah punya tujuan? Langsung pilih yang kamu butuhkan."
+- Default open category:
+  - Coming from results (query has a major): **3 Bayangkan kariernya**, marked "Cocok untukmu sekarang".
+  - Otherwise: **1 Kenali diri**, plus a link to the assessment.
+  - The others stay collapsed.
+- Prompts within a category are independent. A soft hint is allowed, e.g. on "Pertanyaan untuk kakak tingkat": "Lebih enak setelah prompt Bandingkan dua jurusan."
+- **Prompt texts are still pending user approval** ("prompt ok").
