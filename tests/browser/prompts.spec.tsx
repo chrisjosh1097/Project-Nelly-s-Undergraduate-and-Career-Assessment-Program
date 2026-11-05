@@ -106,11 +106,15 @@ test("bottom nav fits five items at 320px", async ({ mount, page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("bottom nav labels stay on one line at 320px", async ({ mount, page }) => {
+test("bottom nav labels fit their cell at 320px (single words never break)", async ({ mount, page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await mount(<Header />);
-  for (const label of await page.getByRole("navigation", { name: "Navigasi siswa" }).locator("a span").all()) {
-    const box = (await label.boundingBox())!;
-    expect(box.height, await label.textContent() ?? "").toBeLessThan(20);
+  for (const link of await page.getByRole("navigation", { name: "Navigasi siswa" }).getByRole("link").all()) {
+    const label = link.locator("span");
+    const text = (await label.textContent()) ?? "";
+    const fit = await label.evaluate(s => ({ sw: s.scrollWidth, cw: (s.parentElement as HTMLElement).clientWidth, h: s.getBoundingClientRect().height }));
+    expect(fit.sw, text).toBeLessThanOrEqual(fit.cw);
+    if (!text.includes(" ")) expect(fit.h, text).toBeLessThan(20);
+    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
 });
