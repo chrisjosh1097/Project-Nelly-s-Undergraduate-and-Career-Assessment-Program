@@ -276,3 +276,33 @@ test("problem areas allow max 3, can be reordered, and keep order in review and 
   await page.getByRole("button", { name: "Ya, kirim jawaban" }).click();
   await expect.poll(() => payload?.problemAreas).toEqual([a, c, b]);
 });
+test("school major Lainnya asks for free text, clears when switching, and blocks until filled", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AssessmentForm />);
+  await page.getByRole("textbox", { name: "Nama lengkap", exact: true }).fill("Nelly Siswa");
+  await next(page);
+  await next(page);
+  await page.getByRole("radio", { name: "Wanita", exact: true }).click();
+  await page.getByRole("textbox", { name: "Umur", exact: true }).fill("16");
+  await next(page);
+  await page.getByRole("textbox", { name: "Asal sekolah", exact: true }).fill("SMA Contoh");
+  await next(page);
+  await page.getByRole("textbox", { name: "Kelas", exact: true }).fill("XI");
+  await next(page);
+  const other = page.getByRole("textbox", { name: "Tulis jurusan sekolahmu" });
+  await expect(other).toHaveCount(0);
+  await page.getByRole("radio", { name: "Lainnya", exact: true }).click();
+  await expect(other).toBeVisible();
+  await next(page);
+  await expect(page.getByRole("alert")).toContainText("Isi jurusan sekolahmu.");
+  await other.fill("Keagamaan");
+  await page.getByRole("radio", { name: "IPS", exact: true }).click();
+  await expect(other).toHaveCount(0);
+  await page.getByRole("radio", { name: "Lainnya", exact: true }).click();
+  await expect(other).toHaveValue("");
+  await other.fill("Keagamaan");
+  await next(page);
+  await expect(page.getByRole("heading", { name: /Setelah lulus/ })).toBeVisible();
+});

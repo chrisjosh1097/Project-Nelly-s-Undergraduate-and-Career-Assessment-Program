@@ -1,4 +1,5 @@
 "use client";
+import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
 import { narrativeLabel, scoringVersionLabel } from "@/lib/admin/labels";
 import { useEffect, useRef, useState } from "react";
 import { Download, Filter, ArrowLeft, Trash2 } from "lucide-react";
@@ -375,7 +376,7 @@ export function AdminDashboard() {
                 "Gender / umur",
                 `${selected.answers.gender || "Belum tercatat"} / ${selected.answers.age || "—"}`,
               ],
-              ["Jurusan sekolah", selected.answers.currentSchoolMajor],
+              ["Jurusan sekolah", formatSchoolMajor(selected.answers)],
               ["Status", selected.status],
               [
                 "Narasi",

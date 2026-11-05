@@ -47,6 +47,8 @@ export interface StudentAnswer {
   school: string;
   className: string;
   currentSchoolMajor: SchoolMajor;
+  /** Free text when currentSchoolMajor is "Lainnya". Display only; optional for old answers. */
+  currentSchoolMajorOther?: string;
   favoriteSubjects: string[];
   favoriteSubjectsOther: string;
   favoriteActivities: string[];

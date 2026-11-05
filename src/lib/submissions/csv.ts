@@ -1,3 +1,4 @@
+import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
 import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import type { Submission } from "@/lib/types";
 import { csvEscape } from "@/lib/api";
@@ -55,7 +56,7 @@ export function serializeSubmissionsCsv(
       submission.className,
       submission.answers.gender ?? "",
       submission.answers.age ?? "",
-      submission.answers.currentSchoolMajor,
+      formatSchoolMajor(submission.answers),
       submission.answers.favoriteSubjects.join("; "),
       submission.answers.favoriteSubjectsOther ?? "",
       submission.answers.favoriteActivities.join("; "),

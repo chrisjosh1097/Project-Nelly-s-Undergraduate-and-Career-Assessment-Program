@@ -10,6 +10,7 @@ export function emptyAnswer(email = ""): StudentAnswer {
     school: "",
     className: "",
     currentSchoolMajor: "IPA",
+    currentSchoolMajorOther: "",
     favoriteSubjects: [],
     favoriteSubjectsOther: "",
     favoriteActivities: [],
@@ -42,7 +43,9 @@ export function validateAssessmentStep(
         ? ["gender", "age"]
         : [
             step.key,
-            ...(step.key === "favoriteSubjects"
+            ...(step.key === "currentSchoolMajor"
+              ? ["currentSchoolMajorOther"]
+              : step.key === "favoriteSubjects"
               ? ["favoriteSubjectsOther"]
               : step.key === "collegePathPreferences"
                 ? ["collegePathPreferenceOther"]

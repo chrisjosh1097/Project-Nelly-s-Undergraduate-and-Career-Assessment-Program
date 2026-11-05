@@ -73,6 +73,7 @@ export const studentAnswerSchema = z
     currentSchoolMajor: z.enum(
       schoolMajorOptions as [SchoolMajor, ...SchoolMajor[]],
     ),
+    currentSchoolMajorOther: optionalText("Jurusan sekolah lainnya", 2, 60),
     favoriteSubjects: optionArray(
       favoriteSubjectOptions,
       "mata pelajaran",
@@ -117,6 +118,14 @@ export const studentAnswerSchema = z
     futureVision: optionalText("Cerita masa depan", 10, 480),
   })
   .superRefine((answer, ctx) => {
+    if (answer.currentSchoolMajor === "Lainnya" && !answer.currentSchoolMajorOther.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["currentSchoolMajorOther"],
+        message: "Isi jurusan sekolahmu.",
+      });
+    }
+
     if (
       answer.favoriteSubjects.includes("Lainnya") &&
       !answer.favoriteSubjectsOther.trim()

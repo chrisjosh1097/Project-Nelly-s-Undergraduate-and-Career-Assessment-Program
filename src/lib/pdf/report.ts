@@ -1,3 +1,4 @@
+import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
 import { formatProblemAreas } from "@/lib/assessment/problemAreaDisplay";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -129,7 +130,7 @@ function reportBlocks(submission: Submission): Block[] {
   add("section", "04 / Profil dan jawaban");
   const profile: [string, string][] = [
     ["Email", submission.email], ["Sekolah", submission.school], ["Kelas", submission.className],
-    ["Gender", answers.gender], ["Umur", answers.age], ["Jurusan sekolah", answers.currentSchoolMajor],
+    ["Gender", answers.gender], ["Umur", answers.age], ["Jurusan sekolah", formatSchoolMajor(answers)],
     ["Mata pelajaran disukai", answers.favoriteSubjects.join(", ")],
     ["Mata pelajaran lainnya", answers.favoriteSubjectsOther],
     ["Aktivitas disukai", answers.favoriteActivities.join(", ")],

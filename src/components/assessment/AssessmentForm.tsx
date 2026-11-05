@@ -483,11 +483,31 @@ export function AssessmentForm() {
                     () =>
                       step.type === "multi"
                         ? toggle(step.key, option)
-                        : update(step.key, option),
+                        : step.key === "currentSchoolMajor"
+                          ? setAnswer((a) => {
+                              setError("");
+                              return { ...a, currentSchoolMajor: option as StudentAnswer["currentSchoolMajor"], ...(option !== "Lainnya" ? { currentSchoolMajorOther: "" } : {}) };
+                            })
+                          : update(step.key, option),
                     undefined,
                     step.type === "multi",
                   ),
                 )}
+              </div>
+            ) : null}
+            {step.key === "currentSchoolMajor" &&
+            answer.currentSchoolMajor === "Lainnya" ? (
+              <div className="mt-5">
+                <Field label="Tulis jurusan sekolahmu">
+                  <Input
+                    value={answer.currentSchoolMajorOther ?? ""}
+                    placeholder="Contoh: Keagamaan, SMK Pariwisata"
+                    maxLength={60}
+                    onChange={(e) =>
+                      update("currentSchoolMajorOther", e.target.value)
+                    }
+                  />
+                </Field>
               </div>
             ) : null}
             {step.key === "favoriteSubjects" &&

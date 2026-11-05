@@ -1,3 +1,4 @@
+import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
 import type { StudentAnswer } from "@/lib/types";
 import { getAssessmentSteps, assessmentSections } from "@/lib/assessment/steps";
 import { educationPathwayLabel } from "@/lib/assessment/pathways";
@@ -46,6 +47,8 @@ export function AssessmentReview({
                         <dd className="mt-1 text-sm">
                           {key === "problemAreas"
                             ? formatProblemAreas(answer.problemAreas)
+                            : key === "currentSchoolMajor"
+                            ? formatSchoolMajor(answer)
                             : Array.isArray(value)
                             ? value.join(", ")
                             : value || "Belum diisi"}
