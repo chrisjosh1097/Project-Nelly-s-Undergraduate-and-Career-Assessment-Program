@@ -38,7 +38,7 @@ export function CompareBar({ selected, onRemove, onClear }: {
         </li>)}
       </ul>
       {selected.length >= 2
-        ? <a href="#bandingkan" className="inline-flex min-h-11 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Lihat perbandingan</a>
+        ? <a href="#bandingkan" className="inline-flex min-h-11 items-center rounded-full bg-leaf px-4 text-sm font-semibold text-white hover:bg-orange-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Lihat perbandingan</a>
         : <span className="text-xs text-stone-600">Pilih 1 jurusan lagi</span>}
       <button type="button" onClick={onClear} className="min-h-11 rounded-full px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf">Hapus semua</button>
     </div>

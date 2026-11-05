@@ -106,7 +106,7 @@ function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
           Mulai dengan mengenali minat dan kekuatanmu.
         </p>
         <Link
-          className="touch-link rounded-full bg-ink px-6 text-white"
+          className="touch-link rounded-full bg-leaf px-6 text-white hover:bg-orange-800"
           href="/assessment"
         >
           Mulai asesmen

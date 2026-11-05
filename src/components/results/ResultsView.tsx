@@ -137,28 +137,28 @@ export function ResultsView({
         </ul>
       </nav> : null}
       <section id="ringkasan" aria-label="Ringkasan arahmu" className="scroll-mt-16 min-w-0 overflow-hidden rounded-[22px] border border-stone-200 bg-white">
-        <div className="bg-ink p-5 text-white sm:p-6">
-          <p className="text-xs font-bold tracking-wide text-orange-200">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
+        <div className="bg-gradient-to-br from-orange-800 to-leaf p-5 text-white sm:p-6">
+          <p className="text-xs font-bold tracking-wide text-white">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h2 className="min-w-0 text-3xl font-extrabold sm:text-4xl">{top.majorName}</h2>
             {cleanLines(top.degreeTypes).map(degree => <CampusDegree key={degree} degree={degree} />)}
           </div>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-200">{top.personalizedCareerDirection?.trim() || top.careerDirection}</p>
-          <dl className="mt-5 grid min-w-0 grid-cols-2 gap-4 border-t border-white/20 pt-4">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-orange-50">{top.personalizedCareerDirection?.trim() || top.careerDirection}</p>
+          <dl className="mt-5 grid min-w-0 grid-cols-2 gap-4 border-t border-white/30 pt-4">
             <div className="min-w-0">
-              <dt className="text-xs text-stone-200">Kecocokan profil</dt>
-              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-orange-200">{scoreText(top.overallFitScore)}</dd>
+              <dt className="text-xs text-orange-50">Kecocokan profil</dt>
+              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-white">{scoreText(top.overallFitScore)}</dd>
               <dd className="mt-1 text-sm font-bold">{fit.interpretation}</dd>
-              {fit.conflicts && fit.savedLabel ? <dd className="mt-1 text-xs leading-5 text-stone-300">Label laporan tersimpan: {fit.savedLabel}</dd> : null}
+              {fit.conflicts && fit.savedLabel ? <dd className="mt-1 text-xs leading-5 text-orange-100">Label laporan tersimpan: {fit.savedLabel}</dd> : null}
             </div>
             <div className="min-w-0">
-              <dt className="text-xs text-stone-200">Ketahanan terhadap perubahan AI</dt>
-              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-orange-200">{scoreText(top.aiFutureResilienceScore)}</dd>
+              <dt className="text-xs text-orange-50">Ketahanan terhadap perubahan AI</dt>
+              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-white">{scoreText(top.aiFutureResilienceScore)}</dd>
               <dd className="mt-1 text-sm font-bold">{top.aiFutureResilienceLabel}</dd>
             </div>
           </dl>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-200">{fit.explanation}</p>
-          <p className="mt-3 text-xs leading-6 text-stone-300">Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan pekerjaan.</p>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-orange-50">{fit.explanation}</p>
+          <p className="mt-3 text-xs leading-6 text-orange-100">Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan pekerjaan.</p>
         </div>
         <div className={`grid min-w-0 gap-6 p-5 sm:p-6 ${aspirations.length ? "lg:grid-cols-2" : ""}`}>
           <div className="min-w-0 space-y-5">
