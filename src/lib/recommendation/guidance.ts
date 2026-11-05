@@ -174,7 +174,7 @@ function tensionsFor(answers: StudentAnswer, top: RecommendationResult) {
   const constraints = answers.personalConstraints ?? [];
   if (constraints.includes("Belum tahu minat") || constraints.includes("Takut salah jurusan")) {
     const label = constraints.includes("Belum tahu minat") ? "Belum tahu minat" : "Takut salah jurusan";
-    tensions.push(`Kamu memilih "${label}". Jalankan rencana 4 minggu untuk menguji ${top.majorName} sebelum memutuskan.`);
+    tensions.push(`Kamu memilih "${label}". Mulai dari langkah pertama minggu ini untuk menguji ${top.majorName} sebelum memutuskan.`);
   }
 
   const major = majorsById[top.majorId];

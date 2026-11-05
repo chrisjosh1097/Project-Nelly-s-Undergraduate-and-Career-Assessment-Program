@@ -75,7 +75,7 @@ describe("student guidance builder", () => {
   });
 
   it("explains uncertainty, unused skills and people-facing preference", () => {
-    expect(guidance.tensions.some((line) => line.includes("Belum tahu minat") && line.includes("4 minggu"))).toBe(true);
+    expect(guidance.tensions.some((line) => line.includes("Belum tahu minat") && line.includes("langkah pertama minggu ini"))).toBe(true);
     if (top.scoringBreakdown.skillScore < 50) {
       expect(guidance.tensions.some((line) => line.includes("Leadership") || line.includes("Public speaking"))).toBe(true);
     }

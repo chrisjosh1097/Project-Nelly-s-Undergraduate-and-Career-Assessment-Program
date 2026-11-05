@@ -24,7 +24,7 @@ export function Header() {
     },
     {
       href: user ? "/prompt" : "/login?next=/prompt",
-      label: "Prompt",
+      label: "Prompt Bank",
       icon: MessageSquareText,
     },
     { href: "/kampus", label: "Kampus", icon: School },
