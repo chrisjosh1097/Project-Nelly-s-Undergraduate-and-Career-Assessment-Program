@@ -386,7 +386,7 @@ test("curated guidance renders on a phone and legacy reports keep old skill word
   await expect(page.getByText("Skill yang perlu ditingkatkan").first()).toBeVisible();
 });
 
-test("layout fills space: two-column alternatives, balanced main card, phone jump nav", async ({ mount, page }) => {
+test("layout fills space: single-column alternatives, paired evidence and targets, phone jump nav", async ({ mount, page }) => {
   const top = submission.report.topRecommendation;
   const second = submission.report.recommendations[1];
   const actionGuidance = {
@@ -406,8 +406,8 @@ test("layout fills space: two-column alternatives, balanced main card, phone jum
   const component = await mount(<ResultsView submission={guided} />);
   const cards = page.locator("details.recommendation-details");
   const [a, b] = [await cards.nth(0).boundingBox(), await cards.nth(1).boundingBox()];
-  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2);
-  expect(a!.width).toBeLessThan(700);
+  expect(b!.y).toBeGreaterThan(a!.y + a!.height);
+  expect(a!.width).toBeGreaterThan(1000);
   await expect(cards.first().locator(":scope > summary")).toContainText("Catatan urutan sintetis.");
   await expect(cards.first().locator(":scope > summary")).toContainText("Contoh karier:");
   await expect(page.getByRole("region", { name: "Aspirasi yang kamu tulis" }).getByText("Ketegangan sintetis.")).toBeVisible();
@@ -416,7 +416,8 @@ test("layout fills space: two-column alternatives, balanced main card, phone jum
   const main = page.locator("article.panel").first();
   const evidence = await main.getByRole("region", { name: "Bukti dari jawabanmu" }).boundingBox();
   const targets = await main.getByText("Target skill yang bisa kamu tunjukkan").boundingBox();
-  expect(Math.abs(targets!.x - evidence!.x)).toBeLessThan(2);
+  expect(targets!.x).toBeGreaterThan(evidence!.x + evidence!.width);
+  expect(Math.abs(targets!.y - evidence!.y)).toBeLessThan(5);
   await cards.first().locator(":scope > summary").click();
   expect((await cards.first().boundingBox())!.width).toBeGreaterThan(1000);
   await component.unmount();

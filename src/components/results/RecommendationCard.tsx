@@ -71,7 +71,6 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; promptValues?: PromptValues; compare?: CompareControl;
 }) {
   const [opened, setOpened] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const compareButton = compare ? <CompareToggle recommendation={r} {...compare} /> : null;
   const fit = fitContextFor(r);
   const rows = componentEvidenceFor(r, workStyle);
@@ -82,7 +81,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   const careers = cleanLines(r.nicheCareerPaths).length ? r.nicheCareerPaths : r.relatedCareers;
   const hasExplanation = cleanLines(r.reasonBullets).length || cleanLines(careers).length ||
     cleanLines(r.skillStrengthMatches).length || r.careerPersonalizationReason?.trim() || r.aspirationReflection?.trim();
-  const explanation = <div className="grid gap-5 px-2 pb-4 md:grid-cols-2">
+  const explanation = <div className="space-y-5 px-2 pb-4">
     <Lines title="Dasar pertimbangan" items={r.reasonBullets} />
     <div className="min-w-0 space-y-5">
     <Lines title="Arah karier untuk dijelajahi" items={careers} />
@@ -114,9 +113,12 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
           {typeof bonus === "number" && Number.isFinite(bonus) ? <p className="mt-3 text-xs leading-5 text-stone-600">Tambahan aspirasi tersimpan: {bonus} poin. Sudah termasuk dalam skor laporan.</p> : null}
           {signals.length ? <p className="mt-2 text-xs leading-5 text-stone-600">Sinyal aspirasi tersimpan: {signals.join(", ")}</p> : null}
         </section>
-          {r.actionGuidance ? <SkillTargets guidance={r.actionGuidance} /> : null}
         </div>
+        {r.actionGuidance ? <SkillTargets guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+      </div>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0 space-y-4">
+          {r.actionGuidance ? <FirstStep guidance={r.actionGuidance} /> : null}
           {steps.length ? <section className="rounded-xl border border-orange-200 bg-orange-50 p-4">
             <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-ink">
               <Footprints size={18} className="shrink-0 text-leaf" aria-hidden="true" />Langkah berikutnya
@@ -129,9 +131,9 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
               <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">{steps.slice(3).map(line => <li key={line}>{line}</li>)}</ul>
             </details> : null}
           </section> : null}
-          {r.actionGuidance ? <FirstStep guidance={r.actionGuidance} /> : <Lines title="Skill yang perlu ditingkatkan" items={r.skillGaps} />}
+        </div>
+        <div className="min-w-0 space-y-4">
           {expanded && promptValues ? <AskAi values={promptValues} /> : null}
-          {expanded || opened ? <CampusExamples majorId={r.majorId} majorName={r.majorName} degreeTypes={r.degreeTypes} preferences={preferences} /> : null}
           {r.majorId in campusMajorMap ? <a href={`/jurusan/${r.majorId}`} className="touch-link -ml-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
             <BookOpen size={16} aria-hidden="true" />Kenali jurusan {r.majorName}
           </a> : null}
@@ -139,6 +141,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
           <Lines title="Hal yang perlu dicek" items={cautions} />
         </div>
       </div>
+      {expanded || opened ? <CampusExamples majorId={r.majorId} majorName={r.majorName} degreeTypes={r.degreeTypes} preferences={preferences} /> : null}
       {hasExplanation ? expanded ? <details className="rounded-xl border border-stone-200 px-3">
         <summary className="touch-link rounded-lg text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">Penjelasan laporan tersimpan</summary>
         {explanation}
@@ -157,8 +160,8 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{compareButton}
     </div>{body}
-  </article> : <div className={`panel min-w-0 ${isOpen ? "lg:col-span-2" : ""}`}>
-  <details className="recommendation-details min-w-0" onToggle={(event) => { const open = event.currentTarget.open; setIsOpen(open); if (open) setOpened(true); }}>
+  </article> : <div className="panel min-w-0">
+  <details className="recommendation-details min-w-0" onToggle={(event) => { if (event.currentTarget.open) setOpened(true); }}>
     <summary className="flex min-h-14 items-start gap-3 rounded-lg [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf">
       <span className="pt-1 text-xs font-bold tabular-nums text-leaf">{String(r.rank).padStart(2, "0")}</span>
       <span className="min-w-0 flex-1">

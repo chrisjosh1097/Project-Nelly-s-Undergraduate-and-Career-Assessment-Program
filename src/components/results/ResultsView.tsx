@@ -185,7 +185,7 @@ export function ResultsView({
       {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
       <section id="alternatif" className="scroll-mt-16">
         <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
-        <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+        <div className="grid gap-3">
           {submission.report.recommendations.slice(1).map((r) => (
             <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} compare={compareFor(r.majorId)} />
           ))}
