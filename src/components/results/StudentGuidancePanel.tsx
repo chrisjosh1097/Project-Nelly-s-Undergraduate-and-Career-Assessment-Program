@@ -21,7 +21,7 @@ export function AspirationRoutesPanel({ guidance }: { guidance: StudentGuidance 
   return <section aria-label="Jalur cita-cita dan istilah" className="panel min-w-0 space-y-6">
     {guidance.aspirationRoutes.length ? <div>
       <h2 className="flex items-center gap-2 text-xl font-bold"><Route size={20} className="shrink-0 text-leaf" aria-hidden="true" />Langkah menuju cita-citamu</h2>
-      <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-3">
+      <div className={`mt-4 grid min-w-0 gap-4 ${guidance.aspirationRoutes.length === 2 ? "lg:grid-cols-2" : guidance.aspirationRoutes.length >= 3 ? "lg:grid-cols-3" : ""}`}>
         {guidance.aspirationRoutes.map(route => <article key={route.title} className="min-w-0 rounded-xl border border-stone-200 p-4">
           <h3 className="text-base font-bold">{route.title}</h3>
           <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6 text-stone-700">{route.steps.map(step => <li key={step}>{step}</li>)}</ol>

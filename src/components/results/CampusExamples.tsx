@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ExternalLink, School } from "lucide-react";
+import Link from "next/link";
+import { CAMPUS_PREFERENCE_LABELS } from "@/lib/campus/preferences";
 import { CampusDegree, CampusPlace, CampusStats } from "@/components/campus/CampusRowMeta";
 
 interface CampusItem {
@@ -72,13 +74,19 @@ export function CampusExamples({ majorId, majorName, degreeTypes, preferences }:
     </a>;
   }
   const { items, maritimeNote, source } = state.data;
-  if (!items.length) return null;
+  const filters = [...campusDegreeParams(degreeTypes), ...new Set((preferences ?? []).filter(p => Object.hasOwn(CAMPUS_PREFERENCE_LABELS, p)).map(p => CAMPUS_PREFERENCE_LABELS[p]))];
 
   return <section aria-label="Contoh kampus" className="min-w-0">
     <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-ink">
       <School size={16} className="shrink-0 text-leaf" aria-hidden="true" />Contoh kampus dengan program studi spesifik ini
     </h3>
-    <ul className="grid gap-3 lg:grid-cols-2">
+    {filters.length ? <p className="mb-2 text-xs leading-5 text-stone-600">Filter: {filters.join(" · ")}</p> : null}
+    {preferences?.includes("PTS bagus di kota besar") ? <p className="mb-2 text-xs leading-5 text-stone-600">Kualitas kampus dan lokasi kota besar belum diverifikasi.</p> : null}
+    {preferences?.includes("Kuliah dekat rumah") ? <p className="mb-2 text-xs leading-5 text-stone-600">Lokasi dekat rumah belum difilter. Cek lokasi kampus melalui pencarian.</p> : null}
+    {!items.length ? <div className="rounded-xl border border-stone-200 p-3 text-sm leading-6 text-stone-700">
+      <p>Belum ada contoh kampus sesuai filter di katalog ini.</p>
+      <Link href="/kampus" className={linkClass}>Cari kampus lain</Link>
+    </div> : <ul className="grid gap-3 lg:grid-cols-2">
       {items.map((item) => <li key={`${item.campus}|${item.program}|${item.degree}`} className="min-w-0 rounded-xl border border-stone-200 p-3 text-sm leading-6">
         <span className="block font-semibold text-ink">{item.campus}</span>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-stone-700">
@@ -91,7 +99,7 @@ export function CampusExamples({ majorId, majorName, degreeTypes, preferences }:
           Cek di PDDikti<ExternalLink size={14} aria-hidden="true" />
         </a>
       </li>)}
-    </ul>
+    </ul>}
     {maritimeNote ? <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs leading-5 text-stone-700">{MARITIME_NOTE}</p> : null}
     <p className="mt-1 text-xs leading-5 text-stone-600">{source}</p>
   </section>;

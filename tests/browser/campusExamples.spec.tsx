@@ -67,11 +67,13 @@ test("shows the maritime note", async ({ mount, page }) => {
   await expect(component.getByText("Sekolah pelayaran/kedinasan resmi mungkin tidak ada di daftar ini — cek situs instansinya.")).toBeVisible();
 });
 
-test("renders nothing when there are no campuses", async ({ mount, page }) => {
+test("explains empty catalog results and preserves source", async ({ mount, page }) => {
   await stub(page, ok({ items: [], total: 0 }));
   await mount(<div data-testid="host"><CampusExamples majorId="x" majorName="X" /></div>);
   await expect(page.getByTestId("campus-skeleton")).toHaveCount(0);
-  await expect(page.getByTestId("host")).toBeEmpty();
+  await expect(page.getByText("Belum ada contoh kampus sesuai filter di katalog ini.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Cari kampus lain", exact: true })).toHaveAttribute("href", "/kampus");
+  await expect(page.getByText(SOURCE, { exact: true })).toBeVisible();
 });
 
 for (const failure of ["500", "abort"] as const) {

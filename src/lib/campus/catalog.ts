@@ -1,5 +1,6 @@
 // server-only: imports the full catalog JSON. Never import from a client component.
 import catalogJson from "../../../data/campus/catalog.json";
+import { matchesCampusPreferences } from "./preferences";
 import { campusMajorMap, maritimeMajorIds, type CampusMajorRule } from "../../../data/campusMajorMap";
 import { nameKey, type CampusCatalog, type CampusType, type Degree } from "./normalize";
 
@@ -102,7 +103,7 @@ export function campusesForMajor(
 
   const seen = new Set<string>();
   const matches = programsForRule(rule)
-    .filter((m) => allowed.has(m.degree))
+    .filter((m) => allowed.has(m.degree) && matchesCampusPreferences(m, preferences))
     .sort(
       (a, b) =>
         preferenceScore(b, preferences) - preferenceScore(a, preferences) ||
