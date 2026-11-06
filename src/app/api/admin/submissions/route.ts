@@ -1,24 +1,27 @@
-import { jsonError } from "@/lib/api";
+import { ApiError, jsonError } from "@/lib/api";
 import { verifyManualAdminRequest } from "@/lib/admin/session";
-import { listSubmissions } from "@/lib/submissions/store";
-
+import { listAdminSubmissionPage } from "@/lib/submissions/store";
+import { parseSubmissionFilters } from "@/lib/submissions/filters";
 export const runtime = "nodejs";
-
 export async function GET(request: Request) {
   try {
     verifyManualAdminRequest(request);
-    const url = new URL(request.url);
-    const submissions = await listSubmissions({
-      school: url.searchParams.get("school") ?? undefined,
-      className: url.searchParams.get("className") ?? undefined,
-      topRecommendation: url.searchParams.get("topRecommendation") ?? undefined,
-      cluster: url.searchParams.get("cluster") ?? undefined,
-      status: url.searchParams.get("status") ?? undefined,
-      dateFrom: url.searchParams.get("dateFrom") ?? undefined,
-      dateTo: url.searchParams.get("dateTo") ?? undefined
+    const params = new URL(request.url).searchParams;
+    const rawPage = params.get("page");
+    const page = rawPage === null ? 1 : Number(rawPage);
+    if (
+      (rawPage !== null && !/^\d+$/.test(rawPage)) ||
+      !Number.isSafeInteger(page) ||
+      page < 1
+    )
+      throw new ApiError("Halaman tidak valid.", 400);
+    const result = await listAdminSubmissionPage(
+      parseSubmissionFilters(params),
+      page,
+    );
+    return Response.json(result, {
+      headers: { "cache-control": "private, no-store" },
     });
-
-    return Response.json({ submissions });
   } catch (error) {
     return jsonError(error);
   }

@@ -1,130 +1,165 @@
 "use client";
-
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ResultsView } from "@/components/results/ResultsView";
-import { Button } from "@/components/ui/Button";
+import { ResultsView } from "./ResultsView";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { StatusMessage } from "@/components/ui/StatusMessage";
+import { Button } from "@/components/ui/Button";
+import { Panel } from "@/components/ui/Panel";
 import type { Submission } from "@/lib/types";
-
-function isPersonalizedResultReady(submission: Submission) {
-  return submission.narrativeStatus === "completed" || submission.report.narrative?.source === "gemini";
-}
-
-function shouldPollPersonalizedResult(submission: Submission) {
-  return submission.narrativeStatus === "pending" || submission.narrativeStatus === "processing";
-}
-
-function ResultProcessingScreen({
-  alreadySubmitted,
-  status
+export function ResultLoader({
+  alreadySubmitted = false,
 }: {
-  alreadySubmitted: boolean;
-  status: Submission["narrativeStatus"];
+  alreadySubmitted?: boolean;
 }) {
-  const statusCopy =
-    status === "processing"
-      ? "Analisis personal sedang dibuat."
-      : status === "failed"
-        ? "Hasil personal belum selesai. Silakan cek lagi beberapa menit lagi atau hubungi admin."
-        : status === "skipped"
-          ? "Hasil personal belum aktif. Silakan hubungi admin."
-          : "Hasil kamu sudah masuk antrean.";
-
+  const { user } = useAuth();
+  // A new identity gets a fresh state tree before any old report can render.
   return (
-    <section className="rounded-md border border-black/10 bg-white p-6 shadow-soft sm:p-8">
-      <div className="flex items-start gap-4">
-        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED]">
-          <span className="h-3 w-3 animate-pulse rounded-full bg-coral" />
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-coral">Sedang diproses</p>
-          <h1 className="mt-2 text-2xl font-black text-ink">Hasil kamu sedang dipersonalisasi</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/70">
-            {statusCopy} Kamu bisa cek kembali halaman ini dalam beberapa menit. Jangan submit ulang, karena jawaban kamu
-            sudah tersimpan.
-          </p>
-          {alreadySubmitted ? (
-            <p className="mt-3 rounded-md bg-marigold/15 p-3 text-sm leading-6 text-ink/70">
-              Email Google ini sudah pernah submit. Begitu analisis personal selesai, hasil sebelumnya akan muncul di halaman ini.
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </section>
+    <AccountResults
+      key={`${user?.uid ?? "signed-out"}:${user?.email ?? ""}`}
+      alreadySubmitted={alreadySubmitted}
+    />
   );
 }
-
-export function ResultLoader({ alreadySubmitted = false }: { alreadySubmitted?: boolean }) {
+function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
   const router = useRouter();
   const { user, loading, getToken } = useAuth();
-  const [submission, setSubmission] = useState<Submission | null>(null);
-  const [error, setError] = useState("");
-
+  const [submission, setSubmission] = useState<Submission | null>(null),
+    [loaded, setLoaded] = useState(false),
+    [error, setError] = useState(""),
+    [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!loading && !user) router.replace(`/login?next=${alreadySubmitted ? "/already-submitted" : "/result"}`);
-  }, [alreadySubmitted, loading, router, user]);
-
+    if (!loading && !user)
+      router.replace(
+        `/login?next=${alreadySubmitted ? "/already-submitted" : "/result"}`,
+      );
+  }, [loading, user, router, alreadySubmitted]);
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-
     async function load() {
-      if (!user) return;
       try {
         const token = await getToken();
         const response = await fetch("/api/submissions/me", {
-          headers: { authorization: `Bearer ${token}` }
+          headers: { authorization: `Bearer ${token}` },
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error ?? "Hasil belum ditemukan.");
         if (cancelled) return;
-        setSubmission(data.submission);
-        setError("");
-
-        if (data.submission && shouldPollPersonalizedResult(data.submission)) {
-          timer = setTimeout(load, 3500);
+        if (response.status === 404) {
+          setSubmission(null);
+          setLoaded(true);
+          setError("");
+          return;
         }
-      } catch (loadError) {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Gagal memuat hasil.");
+        if (response.status === 401 || response.status === 403)
+          setSubmission(null);
+        if (!response.ok)
+          throw new Error(data.error ?? "Hasil belum dapat dimuat.");
+        if (cancelled) return;
+        setSubmission(data.submission ?? null);
+        setLoaded(true);
+        setError("");
+        if (
+          ["pending", "processing"].includes(
+            data.submission?.narrativeStatus,
+          ) ||
+          data.submission?.status === "processing"
+        )
+          timer = setTimeout(load, 3500);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Gagal memuat hasil.");
+          setLoaded(true);
+        }
       }
     }
-
     void load();
-
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [getToken, user]);
-
-  if (loading || (!submission && !error)) {
-    return <div className="rounded-md border border-black/10 bg-white p-6 text-sm text-ink/70">Memuat hasil...</div>;
-  }
-
-  if (error) {
+  }, [user, getToken, retry]);
+  if (loading || !user || !loaded)
+    return <StatusMessage>Memuat hasil…</StatusMessage>;
+  if (!submission && error)
     return (
-      <div className="rounded-md border border-coral/30 bg-coral/10 p-5">
-        <p className="text-sm text-ink">{error}</p>
-        <Button className="mt-4" onClick={() => router.push("/assessment")}>
-          Buka Tes Jurusan
+      <Panel>
+        <StatusMessage tone="error">{error}</StatusMessage>
+        <Button
+          className="mt-5"
+          onClick={() => {
+            setLoaded(false);
+            setRetry((v) => v + 1);
+          }}
+        >
+          Coba lagi
         </Button>
-      </div>
+      </Panel>
     );
-  }
-
-  if (submission && !isPersonalizedResultReady(submission) && submission.narrativeStatus) {
-    return <ResultProcessingScreen alreadySubmitted={alreadySubmitted} status={submission.narrativeStatus} />;
-  }
-
+  if (!submission)
+    return (
+      <Panel>
+        <h1 className="section-heading">Belum ada hasil asesmen.</h1>
+        <p className="my-5 text-sm text-stone-600">
+          Mulai dengan mengenali minat dan kekuatanmu.
+        </p>
+        <Link
+          className="touch-link rounded-full bg-leaf px-6 text-white hover:bg-orange-800"
+          href="/assessment"
+        >
+          Mulai asesmen
+        </Link>
+      </Panel>
+    );
+  if (!submission.report)
+    return (
+      <Panel>
+        <StatusMessage>
+          Jawaban tersimpan. Laporan sedang diproses; jangan kirim ulang.
+        </StatusMessage>
+        <Button className="mt-5" onClick={() => setRetry((v) => v + 1)}>
+          Periksa lagi
+        </Button>
+      </Panel>
+    );
+  const pending = ["pending", "processing"].includes(
+    submission.narrativeStatus ?? "",
+  );
   return (
     <div className="space-y-5">
       {alreadySubmitted ? (
-        <div className="rounded-md border border-marigold/40 bg-marigold/15 p-4 text-sm leading-6 text-ink">
-          Email Google ini sudah pernah submit. Hasil di bawah adalah hasil sebelumnya dan tidak digenerasi ulang.
-        </div>
+        <StatusMessage>
+          Email ini sudah pernah mengirim asesmen. Hasil di bawah adalah hasil
+          sebelumnya dan tidak digenerasi ulang.
+        </StatusMessage>
       ) : null}
-      <ResultsView submission={submission!} />
+      {pending ? (
+        <StatusMessage>
+          Hasil utama sudah dapat dibaca. Penjelasan personal sedang diperkaya
+          dan akan diperbarui otomatis.
+        </StatusMessage>
+      ) : submission.narrativeStatus === "failed" ||
+        submission.narrativeStatus === "skipped" ? (
+        <StatusMessage>
+          Penjelasan berbasis aturan sudah tersedia. Pengayaan personal belum
+          tersedia; skor dan rekomendasi tetap dapat digunakan.
+        </StatusMessage>
+      ) : null}
+      {error ? (
+        <StatusMessage tone="error">
+          {error}
+          <Button
+            variant="secondary"
+            className="ml-3"
+            onClick={() => setRetry((v) => v + 1)}
+          >
+            Coba lagi
+          </Button>
+        </StatusMessage>
+      ) : null}
+      <ResultsView submission={submission} />
     </div>
   );
 }

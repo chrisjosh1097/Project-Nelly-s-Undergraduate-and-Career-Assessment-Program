@@ -1,5 +1,10 @@
 import type { NormalizedStudentAnswer, StudentAnswer } from "@/lib/types";
 import { unique } from "@/lib/utils";
+import {
+  PROBLEM_AREA_RANK_WEIGHTS,
+  problemAreaOptionTags,
+  usesRankedProblemAreas,
+} from "./options";
 
 const subjectMap: Record<string, string> = {
   Matematika: "mathematics",
@@ -13,7 +18,7 @@ const subjectMap: Record<string, string> = {
   Olahraga: "sports",
   Sosiologi: "sociology",
   Sejarah: "history",
-  Lainnya: "other"
+  Lainnya: "other",
 };
 
 const interestMap: Record<string, string[]> = {
@@ -26,7 +31,7 @@ const interestMap: Record<string, string[]> = {
   "Eksperimen/lab": ["lab_experiment"],
   "Kerja lapangan": ["field_work"],
   "Mengorganisir acara": ["organizing"],
-  "Memperbaiki barang/mesin": ["engineering_machines"]
+  "Memperbaiki barang/mesin": ["engineering_machines"],
 };
 
 const skillMap: Record<string, string> = {
@@ -41,7 +46,7 @@ const skillMap: Record<string, string> = {
   "Numerik/hitung-hitungan": "numeracy",
   "Bahasa asing": "foreign_language",
   Teknologi: "technology",
-  "Kerja praktik": "practical_work"
+  "Kerja praktik": "practical_work",
 };
 
 const workStyleMap: Record<string, string> = {
@@ -50,7 +55,7 @@ const workStyleMap: Record<string, string> = {
   "Praktik langsung": "hands_on",
   "Kreatif dan fleksibel": "creative_flexible",
   "Terstruktur dan detail": "structured_detail",
-  "Dinamis di lapangan": "dynamic_field"
+  "Dinamis di lapangan": "dynamic_field",
 };
 
 const problemAreaMap: Record<string, string> = {
@@ -63,7 +68,7 @@ const problemAreaMap: Record<string, string> = {
   Keuangan: "finance",
   Hukum: "law",
   "Kreatif/media": "creative_media",
-  Infrastruktur: "infrastructure"
+  Infrastruktur: "infrastructure",
 };
 
 const constraintMap: Record<string, string> = {
@@ -74,7 +79,7 @@ const constraintMap: Record<string, string> = {
   "Belum tahu minat": "unsure_interest",
   "Takut salah jurusan": "afraid_wrong_major",
   "Ingin cepat kerja": "wants_fast_employment",
-  "Ingin beasiswa": "wants_scholarship"
+  "Ingin beasiswa": "wants_scholarship",
 };
 
 const collegePreferenceMap: Record<string, string> = {
@@ -84,7 +89,7 @@ const collegePreferenceMap: Record<string, string> = {
   "Kuliah dekat rumah": "prefers_near_home",
   "Diploma/vokasi": "prefers_vocational",
   "Sertifikasi/bootcamp": "prefers_certification",
-  "Belum tahu": "unsure_interest"
+  "Belum tahu": "unsure_interest",
 };
 
 type TextSignals = {
@@ -100,35 +105,81 @@ const textSignalRules: Array<{
   problemAreaIds?: string[];
 }> = [
   {
-    patterns: [/\bmembantu\b/, /\bbantu\b/, /\bmenolong\b/, /\bmendampingi\b/, /\bmelayani\b/, /\bpelayanan\b/],
+    patterns: [
+      /\bmembantu\b/,
+      /\bbantu\b/,
+      /\bmenolong\b/,
+      /\bmendampingi\b/,
+      /\bmelayani\b/,
+      /\bpelayanan\b/,
+    ],
     interestIds: ["helping_people"],
     skillIds: ["empathy", "communication"],
-    problemAreaIds: ["social"]
+    problemAreaIds: ["social"],
   },
   {
-    patterns: [/\bham\b/, /hak asasi/, /\bkeadilan\b/, /\badvokasi\b/, /\bmemperjuangkan\b/, /\bhukum\b/, /\bkebijakan\b/, /\bregulasi\b/],
+    patterns: [
+      /\bham\b/,
+      /hak asasi/,
+      /\bkeadilan\b/,
+      /\badvokasi\b/,
+      /\bmemperjuangkan\b/,
+      /\bhukum\b/,
+      /\bkebijakan\b/,
+      /\bregulasi\b/,
+      /\bpemerintah/,
+      /\bstafsus\b/,
+      /staf khusus/,
+      /\bpns\b/,
+      /\basn\b/,
+      /\bkementerian\b/,
+      /\bgubernur\b/,
+      /\bdpr\b/,
+    ],
     interestIds: ["law_debate", "speaking_writing"],
     skillIds: ["critical_thinking", "communication", "public_speaking"],
-    problemAreaIds: ["law", "social", "public_service"]
+    problemAreaIds: ["law", "social", "public_service"],
   },
   {
-    patterns: [/\blingkungan\b/, /\biklim\b/, /\bclimate\b/, /\bsustainability\b/, /\bkeberlanjutan\b/, /\bkonservasi\b/, /\bhutan\b/, /\blimbah\b/, /\balam\b/],
+    patterns: [
+      /\blingkungan\b/,
+      /\biklim\b/,
+      /\bclimate\b/,
+      /\bsustainability\b/,
+      /\bkeberlanjutan\b/,
+      /\bkonservasi\b/,
+      /\bhutan\b/,
+      /\blimbah\b/,
+      /\balam\b/,
+    ],
     interestIds: ["nature_environment", "field_work"],
     skillIds: ["research", "critical_thinking"],
-    problemAreaIds: ["environment", "public_service"]
+    problemAreaIds: ["environment", "public_service"],
   },
   {
-    patterns: [/\bpendidikan\b/, /\bmengajar\b/, /\bguru\b/, /\bsekolah\b/, /\banak\b/],
+    patterns: [
+      /\bpendidikan\b/,
+      /\bmengajar\b/,
+      /\bguru\b/,
+      /\bsekolah\b/,
+      /\banak\b/,
+    ],
     interestIds: ["teaching", "helping_people"],
     skillIds: ["communication", "public_speaking"],
-    problemAreaIds: ["education", "social"]
+    problemAreaIds: ["education", "social"],
   },
   {
-    patterns: [/\bkesehatan\b/, /\bmedis\b/, /\brumah sakit\b/, /\bpasien\b/, /\bgizi\b/],
+    patterns: [
+      /\bkesehatan\b/,
+      /\bmedis\b/,
+      /\brumah sakit\b/,
+      /\bpasien\b/,
+      /\bgizi\b/,
+    ],
     interestIds: ["health_care", "helping_people"],
     skillIds: ["empathy", "detail_orientation"],
-    problemAreaIds: ["health", "social"]
-  }
+    problemAreaIds: ["health", "social"],
+  },
 ];
 
 function normalizeFreeText(value: string) {
@@ -147,14 +198,14 @@ function inferTextSignals(answer: StudentAnswer): TextSignals {
       answer.favoriteSubjectsOther,
       answer.collegePathPreferenceOther,
       answer.dreamProfession,
-      answer.futureVision
-    ].join(" ")
+      answer.futureVision,
+    ].join(" "),
   );
 
   const signals: TextSignals = {
     interestIds: [],
     skillIds: [],
-    problemAreaIds: []
+    problemAreaIds: [],
   };
 
   if (!text) return signals;
@@ -169,7 +220,7 @@ function inferTextSignals(answer: StudentAnswer): TextSignals {
   return {
     interestIds: unique(signals.interestIds).slice(0, 6),
     skillIds: unique(signals.skillIds).slice(0, 6),
-    problemAreaIds: unique(signals.problemAreaIds).slice(0, 6)
+    problemAreaIds: unique(signals.problemAreaIds).slice(0, 6),
   };
 }
 
@@ -193,6 +244,20 @@ export function normalizeProblemAreaAnswer(value: string) {
   return problemAreaMap[value] ?? "other";
 }
 
+export function normalizeProblemAreaTags(value: string): string[] {
+  return problemAreaOptionTags[value] ?? [normalizeProblemAreaAnswer(value)];
+}
+
+// v3.2.0: answers using the new options are ranked by array order.
+export function rankedProblemAreas(answer: StudentAnswer) {
+  if (!usesRankedProblemAreas(answer.problemAreas)) return undefined;
+  return answer.problemAreas.slice(0, PROBLEM_AREA_RANK_WEIGHTS.length).map((label, index) => ({
+    label,
+    weight: PROBLEM_AREA_RANK_WEIGHTS[index],
+    tagIds: problemAreaOptionTags[label],
+  }));
+}
+
 export function normalizeConstraintAnswer(value: string) {
   return constraintMap[value] ?? "other";
 }
@@ -201,12 +266,22 @@ export function normalizeCollegePreferenceAnswer(value: string) {
   return collegePreferenceMap[value] ?? "other";
 }
 
-export function normalizeStudentAnswer(answer: StudentAnswer): NormalizedStudentAnswer {
-  const collegePreferenceIds = unique(answer.collegePathPreferences.map(normalizeCollegePreferenceAnswer));
-  const explicitConstraintIds = answer.personalConstraints.map(normalizeConstraintAnswer);
+export function normalizeStudentAnswer(
+  answer: StudentAnswer,
+): NormalizedStudentAnswer {
+  const collegePreferenceIds = unique(
+    answer.collegePathPreferences.map(normalizeCollegePreferenceAnswer),
+  );
+  const explicitConstraintIds = answer.personalConstraints.map(
+    normalizeConstraintAnswer,
+  );
   const textSignals = inferTextSignals(answer);
+  const ranked = rankedProblemAreas(answer);
 
   return {
+    ...(answer.educationPathway
+      ? { educationPathway: answer.educationPathway }
+      : {}),
     fullName: answer.fullName,
     email: answer.email,
     gender: answer.gender,
@@ -214,17 +289,29 @@ export function normalizeStudentAnswer(answer: StudentAnswer): NormalizedStudent
     school: answer.school,
     className: answer.className,
     currentSchoolMajor: answer.currentSchoolMajor,
-    favoriteSubjectIds: unique(answer.favoriteSubjects.map(normalizeSubjectAnswer)),
+    favoriteSubjectIds: unique(
+      answer.favoriteSubjects.map(normalizeSubjectAnswer),
+    ),
     favoriteSubjectsOther: answer.favoriteSubjectsOther,
-    interestIds: unique([...answer.favoriteActivities.flatMap(normalizeInterestAnswer), ...textSignals.interestIds]),
-    skillIds: unique([...answer.skillStrengths.map(normalizeSkillAnswer), ...textSignals.skillIds]),
+    interestIds: unique([
+      ...answer.favoriteActivities.flatMap(normalizeInterestAnswer),
+      ...textSignals.interestIds,
+    ]),
+    skillIds: unique([
+      ...answer.skillStrengths.map(normalizeSkillAnswer),
+      ...textSignals.skillIds,
+    ]),
     workStyleId: normalizeWorkStyleAnswer(answer.workStyle),
-    problemAreaIds: unique([...answer.problemAreas.map(normalizeProblemAreaAnswer), ...textSignals.problemAreaIds]),
+    problemAreaIds: unique([
+      ...answer.problemAreas.flatMap(normalizeProblemAreaTags),
+      ...textSignals.problemAreaIds,
+    ]),
+    ...(ranked ? { problemAreaRanked: ranked, textProblemAreaIds: textSignals.problemAreaIds } : {}),
     collegePreferenceIds,
     collegePathPreferenceOther: answer.collegePathPreferenceOther,
     constraintIds: unique([...explicitConstraintIds, ...collegePreferenceIds]),
     techComfort: answer.techComfort,
     dreamProfession: answer.dreamProfession,
-    futureVision: answer.futureVision
+    futureVision: answer.futureVision,
   };
 }

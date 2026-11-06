@@ -10,7 +10,9 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.mjs",
-    "validate:kb": "tsx scripts/validateKnowledgeBase.ts"
+    "validate:kb": "tsx scripts/validateKnowledgeBase.ts",
+    "import:campus": "tsx scripts/importCampusCatalog.ts",
+    "test:browser": "playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
     "@firebase/app": "^0.10.18",
@@ -26,6 +28,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/experimental-ct-react": "^1.62.1",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

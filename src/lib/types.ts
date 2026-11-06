@@ -1,3 +1,5 @@
+export type EducationPathway = "university" | "vocational" | "exploring";
+
 export type SchoolMajor =
   | "IPA"
   | "IPS"
@@ -27,20 +29,17 @@ export type Gender = "Pria" | "Wanita";
 
 export type SubmissionStatus = "processing" | "completed" | "failed";
 
-export type NarrativeStatus = "pending" | "processing" | "completed" | "failed" | "skipped";
+export type NarrativeStatus =
+  "pending" | "processing" | "completed" | "failed" | "skipped";
 
 export type FitLabel =
-  | "Sangat Cocok"
-  | "Cocok"
-  | "Cukup Cocok"
-  | "Perlu Dipertimbangkan Lagi";
+  "Sangat Cocok" | "Cocok" | "Cukup Cocok" | "Perlu Dipertimbangkan Lagi";
 
 export type AIFutureResilienceLabel =
-  | "Tinggi"
-  | "Sedang"
-  | "Perlu Adaptasi Tinggi";
+  "Tinggi" | "Sedang" | "Perlu Adaptasi Tinggi";
 
 export interface StudentAnswer {
+  educationPathway?: EducationPathway;
   fullName: string;
   email: string;
   gender: Gender | "";
@@ -48,6 +47,8 @@ export interface StudentAnswer {
   school: string;
   className: string;
   currentSchoolMajor: SchoolMajor;
+  /** Free text when currentSchoolMajor is "Lainnya". Display only; optional for old answers. */
+  currentSchoolMajorOther?: string;
   favoriteSubjects: string[];
   favoriteSubjectsOther: string;
   favoriteActivities: string[];
@@ -63,6 +64,7 @@ export interface StudentAnswer {
 }
 
 export interface NormalizedStudentAnswer {
+  educationPathway?: EducationPathway;
   fullName: string;
   email: string;
   gender: Gender | "";
@@ -76,6 +78,9 @@ export interface NormalizedStudentAnswer {
   skillIds: string[];
   workStyleId: string;
   problemAreaIds: string[];
+  /** v3.2.0+: ranked new-option answers (weight 1.0 / 0.8 / 0.6). */
+  problemAreaRanked?: { label: string; weight: number; tagIds: string[] }[];
+  textProblemAreaIds?: string[];
   collegePreferenceIds: string[];
   collegePathPreferenceOther: string;
   constraintIds: string[];
@@ -134,6 +139,8 @@ export interface ScoringBreakdown {
   workStyleScore: number;
   problemAreaScore: number;
   constraintFitScore: number;
+  aspirationMajorBoost?: number;
+  matchedAspirationMajorSignals?: string[];
   matchedSubjects: string[];
   matchedInterests: string[];
   matchedSkills: string[];
@@ -148,6 +155,7 @@ export interface ScoringBreakdown {
 }
 
 export interface RecommendationResult {
+  degreeTypes?: string[];
   rank: number;
   majorId: string;
   majorName: string;
@@ -170,6 +178,26 @@ export interface RecommendationResult {
   recommendedNextSteps: string[];
   cautionNotes: string[];
   scoringBreakdown: ScoringBreakdown;
+  /** Optional curated guidance; absent on reports saved before guidance existed. */
+  actionGuidance?: ActionGuidance;
+}
+
+export interface GuidanceSkillTarget { gap: string; target: string; proof: string }
+export interface GuidanceWeekAction { week: 1 | 2 | 3 | 4; action: string; durationLabel: string; proof: string }
+export interface GuidanceGlossaryTerm { term: string; plain: string; aliases?: string[] }
+
+export interface ActionGuidance {
+  skillTargets: GuidanceSkillTarget[];
+  weekPlan: GuidanceWeekAction[];
+  aiNote?: string;
+  comparisonNote?: string;
+}
+
+export interface StudentGuidance {
+  evidenceSummary: string;
+  tensions: string[];
+  aspirationRoutes: { title: string; steps: string[]; verify: string }[];
+  glossary: GuidanceGlossaryTerm[];
 }
 
 export interface CareerPersonalization {
@@ -199,6 +227,7 @@ export interface RecommendationReport {
   ptnPtsVokasiAdvice?: string[];
   answerPatternNotes?: string[];
   narrative?: EnhancedNarrative;
+  studentGuidance?: StudentGuidance;
 }
 
 export interface Submission {

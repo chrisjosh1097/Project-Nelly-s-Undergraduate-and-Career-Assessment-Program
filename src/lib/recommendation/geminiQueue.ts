@@ -1,10 +1,13 @@
 import { getAdminDb } from "@/lib/firebase/admin";
 import { enhanceRecommendationReportWithGemini } from "@/lib/recommendation/narrative";
 import type { NarrativeStatus, Submission } from "@/lib/types";
+import { getGeminiRequestConfig } from "@/lib/recommendation/geminiResponse";
+import { isDeepStrictEqual } from "node:util";
 
 const JOB_COLLECTION = "geminiNarrativeJobs";
 const SUBMISSION_COLLECTION = "submissions";
 const RATE_LIMITER_DOC = "system/geminiRateLimiter";
+const MAX_SLOT_WAIT_MS = 10_000;
 
 type GeminiJobStatus = "queued" | "processing" | "completed" | "failed";
 
@@ -21,6 +24,11 @@ export interface GeminiNarrativeJob {
   completedAt?: string;
   lastError?: string;
 }
+
+// In-memory snapshot only; persisted job documents keep their existing schema.
+type ProcessingGeminiJob = GeminiNarrativeJob & {
+  assessmentSnapshot?: FirebaseFirestore.DocumentSnapshot;
+};
 
 export interface GeminiQueueResult {
   jobId: string;
@@ -42,7 +50,8 @@ export function getGeminiQueueConfig() {
     batchSize: boundedNumber(process.env.GEMINI_QUEUE_BATCH_SIZE, 10, 1, 20),
     delayMs: boundedNumber(process.env.GEMINI_QUEUE_DELAY_MS, 500, 0, 10_000),
     maxAttempts: boundedNumber(process.env.GEMINI_QUEUE_MAX_ATTEMPTS, 3, 1, 8),
-    lockMs: boundedNumber(process.env.GEMINI_QUEUE_LOCK_MS, 120_000, 10_000, 10 * 60_000)
+    lockMs: boundedNumber(process.env.GEMINI_QUEUE_LOCK_MS, 120_000,
+      getGeminiRequestConfig().timeoutMs + MAX_SLOT_WAIT_MS + 5_000, 10 * 60_000)
   };
 }
 
@@ -91,7 +100,7 @@ export async function drainGeminiNarrativeJobs() {
 
   const config = getGeminiQueueConfig();
   const snapshot = await getAdminDb().collection(JOB_COLLECTION).where("status", "==", "queued").limit(config.batchSize * 4).get();
-  const lockedJobs: GeminiNarrativeJob[] = [];
+  const lockedJobs: ProcessingGeminiJob[] = [];
 
   for (const doc of snapshot.docs) {
     if (lockedJobs.length >= config.batchSize) break;
@@ -108,35 +117,38 @@ export async function drainGeminiNarrativeJobs() {
   };
 }
 
-async function processRateLimitedGeminiJob(job: GeminiNarrativeJob) {
-  await waitForGeminiSlot();
+async function processRateLimitedGeminiJob(job: ProcessingGeminiJob) {
+  try {
+    await waitForGeminiSlot();
+  } catch (error) {
+    return handleGeminiJobFailure(job, sanitizeJobError(error));
+  }
   return processLockedGeminiJob(job);
 }
 
 async function requeueExpiredProcessingJobs() {
   const now = Date.now();
+  const { maxAttempts } = getGeminiQueueConfig();
   const snapshot = await getAdminDb().collection(JOB_COLLECTION).where("status", "==", "processing").limit(20).get();
-  const batch = getAdminDb().batch();
-  let count = 0;
 
   for (const doc of snapshot.docs) {
     const data = doc.data() as GeminiNarrativeJob;
     const lockedUntil = Date.parse(data.lockedUntil ?? "");
     if (!Number.isFinite(lockedUntil) || lockedUntil > now) continue;
-    batch.set(
-      doc.ref,
+    const exhausted = data.attempts >= maxAttempts;
+    const lastError = exhausted
+      ? "Gemini retry limit reached after worker lock expired."
+      : "Worker lock expired before completion.";
+    await writeOwnedTransition({ ...data, id: doc.id },
       {
-        status: "queued",
+        status: exhausted ? "failed" : "queued",
         updatedAt: new Date().toISOString(),
         availableAt: new Date().toISOString(),
-        lastError: "Worker lock expired before completion."
+        lastError
       },
-      { merge: true }
+      exhausted ? { narrativeStatus: "failed", narrativeUpdatedAt: new Date(now).toISOString(), narrativeError: lastError } : undefined,
     );
-    count += 1;
   }
-
-  if (count > 0) await batch.commit();
 }
 
 async function lockQueuedJob(jobId: string) {
@@ -156,6 +168,18 @@ async function lockQueuedJob(jobId: string) {
     const availableAt = Date.parse(data.availableAt ?? data.createdAt);
     if (Number.isFinite(availableAt) && availableAt > now) return null;
 
+    const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(data.submissionId);
+    const assessmentSnapshot = await transaction.get(submissionRef);
+    const problem = assessmentProblem(data, assessmentSnapshot);
+    if (problem || (data.attempts ?? 0) >= config.maxAttempts) {
+      const message = problem ?? "Gemini retry limit reached before another attempt.";
+      transaction.set(ref, { status: "failed", updatedAt: nowIso, lastError: message }, { merge: true });
+      if (!problem) transaction.set(submissionRef, {
+        narrativeStatus: "failed", narrativeUpdatedAt: nowIso, narrativeError: message,
+      }, { merge: true });
+      return null;
+    }
+
     const attempts = (data.attempts ?? 0) + 1;
     const lockedUntil = new Date(now + config.lockMs).toISOString();
     transaction.set(
@@ -171,6 +195,7 @@ async function lockQueuedJob(jobId: string) {
 
     return {
       ...data,
+      assessmentSnapshot,
       status: "processing" as const,
       attempts,
       lockedUntil,
@@ -189,6 +214,8 @@ async function waitForGeminiSlot() {
     const snapshot = await transaction.get(ref);
     const nextAllowedAtMillis = Number(snapshot.data()?.nextAllowedAtMillis ?? 0);
     const scheduledAt = Math.max(now, Number.isFinite(nextAllowedAtMillis) ? nextAllowedAtMillis : 0);
+    if (scheduledAt - now > MAX_SLOT_WAIT_MS)
+      throw new Error("Gemini rate-limit slot wait exceeds the bounded wait; retry later.");
     transaction.set(
       ref,
       {
@@ -203,23 +230,22 @@ async function waitForGeminiSlot() {
   if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
 }
 
-async function processLockedGeminiJob(job: GeminiNarrativeJob): Promise<GeminiQueueResult> {
+async function processLockedGeminiJob(job: ProcessingGeminiJob): Promise<GeminiQueueResult> {
   const db = getAdminDb();
-  const jobRef = db.collection(JOB_COLLECTION).doc(job.id);
   const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(job.submissionId);
   const now = new Date().toISOString();
 
   try {
     const snapshot = await submissionRef.get();
     if (!snapshot.exists) {
-      await jobRef.set(
+      const written = await writeOwnedTransition(job,
         {
           status: "failed",
           updatedAt: now,
           lastError: "Submission for Gemini job was not found."
-        },
-        { merge: true }
+        }
       );
+      if (!written) return staleJobResult(job);
       return {
         jobId: job.id,
         status: "failed",
@@ -228,36 +254,34 @@ async function processLockedGeminiJob(job: GeminiNarrativeJob): Promise<GeminiQu
       };
     }
 
-    await submissionRef.set(
+    const started = await writeOwnedTransition(job, {},
       {
         narrativeStatus: "processing",
-        narrativeUpdatedAt: now
-      },
-      { merge: true }
+        narrativeUpdatedAt: now,
+        narrativeError: ""
+      }
     );
+    if (!started) return staleJobResult(job);
 
     const submission = { id: snapshot.id, ...snapshot.data() } as Submission;
     const enhancedReport = await enhanceRecommendationReportWithGemini(submission.answers, submission.report);
     const completedAt = new Date().toISOString();
 
-    await submissionRef.set(
-      {
-        report: enhancedReport,
-        narrativeStatus: "completed",
-        narrativeUpdatedAt: completedAt,
-        narrativeError: ""
-      },
-      { merge: true }
-    );
-    await jobRef.set(
+    const completed = await writeOwnedTransition(job,
       {
         status: "completed",
         completedAt,
         updatedAt: completedAt,
         lastError: ""
       },
-      { merge: true }
+      {
+        report: enhancedReport,
+        narrativeStatus: "completed",
+        narrativeUpdatedAt: completedAt,
+        narrativeError: ""
+      }
     );
+    if (!completed) return staleJobResult(job);
 
     return {
       jobId: job.id,
@@ -269,68 +293,87 @@ async function processLockedGeminiJob(job: GeminiNarrativeJob): Promise<GeminiQu
   }
 }
 
-async function handleGeminiJobFailure(job: GeminiNarrativeJob, message: string): Promise<GeminiQueueResult> {
-  const db = getAdminDb();
+async function handleGeminiJobFailure(job: ProcessingGeminiJob, message: string): Promise<GeminiQueueResult> {
   const config = getGeminiQueueConfig();
-  const jobRef = db.collection(JOB_COLLECTION).doc(job.id);
-  const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(job.submissionId);
   const now = new Date().toISOString();
-
-  if (job.attempts >= config.maxAttempts) {
-    await submissionRef.set(
-      {
-        narrativeStatus: "failed",
-        narrativeUpdatedAt: now,
-        narrativeError: message
-      },
-      { merge: true }
-    );
-    await jobRef.set(
-      {
-        status: "failed",
-        updatedAt: now,
-        lastError: message
-      },
-      { merge: true }
-    );
-
-    return {
-      jobId: job.id,
-      status: "failed",
-      attempts: job.attempts,
-      message
-    };
-  }
-
-  const availableAt = nextRetryAvailableAt(job.attempts);
-  await submissionRef.set(
+  const exhausted = job.attempts >= config.maxAttempts;
+  const status = exhausted ? "failed" : "queued";
+  const written = await writeOwnedTransition(job,
     {
-      narrativeStatus: "pending",
-      narrativeUpdatedAt: now,
-      narrativeError: message
-    },
-    { merge: true }
-  );
-  await jobRef.set(
-    {
-      status: "queued",
-      availableAt,
+      status,
+      ...(exhausted ? {} : { availableAt: nextRetryAvailableAt(job.attempts) }),
       updatedAt: now,
       lastError: message
     },
-    { merge: true }
+    {
+      narrativeStatus: exhausted ? "failed" : "pending",
+      narrativeUpdatedAt: now,
+      narrativeError: message
+    }
   );
-
+  if (!written) return staleJobResult(job);
   return {
     jobId: job.id,
-    status: "queued",
+    status,
     attempts: job.attempts,
     message
   };
 }
 
+function staleJobResult(job: GeminiNarrativeJob): GeminiQueueResult {
+  return { jobId: job.id, status: "skipped", attempts: job.attempts, message: "Gemini job or assessment changed; stale result ignored." };
+}
+
+function assessmentProblem(job: ProcessingGeminiJob, snapshot: FirebaseFirestore.DocumentSnapshot) {
+  if (!snapshot.exists) return "Submission for Gemini job was not found.";
+  const submission = snapshot.data() as Submission;
+  const createdAt = Date.parse(submission.createdAt);
+  const queuedAt = Date.parse(job.createdAt);
+  // Existing persisted timestamps reject old orphan jobs targeting a newer attempt.
+  if (!Number.isFinite(createdAt) || !Number.isFinite(queuedAt) || createdAt > queuedAt)
+    return "Submission assessment changed; Gemini job no longer applies.";
+  const expected = job.assessmentSnapshot;
+  if (expected) {
+    const version = (value: Submission) => ({
+      createdAt: value.createdAt, updatedAt: value.updatedAt, answers: value.answers, report: value.report,
+    });
+    if ((expected.createTime && !snapshot.createTime?.isEqual(expected.createTime)) ||
+      !isDeepStrictEqual(version(submission), version(expected.data() as Submission)))
+      return "Submission assessment changed; Gemini result no longer applies.";
+  }
+  return undefined;
+}
+
+// Commit the report/status together and only for the attempt that still owns the job.
+async function writeOwnedTransition(
+  job: ProcessingGeminiJob,
+  jobPatch: Partial<GeminiNarrativeJob>,
+  submissionPatch?: Partial<Submission>,
+) {
+  const db = getAdminDb();
+  const jobRef = db.collection(JOB_COLLECTION).doc(job.id);
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(jobRef);
+    const current = snapshot.data() as GeminiNarrativeJob | undefined;
+    if (!current || current.status !== "processing" || current.attempts !== job.attempts ||
+        current.lockedUntil !== job.lockedUntil || current.createdAt !== job.createdAt) return false;
+    const submissionRef = db.collection(SUBMISSION_COLLECTION).doc(job.submissionId);
+    const assessmentSnapshot = await transaction.get(submissionRef);
+    const problem = assessmentProblem(job, assessmentSnapshot);
+    if (problem) {
+      transaction.set(jobRef, { status: "failed", updatedAt: new Date().toISOString(), lastError: problem }, { merge: true });
+      return false;
+    }
+    if (Object.keys(jobPatch).length) transaction.set(jobRef, jobPatch, { merge: true });
+    if (submissionPatch) transaction.set(
+      submissionRef, submissionPatch, { merge: true },
+    );
+    return true;
+  });
+}
+
 function boundedNumber(value: string | undefined, fallback: number, min: number, max: number) {
-  const parsed = Number(value);
+  const parsed = value?.trim() ? Number(value) : NaN;
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, Math.round(parsed)));
 }

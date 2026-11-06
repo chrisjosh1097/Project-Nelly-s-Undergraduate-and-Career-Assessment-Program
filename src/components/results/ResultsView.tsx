@@ -1,528 +1,244 @@
 "use client";
-
 import { useState } from "react";
-import { Download, Sparkles, Target, Wand2 } from "lucide-react";
+import { Download, ArrowUpRight, Compass, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Panel } from "@/components/ui/Panel";
+import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useAuth } from "@/components/auth/AuthProvider";
-import type { RecommendationResult, Submission } from "@/lib/types";
-import { downloadBlob, formatDateTime } from "@/lib/utils";
+import { educationPathwayLabel } from "@/lib/assessment/pathways";
+import { studentStrengthHighlightsFor } from "@/lib/recommendation/display";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
-import { CAREER_MATCH_LABEL, shouldShowAlternativePathway, studentStrengthHighlightsFor } from "@/lib/recommendation/display";
-
-function ScoreBar({ value, tone = "green" }: { value: number; tone?: "green" | "gold" | "coral" }) {
-  const color = tone === "green" ? "bg-leaf" : tone === "gold" ? "bg-marigold" : "bg-coral";
-  return (
-    <div className="mt-2 h-2 rounded-full bg-black/10">
-      <div className={`h-2 rounded-full ${color}`} style={{ width: `${value}%` }} />
-    </div>
-  );
-}
-
-function careerDirectionFor(recommendation: RecommendationResult) {
-  return recommendation.personalizedCareerDirection || recommendation.careerDirection;
-}
-
-function nicheCareersFor(recommendation: RecommendationResult) {
-  return (recommendation.nicheCareerPaths && recommendation.nicheCareerPaths.length > 0
-    ? recommendation.nicheCareerPaths
-    : recommendation.relatedCareers
-  ).slice(0, 3);
-}
-
-function SmallRecommendationCard({
-  recommendation,
-  showPathwayAdvice
+import { downloadBlob, formatDateTime } from "@/lib/utils";
+import type { Submission } from "@/lib/types";
+import { RecommendationCard } from "./RecommendationCard";
+import { promptValuesFor } from "@/lib/prompts/fill";
+import { COMPARE_MAX, CompareBar, CompareTable } from "./CompareMajors";
+import { CampusDegree } from "@/components/campus/CampusRowMeta";
+import { campusMajorMap } from "../../../data/campusMajorMap";
+import Link from "next/link";
+import { AspirationRoutesPanel, GuidanceTensions, StudentGuidanceSummary } from "./StudentGuidancePanel";
+import { createInstagramCardBlob } from "./shareCard";
+import { cleanLines, fitContextFor, scoreText } from "./resultPresentation";
+export function ResultsView({
+  submission,
+  compact = false,
 }: {
-  recommendation: RecommendationResult;
-  showPathwayAdvice: boolean;
+  submission: Submission;
+  compact?: boolean;
 }) {
-  const nicheCareers = nicheCareersFor(recommendation);
-  const pathwayAdvice = recommendation.careerPathwayAdvice?.slice(0, 3) ?? [];
-
-  return (
-    <article className="rounded-md border border-black/10 bg-white p-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <Badge tone="blue">#{recommendation.rank}</Badge>
-          <h3 className="mt-2 font-bold text-ink">{recommendation.majorName}</h3>
-          <p className="mt-1 text-sm leading-5 text-ink/65">{careerDirectionFor(recommendation)}</p>
-        </div>
-      </div>
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <span className="font-semibold text-ink">Fit {recommendation.overallFitScore}</span>
-          <ScoreBar value={recommendation.overallFitScore} />
-        </div>
-        <div>
-          <span className="font-semibold text-ink">AI Resilience {recommendation.aiFutureResilienceScore}</span>
-          <ScoreBar value={recommendation.aiFutureResilienceScore} tone="gold" />
-        </div>
-      </div>
-      <div className="mt-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">{CAREER_MATCH_LABEL}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {nicheCareers.map((career) => (
-            <Badge key={career} tone="neutral">
-              {career}
-            </Badge>
-          ))}
-        </div>
-      </div>
-      {showPathwayAdvice && pathwayAdvice.length > 0 ? (
-        <div className="mt-3 rounded-md bg-[#FFF7ED] p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink/55">Arah singkat</p>
-          <ul className="mt-2 space-y-1.5 text-sm leading-6 text-ink/70">
-            {pathwayAdvice.map((step) => (
-              <li key={step}>- {step}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-function drawWrappedCanvasText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  maxLines = 4
-) {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let line = "";
-
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (ctx.measureText(next).width <= maxWidth) {
-      line = next;
-      continue;
-    }
-    if (line) lines.push(line);
-    line = word;
-    if (lines.length === maxLines) break;
-  }
-  if (line && lines.length < maxLines) lines.push(line);
-  if (words.length > 0 && lines.length === maxLines && words.join(" ").length > lines.join(" ").length) {
-    lines[maxLines - 1] = `${lines[maxLines - 1].replace(/[.,;:!?]?$/, "")}...`;
-  }
-
-  for (const canvasLine of lines) {
-    ctx.fillText(canvasLine, x, y);
-    y += lineHeight;
-  }
-  return y;
-}
-
-function canvasBlob(canvas: HTMLCanvasElement) {
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Gagal membuat gambar Instagram."));
-    }, "image/png");
-  });
-}
-
-async function createInstagramCardBlob(submission: Submission) {
-  const top = submission.report.topRecommendation;
-  const alternatives = submission.report.recommendations.slice(1, 4);
-  const canvas = document.createElement("canvas");
-  canvas.width = 1080;
-  canvas.height = 1350;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Browser tidak mendukung canvas untuk membuat gambar.");
-
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#F97316";
-  ctx.fillRect(0, 0, canvas.width, 330);
-  ctx.fillStyle = "#0F2A43";
-  ctx.fillRect(0, 1240, canvas.width, 110);
-
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "700 36px Arial";
-  ctx.fillText("Project Nelly 101", 70, 92);
-  ctx.font = "500 28px Arial";
-  ctx.fillText("Laporan singkat rekomendasi jurusan & karier", 70, 138);
-
-  ctx.save();
-  ctx.shadowColor = "rgba(17, 17, 17, 0.18)";
-  ctx.shadowBlur = 28;
-  ctx.shadowOffsetY = 12;
-  drawRoundedRect(ctx, 70, 230, 940, 680, 28);
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = "#F97316";
-  ctx.font = "800 34px Arial";
-  ctx.fillText("#1 Rekomendasi Utama", 115, 305);
-  ctx.fillStyle = "#111111";
-  ctx.font = "900 76px Arial";
-  let y = drawWrappedCanvasText(ctx, top.majorName, 115, 395, 850, 82, 2);
-
-  ctx.fillStyle = "#333333";
-  ctx.font = "500 30px Arial";
-  y = drawWrappedCanvasText(ctx, careerDirectionFor(top), 115, y + 14, 830, 42, 3);
-
-  const scoreY = Math.max(y + 36, 580);
-  drawRoundedRect(ctx, 115, scoreY, 255, 125, 22);
-  ctx.fillStyle = "#FFF3E8";
-  ctx.fill();
-  ctx.fillStyle = "#F97316";
-  ctx.font = "900 54px Arial";
-  ctx.fillText(`${top.overallFitScore}`, 145, scoreY + 68);
-  ctx.font = "700 23px Arial";
-  ctx.fillText("FIT SCORE", 145, scoreY + 101);
-
-  drawRoundedRect(ctx, 400, scoreY, 355, 125, 22);
-  ctx.fillStyle = "#0F2A43";
-  ctx.fill();
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "900 54px Arial";
-  ctx.fillText(`${top.aiFutureResilienceScore}`, 430, scoreY + 68);
-  ctx.font = "700 23px Arial";
-  ctx.fillText("AI RESILIENCE", 430, scoreY + 101);
-
-  ctx.fillStyle = "#111111";
-  ctx.font = "800 30px Arial";
-  ctx.fillText("Kenapa cocok?", 115, scoreY + 185);
-  ctx.fillStyle = "#333333";
-  ctx.font = "500 27px Arial";
-  let reasonY = scoreY + 232;
-  for (const reason of top.reasonBullets.slice(0, 1)) {
-    ctx.fillStyle = "#F97316";
-    ctx.fillText("•", 115, reasonY);
-    ctx.fillStyle = "#333333";
-    reasonY = drawWrappedCanvasText(ctx, reason, 145, reasonY, 790, 36, 3) + 8;
-  }
-
-  const alternativeY = 935;
-  drawRoundedRect(ctx, 70, alternativeY, 940, 220, 28);
-  ctx.fillStyle = "#FFF7ED";
-  ctx.fill();
-  ctx.fillStyle = "#111111";
-  ctx.font = "800 30px Arial";
-  ctx.fillText("Alternatif yang juga layak dipertimbangkan", 115, alternativeY + 62);
-  ctx.font = "700 28px Arial";
-  alternatives.forEach((recommendation, index) => {
-    ctx.fillStyle = "#F97316";
-    ctx.fillText(`#${recommendation.rank}`, 115, alternativeY + 116 + index * 42);
-    ctx.fillStyle = "#111111";
-    ctx.fillText(recommendation.majorName, 175, alternativeY + 116 + index * 42);
-  });
-
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "700 28px Arial";
-  ctx.fillText(submission.fullName, 70, 1288);
-  ctx.font = "500 22px Arial";
-  ctx.fillText("Hasil ini bahan refleksi, bukan keputusan final.", 70, 1322);
-
-  return canvasBlob(canvas);
-}
-
-export function ResultsView({ submission, compact = false }: { submission: Submission; compact?: boolean }) {
   const { getToken } = useAuth();
-  const [downloadError, setDownloadError] = useState("");
+  const [error, setError] = useState(""),
+    [busy, setBusy] = useState("");
   const top = submission.report.topRecommendation;
-  const topNicheCareers = nicheCareersFor(top);
-  const alternatives = submission.report.recommendations.slice(1);
-  const advice = submission.report.ptnPtsVokasiAdvice ?? generatePtnPtsVokasiAdvice(submission.answers);
-  const patternNotes = submission.report.answerPatternNotes ?? [];
-  const narrativeSource = submission.report.narrative?.source;
-  const studentStrengths = studentStrengthHighlightsFor(submission);
-  const narrativePending = submission.narrativeStatus === "pending" || submission.narrativeStatus === "processing";
-
-  async function download(endpoint: string, filename: string) {
-    setDownloadError("");
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const allRecommendations = submission.report.recommendations.some(r => r.majorId === top.majorId)
+    ? submission.report.recommendations
+    : [top, ...submission.report.recommendations];
+  const compared = compareIds
+    .map(id => allRecommendations.find(r => r.majorId === id))
+    .filter((r): r is NonNullable<typeof r> => !!r);
+  const toggleCompare = (id: string) => setCompareIds(ids =>
+    ids.includes(id) ? ids.filter(x => x !== id) : ids.length >= COMPARE_MAX ? ids : [...ids, id]);
+  const compareFor = (id: string) => compact ? undefined : ({
+    selected: compareIds.includes(id),
+    disabled: compareIds.length >= COMPARE_MAX,
+    onToggle: () => toggleCompare(id),
+  });
+  const advice =
+    submission.report.ptnPtsVokasiAdvice ??
+    generatePtnPtsVokasiAdvice(submission.answers);
+  const fit = fitContextFor(top);
+  const summary = submission.report.narrative?.summary?.trim() ||
+    `Laporan tersimpan menempatkan ${top.majorName} sebagai arah utama dengan kecocokan ${scoreText(top.overallFitScore)}.`;
+  const strengths = cleanLines(studentStrengthHighlightsFor(submission));
+  const aspirations = [submission.answers.dreamProfession, submission.answers.futureVision]
+    .map(text => text?.trim()).filter(Boolean);
+  const notes = cleanLines(submission.report.answerPatternNotes);
+  const guidance = submission.report.studentGuidance;
+  const tensions = cleanLines(guidance?.tensions);
+  const hasRoutes = !!guidance && (guidance.aspirationRoutes.length > 0 || guidance.glossary.length > 0);
+  const hasAdvice = cleanLines(advice).length > 0;
+  const topRule = campusMajorMap[top.majorId];
+  const campusQuery = topRule && "include" in topRule ? topRule.include[0] : top.majorName;
+  const jumpLinks = [
+    ["ringkasan", "Ringkasan"],
+    ["rencana", "Rencana"],
+    ...(hasRoutes ? [["cita-cita", "Cita-cita"]] : []),
+    ["alternatif", "Alternatif"],
+    ["kampus", "Kampus"],
+  ];
+  async function download(kind: "pdf" | "image") {
+    if (busy) return;
+    setBusy(kind);
+    setError("");
     try {
-      const token = await getToken();
-      const response = await fetch(endpoint, {
-        headers: { authorization: `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Download gagal. Coba lagi sebentar lagi.");
+      if (kind === "image")
+        downloadBlob(
+          await createInstagramCardBlob(submission),
+          `kartu-instagram-${submission.id}.png`,
+        );
+      else {
+        const token = await getToken();
+        const response = await fetch("/api/submissions/pdf", {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error ?? "Unduhan gagal. Coba lagi.");
+        }
+        downloadBlob(await response.blob(), `laporan-${submission.id}.pdf`);
       }
-      const blob = await response.blob();
-      downloadBlob(blob, filename);
-    } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : "Download gagal. Coba lagi sebentar lagi.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unduhan gagal.");
+    } finally {
+      setBusy("");
     }
   }
-
-  async function downloadInstagramCard() {
-    setDownloadError("");
-    try {
-      const blob = await createInstagramCardBlob(submission);
-      downloadBlob(blob, `kartu-instagram-${submission.id}.png`);
-    } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : "Gagal membuat kartu Instagram.");
-    }
-  }
-
   return (
-    <div className="space-y-8">
-      <section className="rounded-md border border-black/10 bg-white p-5 shadow-soft sm:p-7">
-        <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <Badge tone="green">Dibuat {formatDateTime(submission.createdAt)}</Badge>
-            <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">Rekomendasi Utama Kamu</h1>
-            <p className="mt-2 text-sm text-ink/65">
-              {submission.fullName} - {submission.school} - {submission.className}
-            </p>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70">
-              Ringkasan ini dihitung dari minat, skill, mata pelajaran, gaya kerja, area masalah, preferensi kuliah, dan batasan pribadi.
-            </p>
+    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
+      <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <p className="eyebrow">
+            Peta arahmu · {formatDateTime(submission.createdAt)}
+          </p>
+          <h1 className="section-heading mt-3">
+            Peta arah dan langkahmu
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-stone-600">
+            {submission.fullName} · {submission.school} · {submission.className}
+          </p>
+          <div className="mt-2">
+            <Badge>
+              {educationPathwayLabel(submission.answers.educationPathway)}
+            </Badge>
           </div>
-          {!compact ? (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => download("/api/submissions/pdf", `laporan-${submission.id}.pdf`)}>
-                <Download className="h-4 w-4" />
-                Download Laporan PDF
-              </Button>
-              <Button variant="secondary" onClick={downloadInstagramCard}>
-                <Download className="h-4 w-4" />
-                Download Kartu Instagram
-              </Button>
-            </div>
-          ) : null}
         </div>
-        {downloadError ? (
-          <div className="mb-5 rounded-md border border-coral/25 bg-coral/10 p-3 text-sm text-ink">{downloadError}</div>
-        ) : null}
-        {narrativePending ? (
-          <div className="mb-5 rounded-md border border-marigold/40 bg-marigold/15 p-3 text-sm leading-6 text-ink/75">
-            Analisis personal sedang diperkaya. Hasil utama sudah bisa kamu baca, dan halaman ini akan memperbarui otomatis.
+        {!compact ? (
+          <div className="grid gap-2 sm:flex lg:shrink-0">
+            <Button onClick={() => download("pdf")} disabled={!!busy}>
+              <Download size={16} aria-hidden="true" />
+              {busy === "pdf" ? "Mengunduh…" : "Laporan PDF"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => download("image")}
+              disabled={!!busy}
+            >
+              <ArrowUpRight size={16} aria-hidden="true" />
+              {busy === "image" ? "Membuat…" : "Kartu Instagram"}
+            </Button>
           </div>
         ) : null}
-        {submission.answers.dreamProfession || submission.answers.futureVision ? (
-          <div className="mb-5 rounded-md border border-black/10 bg-white p-4 text-sm leading-6 text-ink/75">
-            <h2 className="font-bold text-ink">Aspirasi yang kamu tulis</h2>
-            {submission.answers.dreamProfession ? (
-              <p className="mt-2">
-                <span className="font-semibold">Bidang/profesi yang bikin penasaran:</span> {submission.answers.dreamProfession}
-              </p>
-            ) : null}
-            {submission.answers.futureVision ? (
-              <p className="mt-2">
-                <span className="font-semibold">Masa depan yang kamu inginkan:</span> {submission.answers.futureVision}
-              </p>
-            ) : null}
+      </header>
+      {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+      {!compact ? <nav aria-label="Lompat ke bagian" className="sticky top-0 z-20 border-b border-stone-200 bg-[#fcfaf8]/95 backdrop-blur lg:hidden">
+        <ul className="flex gap-1 overflow-x-auto py-1">
+          {jumpLinks.map(([id, label]) => <li key={id} className="shrink-0"><a href={`#${id}`} className="flex min-h-11 items-center rounded-full px-2.5 text-sm font-semibold text-stone-700 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf">{label}</a></li>)}
+        </ul>
+      </nav> : null}
+      <section id="ringkasan" aria-label="Ringkasan arahmu" className="scroll-mt-16 min-w-0 overflow-hidden rounded-[22px] border border-stone-200 bg-white">
+        <div className="bg-gradient-to-br from-orange-800 to-leaf p-5 text-white sm:p-6">
+          <p className="text-xs font-bold tracking-wide text-white">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h2 className="min-w-0 text-3xl font-extrabold sm:text-4xl">{top.majorName}</h2>
+            {cleanLines(top.degreeTypes).map(degree => <CampusDegree key={degree} degree={degree} />)}
           </div>
-        ) : null}
-
-        <div className="rounded-md border border-leaf/25 bg-[#FFF7ED] p-5 ring-1 ring-leaf/10 sm:p-7">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row">
-            <div>
-              <div className="flex flex-wrap gap-2">
-                <Badge tone="green" className="text-sm">#1</Badge>
-                <Badge tone="green">{top.fitLabel}</Badge>
-                <Badge tone="gold">AI Future Resilience {top.aiFutureResilienceLabel}</Badge>
-                <Badge tone="blue">{top.cluster}</Badge>
-              </div>
-              <h2 className="mt-4 text-4xl font-black leading-tight text-ink sm:text-5xl">{top.majorName}</h2>
-              <p className="mt-3 max-w-3xl text-lg leading-8 text-ink/75">{careerDirectionFor(top)}</p>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-orange-50">{top.personalizedCareerDirection?.trim() || top.careerDirection}</p>
+          <dl className="mt-5 grid min-w-0 grid-cols-2 gap-4 border-t border-white/30 pt-4">
+            <div className="min-w-0">
+              <dt className="text-xs text-orange-50">Kecocokan profil</dt>
+              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-white">{scoreText(top.overallFitScore)}</dd>
+              <dd className="mt-1 text-sm font-bold">{fit.interpretation}</dd>
+              {fit.conflicts && fit.savedLabel ? <dd className="mt-1 text-xs leading-5 text-orange-100">Label laporan tersimpan: {fit.savedLabel}</dd> : null}
             </div>
-            <div className="grid min-w-52 grid-cols-2 gap-3">
-              <div className="rounded-md bg-white p-4">
-                <Target className="h-5 w-5 text-leaf" />
-                <div className="mt-3 text-3xl font-black text-ink">{top.overallFitScore}</div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink/55">Overall Fit</div>
-                <ScoreBar value={top.overallFitScore} />
-              </div>
-              <div className="rounded-md bg-moss p-4 text-white ring-1 ring-moss/20">
-                <Wand2 className="h-5 w-5 text-white" />
-                <div className="mt-3 text-3xl font-black text-white">{top.aiFutureResilienceScore}</div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-white/75">AI Resilience</div>
-                <ScoreBar value={top.aiFutureResilienceScore} tone="gold" />
-              </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-orange-50">Ketahanan terhadap perubahan AI</dt>
+              <dd className="mt-1 text-2xl font-extrabold tabular-nums text-white">{scoreText(top.aiFutureResilienceScore)}</dd>
+              <dd className="mt-1 text-sm font-bold">{top.aiFutureResilienceLabel}</dd>
             </div>
+          </dl>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-orange-50">{fit.explanation}</p>
+          <p className="mt-3 text-xs leading-6 text-orange-100">Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan pekerjaan.</p>
+        </div>
+        <div className={`grid min-w-0 gap-6 p-5 sm:p-6 ${aspirations.length ? "lg:grid-cols-2" : ""}`}>
+          <div className="min-w-0 space-y-5">
+            <section>
+              <h3 className="flex items-center gap-2 text-base font-bold"><Compass size={18} className="shrink-0 text-leaf" aria-hidden="true" />Ringkasan laporan</h3>
+              <p className="mt-2 text-sm leading-7 text-stone-700">{summary}</p>
+              {guidance ? <StudentGuidanceSummary guidance={guidance} showTensions={!aspirations.length} /> : null}
+            </section>
+            {strengths.length ? <section>
+              <h3 className="flex items-center gap-2 text-base font-bold"><Sparkles size={18} className="shrink-0 text-leaf" aria-hidden="true" />Kekuatan dari jawabanmu</h3>
+              <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-600">{strengths.map(line => <li key={line}>{line}</li>)}</ul>
+            </section> : null}
           </div>
-
-          <div className="mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <h3 className="font-bold text-ink">Kenapa cocok</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
-                {top.reasonBullets.slice(0, 5).map((reason) => (
-                  <li key={reason} className="flex gap-2">
-                    <Sparkles className="mt-1 h-4 w-4 shrink-0 text-leaf" />
-                    <span>{reason}</span>
-                  </li>
-                ))}
-              </ul>
-              {studentStrengths.length > 0 ? (
-                <div className="mt-5 rounded-md bg-white p-4">
-                  <h3 className="font-bold text-ink">Kelebihan kamu</h3>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
-                    {studentStrengths.map((strength) => (
-                      <li key={strength} className="flex gap-2">
-                        <Sparkles className="mt-1 h-4 w-4 shrink-0 text-coral" />
-                        <span>{strength}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-bold text-ink">{CAREER_MATCH_LABEL}</h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {topNicheCareers.map((career) => (
-                    <Badge key={career} tone="neutral">
-                      {career}
-                    </Badge>
-                  ))}
-                </div>
-                {top.careerPersonalizationReason ? (
-                  <p className="mt-2 text-sm leading-6 text-ink/70">{top.careerPersonalizationReason}</p>
-                ) : null}
-              </div>
-              {top.aspirationReflection || top.careerPathwayAdvice?.length ? (
-                <div className="rounded-md bg-white p-4">
-                  <h3 className="font-bold text-ink">Arah menuju karier yang kamu ceritakan</h3>
-                  {top.aspirationReflection ? (
-                    <p className="mt-2 text-sm leading-6 text-ink/70">{top.aspirationReflection}</p>
-                  ) : null}
-                  {top.careerPathwayAdvice?.length ? (
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
-                      {top.careerPathwayAdvice.map((step) => (
-                        <li key={step}>- {step}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : null}
-              <div>
-                <h3 className="font-bold text-ink">Skill yang perlu ditingkatkan</h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {top.skillGaps.map((skill) => (
-                    <Badge key={skill} tone="coral">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-md bg-white p-4">
-              <h3 className="font-bold text-ink">Next steps</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
-                {top.recommendedNextSteps.map((step) => (
-                  <li key={step}>- {step}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-md bg-white p-4">
-              <h3 className="font-bold text-ink">Catatan</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/75">
-                {top.cautionNotes.map((note) => (
-                  <li key={note}>- {note}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          {aspirations.length ? <section aria-label="Aspirasi yang kamu tulis" className="min-w-0 border-l-2 border-orange-300 pl-4">
+            <h3 className="text-base font-bold">Aspirasi yang kamu tulis</h3>
+            {aspirations.map((text, i) => <p key={i} className="mt-3 whitespace-pre-line text-sm leading-7 text-stone-700">{text}</p>)}
+            <div className="mt-4 text-xs leading-6 text-stone-600">Gunakan tujuan ini untuk membandingkan kurikulum dan pengalaman praktik. Periksa persyaratan resmi pendidikan, profesi, dan kerja untuk arah yang kamu tuju.</div>
+            {tensions.length ? <GuidanceTensions tensions={tensions} /> : null}
+          </section> : null}
         </div>
       </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-md border border-black/10 bg-white p-5 shadow-soft lg:col-span-2">
-          <h2 className="text-xl font-bold text-ink">Panduan Membaca Skor</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="rounded-md bg-[#FFF7ED] p-4">
-              <h3 className="font-bold text-ink">Overall Fit Score</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/70">
-                <li>82-100: Sangat Cocok</li>
-                <li>70-81: Cocok</li>
-                <li>58-69: Cukup Cocok</li>
-                <li>0-57: Perlu Dipertimbangkan Lagi</li>
-              </ul>
-            </div>
-            <div className="rounded-md bg-moss p-4 text-white">
-              <h3 className="font-bold">AI Future Resilience Score</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-white/80">
-                <li>80-100: Tinggi</li>
-                <li>60-79: Sedang</li>
-                <li>0-59: Perlu Adaptasi Tinggi</li>
-              </ul>
-            </div>
-          </div>
+      <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} promptValues={compact ? undefined : promptValuesFor(submission.answers, top)} compare={compareFor(top.majorId)} /></div>
+      {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
+      <section id="alternatif" className="scroll-mt-16">
+        <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
+        <div className="grid gap-3">
+          {submission.report.recommendations.slice(1).map((r) => (
+            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} compare={compareFor(r.majorId)} />
+          ))}
         </div>
-        <div className="rounded-md border border-black/10 bg-white p-5 shadow-soft">
-          <h2 className="text-xl font-bold text-ink">Apa arti skor ketahanan terhadap AI?</h2>
-          <p className="mt-3 text-sm leading-7 text-ink/70">
-            Skor ini menunjukkan seberapa besar bidang karier ini tetap membutuhkan kemampuan manusia seperti kreativitas,
-            empati, judgement, problem solving kompleks, kerja praktik, dan kemampuan menggunakan AI sebagai alat bantu.
-          </p>
-          <p className="mt-3 text-sm leading-7 text-ink/70">
-            Skor tinggi bukan berarti tanpa perubahan. Bidang ini tetap relevan, tetapi cara kerjanya akan banyak berubah dengan AI.
-          </p>
-        </div>
-        <div className="rounded-md border border-black/10 bg-white p-5 shadow-soft">
-          <h2 className="text-xl font-bold text-ink">Catatan Memilih Kampus dan Jalur Kuliah</h2>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-ink/70">
-            {advice.map((item) => (
-              <li key={item}>- {item}</li>
+      </section>
+      {!compact ? <CompareTable selected={compared} /> : null}
+      <div className="result-grid">
+        <Panel id="kampus" className="scroll-mt-16">
+          <h2 className="text-xl font-bold">Kampus dan jalur belajarmu</h2>
+          {hasAdvice ? <ul className="mt-5 list-disc space-y-3 pl-5 text-sm leading-7 text-stone-600">
+            {cleanLines(advice).map((a, i) => (
+              <li key={i}>{a}</li>
             ))}
-          </ul>
-        </div>
-      </section>
-
-      {patternNotes.length > 0 ? (
-        <section className="rounded-md border border-marigold/40 bg-marigold/15 p-4 text-sm leading-6 text-ink/75">
-          {patternNotes.map((note) => (
-            <p key={note}>{note}</p>
+          </ul> : null}
+          <Link href={`/kampus?q=${encodeURIComponent(campusQuery)}`} className="touch-link mt-3 rounded-lg text-sm font-semibold text-leaf underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
+            Cari kampus & jurusan lain<ArrowUpRight size={16} aria-hidden="true" />
+          </Link>
+        </Panel>
+        <Panel>
+          <h2 className="text-xl font-bold">Memahami kedua skor</h2>
+          <p className="mt-4 text-sm leading-7 text-stone-600">
+            Kecocokan profil: 82–100 sangat cocok; 70–81 cocok; 58–69 cukup
+            cocok; di bawah 58 perlu dipertimbangkan lagi.
+          </p>
+          <p className="mt-4 text-sm leading-7 text-stone-600">
+            Ketahanan AI: 80–100 tinggi; 60–79 sedang; di bawah 60 perlu
+            adaptasi tinggi. Ini menggambarkan kebutuhan kemampuan manusia dan
+            potensi AI sebagai alat bantu, bukan prediksi pasti.
+          </p>
+          <p className="mt-4 text-xs leading-6 text-stone-600">
+            Versi skor: {submission.report.scoringVersion}.{" "}
+            {submission.report.narrative?.source === "gemini"
+              ? "Penjelasan telah diperkaya tanpa mengubah skor."
+              : "Penjelasan berbasis aturan penilaian."}
+          </p>
+        </Panel>
+      </div>
+      {notes.length ? (
+        <StatusMessage>
+          {notes.map((n, i) => (
+            <p key={i}>{n}</p>
           ))}
-        </section>
+        </StatusMessage>
       ) : null}
-
-      <section>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-bold text-ink">Rekomendasi #2-#10</h2>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {alternatives.map((recommendation) => (
-            <SmallRecommendationCard
-              key={recommendation.majorId}
-              recommendation={recommendation}
-              showPathwayAdvice={shouldShowAlternativePathway(narrativeSource, recommendation.careerPathwayAdvice)}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-md border border-black/10 bg-white p-4 text-sm leading-6 text-ink/70">
-        <strong>Disclaimer: hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.</strong>{" "}
-        Gunakan sebagai bahan diskusi dengan orang tua, guru BK, mentor, atau pihak sekolah.
-      </section>
+      <p className="border-t border-stone-200 pt-5 text-xs leading-7 text-stone-600">
+        <strong>
+          Hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan
+          fakta mutlak atau keputusan final.
+        </strong>{" "}
+        Gunakan untuk diskusi dengan orang tua, guru BK, atau mentor.
+      </p>
+      {!compact ? <CompareBar selected={compared} onRemove={id => toggleCompare(id)} onClear={() => setCompareIds([])} /> : null}
+      {!compact && compared.length ? <div aria-hidden="true" className="h-32 sm:h-20" /> : null}
     </div>
   );
 }

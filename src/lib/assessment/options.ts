@@ -65,7 +65,20 @@ export const workStyleOptions: WorkStyle[] = [
   "Dinamis di lapangan"
 ];
 
+// v3.2.0 options (UAT 2026-11). Order of the answer = student priority.
 export const problemAreaOptions = [
+  "Pemerataan Pendidikan dan Literasi",
+  "Industri, Inovasi, dan Infrastruktur",
+  "Lingkungan, Iklim, dan Kehidupan Laut",
+  "Akses Fasilitas Kesehatan dan Sanitasi Layak",
+  "Perdamaian, Keadilan, dan Kelembagaan yang Tangguh",
+  "Manajemen dan Transparansi",
+  "Kepemudaan dan Kebugaran Jasmani",
+  "Seni Berekspresi, Bahasa, dan Estetika"
+];
+
+// Pre-v3.2.0 labels. Still valid so saved answers and old fixtures keep working.
+export const legacyProblemAreaOptions = [
   "Pendidikan",
   "Kesehatan",
   "Bisnis",
@@ -77,6 +90,24 @@ export const problemAreaOptions = [
   "Kreatif/media",
   "Infrastruktur"
 ];
+
+export const problemAreaOptionTags: Record<string, string[]> = {
+  "Pemerataan Pendidikan dan Literasi": ["education"],
+  "Industri, Inovasi, dan Infrastruktur": ["technology", "business", "infrastructure"],
+  "Lingkungan, Iklim, dan Kehidupan Laut": ["environment", "food"],
+  "Akses Fasilitas Kesehatan dan Sanitasi Layak": ["health"],
+  "Perdamaian, Keadilan, dan Kelembagaan yang Tangguh": ["law", "social"],
+  "Manajemen dan Transparansi": ["public_service", "finance", "business"],
+  "Kepemudaan dan Kebugaran Jasmani": ["youth_sport"],
+  "Seni Berekspresi, Bahasa, dan Estetika": ["creative_media"]
+};
+
+export const PROBLEM_AREA_MAX = 3;
+export const PROBLEM_AREA_RANK_WEIGHTS = [1, 0.8, 0.6] as const;
+
+export function usesRankedProblemAreas(values: readonly string[]) {
+  return values.length > 0 && values.every((value) => value in problemAreaOptionTags);
+}
 
 export const collegePathPreferenceOptions = [
   "PTN di Jawa",

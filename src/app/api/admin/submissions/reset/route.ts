@@ -12,7 +12,9 @@ export async function POST(request: Request) {
     const email = body.email?.trim() ?? "";
 
     if (!email || !email.includes("@")) {
-      const error = new AuthError("Masukkan email yang valid untuk dihapus attempt-nya.");
+      const error = new AuthError(
+        "Masukkan email yang valid untuk dihapus attempt-nya.",
+      );
       error.status = 400;
       throw error;
     }

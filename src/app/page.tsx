@@ -1,100 +1,108 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, FileText, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowUpRight, Compass, Layers, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-
 export default function LandingPage() {
   return (
-    <div className="space-y-12">
-      <section className="grid min-h-[calc(100vh-9rem)] items-center gap-8 lg:grid-cols-[1fr_0.9fr]">
-        <div className="max-w-2xl">
-          <Badge tone="green">Untuk siswa SMA/SMK Indonesia</Badge>
-          <h1 className="mt-5 text-4xl font-black leading-tight text-ink sm:text-5xl">
-            Tes Jurusan & Karier Project Nelly
+    <div>
+      <section className="hero">
+        <div>
+          <Badge>Untuk siswa SMA & SMK Indonesia</Badge>
+          <h1>
+            Masa depanmu.
+            <br />
+            Bukan sekadar
+            <br />
+            <span className="accent-text">ikut arus.</span>
           </h1>
-          <p className="mt-5 text-lg leading-8 text-ink/75">
-            Temukan arah jurusan kuliah dan karier yang sesuai dengan minat, skill, latar sekolah, batasan pribadi,
-            dan kesiapan masa depan.
+          <p className="hero-copy">
+            Kenali minat dan kekuatanmu. Temukan jurusan serta jalur belajar
+            yang lebih sesuai dengan dirimu.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/login?next=/assessment">
-              <Button>
-                Mulai Tes Jurusan
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          <p className="mt-6 max-w-xl rounded-md border border-marigold/40 bg-marigold/15 p-4 text-sm leading-6 text-ink/75">
-            <strong>Disclaimer: hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan fakta mutlak atau keputusan final.</strong>{" "}
-            Gunakan sebagai bahan refleksi untuk membantu kamu memilih jurusan dan arah karier.
+          <Link
+            href="/login?next=/assessment"
+            className="brand-cta inline-flex min-h-14 items-center justify-between gap-8 rounded-full px-6 py-4 text-sm font-bold"
+          >
+            Temukan arahmu <ArrowUpRight size={20} />
+          </Link>
+          <p className="mt-4 text-xs leading-6 text-stone-600">
+            Universitas atau vokasi · 10 rekomendasi · Penjelasan transparan
           </p>
         </div>
-
-        <div className="relative">
-          <div className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <div className="text-sm font-bold text-ink">Contoh Hasil</div>
-              </div>
-              <Badge tone="gold">AI resilience</Badge>
+        <div className="hero-art">
+          <div className="hero-preview">
+            <div className="eyebrow flex items-center justify-between gap-3">
+              Contoh hasil <Compass size={25} className="text-leaf" />
             </div>
-            <div className="rounded-md bg-[#FFF7ED] p-5 ring-1 ring-leaf/15">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-md bg-leaf text-white">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase text-ink/50">Rekomendasi Utama</div>
-                  <div className="text-2xl font-black text-ink">Sistem Informasi</div>
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-md bg-white p-4">
-                  <BarChart3 className="h-5 w-5 text-leaf" />
-                  <div className="mt-3 text-3xl font-black text-ink">86</div>
-                  <div className="text-xs font-semibold text-ink/55">Fit score</div>
-                </div>
-                <div className="rounded-md bg-white p-4">
-                  <LockKeyhole className="h-5 w-5 text-moss" />
-                  <div className="mt-3 text-3xl font-black text-ink">78</div>
-                  <div className="text-xs font-semibold text-ink/55">AI resilience</div>
-                </div>
-              </div>
-              <div className="mt-5 space-y-2 text-sm text-ink/70">
-                <p>- Cocok dengan minat teknologi, komunikasi, dan problem solving.</p>
-                <p>- Arah karier: business analyst, product manager, system analyst.</p>
-                <p>- AI bisa menjadi alat bantu, bukan pengganti penuh.</p>
-              </div>
+            <h2 className="mt-6 text-3xl font-extrabold">Sistem Informasi</h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              Teknologi bertemu komunikasi. Bangun solusi yang berguna bagi
+              banyak orang.
+            </p>
+            <div className="mt-6 flex items-end justify-between">
+              <span className="text-xs text-stone-600">
+                Kecocokan profil · ilustrasi
+              </span>
+              <strong className="text-3xl text-leaf">
+                86<span className="text-sm text-stone-500">/100</span>
+              </strong>
             </div>
+            <div className="my-4 h-1.5 rounded-full bg-stone-100">
+              <div className="h-full w-[86%] rounded-full bg-leaf" />
+            </div>
+            <Badge>Teknologi</Badge> <Badge>Problem solving</Badge>
+          </div>
+          <div className="hero-note">
+            <strong className="text-sm">Satu tujuan. Banyak jalan.</strong>
+            <p className="mt-1 text-xs leading-6">
+              Eksplorasi S1, D3, dan D4 sesuai rencanamu.
+            </p>
           </div>
         </div>
       </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        {[
-          {
-            icon: BarChart3,
-            title: "Skor transparan",
-            body: "Rekomendasi dihitung dari interest, skill, mapel, gaya kerja, problem area, dan constraint."
-          },
-          {
-            icon: LockKeyhole,
-            title: "Submit satu kali",
-            body: "Satu email Google terverifikasi hanya bisa mengirim satu assessment."
-          },
-          {
-            icon: FileText,
-            title: "Laporan PDF",
-            body: "Siswa dapat mengunduh jawaban dan laporan rekomendasi untuk diskusi dengan guru BK."
-          }
-        ].map((item) => (
-          <article key={item.title} className="rounded-md border border-black/10 bg-white p-5">
-            <item.icon className="h-5 w-5 text-leaf" />
-            <h2 className="mt-4 font-bold text-ink">{item.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-ink/65">{item.body}</p>
-          </article>
-        ))}
+      <section>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <h2 className="section-heading">Mulai dari mengenal diri.</h2>
+          <span className="eyebrow">Bukan tes benar atau salah</span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            {
+              icon: Compass,
+              title: "Ceritakan tentangmu",
+              body: "Minat, aktivitas, kekuatan, dan hal yang penting bagimu.",
+            },
+            {
+              icon: Layers,
+              title: "Lihat kemungkinanmu",
+              body: "Rekomendasi sesuai profil dan pilihan jalur pendidikanmu.",
+            },
+            {
+              icon: FileText,
+              title: "Buat langkah nyata",
+              body: "Eksplorasi karier dan unduh laporan untuk diskusi bersama guru BK.",
+            },
+          ].map((item, i) => (
+            <article className="panel" key={item.title}>
+              <div className="mb-7 flex items-center justify-between">
+                <span className="eyebrow">0{i + 1}</span>
+                <item.icon size={22} className="text-leaf" aria-hidden="true" />
+              </div>
+              <h3 className="text-xl font-bold">{item.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-stone-600">
+                {item.body}
+              </p>
+            </article>
+          ))}
+        </div>
       </section>
+      <p className="mt-8 max-w-3xl text-xs leading-6 text-stone-600">
+        <strong>
+          Hasil ini hanya analisis berdasarkan jawaban yang kamu isi, bukan
+          fakta mutlak atau keputusan final.
+        </strong>{" "}
+        Gunakan sebagai bahan refleksi, bukan prediksi kelulusan atau jaminan
+        pekerjaan.
+      </p>
     </div>
   );
 }

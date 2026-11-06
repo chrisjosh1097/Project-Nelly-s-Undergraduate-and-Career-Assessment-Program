@@ -19,3 +19,5 @@ export { majors, majorsById } from "./majors";
 export { constraints, constraintsById, constraintRules, constraintRulesById } from "./constraintRules";
 export { recommendationTemplates } from "./recommendationTemplates";
 export { sampleScoringExamples } from "./scoringExamples";
+export type { SkillTarget, WeekAction, AspirationRoute, GlossaryTerm, FieldAiNote, AspirationRouteKeywordRule, StudentGuidanceCatalog } from "./studentGuidance";
+export { studentGuidance, skillTargets, skillTargetsBySubCluster, weekPlansBySubCluster, weekPlansByCluster, genericWeekPlan, aspirationRoutes, aspirationRouteKeywordRules, glossary, fieldAiNotes } from "./studentGuidance";

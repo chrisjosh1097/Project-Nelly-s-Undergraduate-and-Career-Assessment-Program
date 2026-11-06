@@ -12,6 +12,7 @@ export const problemAreas: KnowledgeDimension[] = [
   { id: "creative_media", label: "Kreatif dan media", description: "Komunikasi visual, cerita, konten, hiburan, reputasi, dan publikasi." },
   { id: "infrastructure", label: "Infrastruktur", description: "Bangunan, kota, transportasi, energi, logistik, dan fasilitas publik." },
   { id: "food", label: "Pangan", description: "Produksi pangan, keamanan makanan, kuliner, nutrisi, dan rantai pasok." },
+  { id: "youth_sport", label: "Kepemudaan dan kebugaran", description: "Pembinaan anak muda, olahraga, kebugaran jasmani, dan gaya hidup aktif." },
   { id: "public_service", label: "Layanan publik", description: "Administrasi, kebijakan, pelayanan masyarakat, dan tata kelola." }
 ];
 

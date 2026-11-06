@@ -61,4 +61,9 @@ describe("Gemini narrative queue helpers", () => {
       lockMs: 120_000
     });
   });
+  it.each(["", "  "])("uses defaults for blank queue configuration %j", setting => {
+    for (const key of ["GEMINI_QUEUE_BATCH_SIZE", "GEMINI_QUEUE_DELAY_MS", "GEMINI_QUEUE_MAX_ATTEMPTS", "GEMINI_QUEUE_LOCK_MS"])
+      process.env[key] = setting;
+    expect(getGeminiQueueConfig()).toEqual({ batchSize: 10, delayMs: 500, maxAttempts: 3, lockMs: 120000 });
+  });
 });

@@ -1,475 +1,611 @@
 "use client";
-
-import { useEffect, useMemo, useState } from "react";
-import { Download, Filter, Search, Trash2 } from "lucide-react";
+import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
+import { narrativeLabel, scoringVersionLabel } from "@/lib/admin/labels";
+import { useEffect, useRef, useState } from "react";
+import { Download, Filter, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
+import { Panel } from "@/components/ui/Panel";
+import { StatusMessage } from "@/components/ui/StatusMessage";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ResultsView } from "@/components/results/ResultsView";
+import { AdminFilters } from "./AdminFilters";
+import { SubmissionList } from "./SubmissionList";
 import type { Submission } from "@/lib/types";
-import { downloadBlob, formatDateTime } from "@/lib/utils";
-
-interface Filters {
-  school: string;
-  className: string;
-  topRecommendation: string;
-  cluster: string;
-  status: string;
-  dateFrom: string;
-  dateTo: string;
-}
-
-const initialFilters: Filters = {
-  school: "",
-  className: "",
-  topRecommendation: "",
-  cluster: "",
-  status: "",
-  dateFrom: "",
-  dateTo: ""
-};
-
-function buildQuery(filters: Filters) {
+import type {
+  AdminSubmissionPage,
+  AdminSubmissionSummary,
+} from "@/lib/admin/submissions";
+import type { SubmissionFilters } from "@/lib/submissions/filters";
+import { downloadBlob } from "@/lib/utils";
+import { adminRequest, readAdminJson } from "./request";
+function buildQuery(filters: SubmissionFilters, page?: number) {
   const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value.trim()) params.set(key, value.trim());
-  });
-  const query = params.toString();
-  return query ? `?${query}` : "";
+  for (const [key, value] of Object.entries(filters))
+    if (value?.trim()) params.set(key, value.trim());
+  if (page && page !== 1) params.set("page", String(page));
+  const text = params.toString();
+  return text ? "?" + text : "";
 }
-
-function topCounts(items: string[], limit = 10) {
-  const counts = new Map<string, number>();
-  for (const item of items.filter(Boolean)) {
-    counts.set(item, (counts.get(item) ?? 0) + 1);
-  }
-  return Array.from(counts.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "id-ID"))
-    .slice(0, limit);
-}
-
-function average(values: number[]) {
-  if (values.length === 0) return 0;
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-}
-
-function BarChart({ title, rows }: { title: string; rows: { label: string; count: number }[] }) {
-  const max = Math.max(...rows.map((row) => row.count), 1);
+function Chart({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { label: string; count: number }[];
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.count));
   return (
-    <div className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
-      <h2 className="font-bold text-ink">{title}</h2>
-      <div className="mt-4 space-y-3">
-        {rows.map((row) => (
-          <div key={row.label}>
-            <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-ink/65">
-              <span>{row.label}</span>
-              <span>{row.count}</span>
+    <Panel>
+      <h2 className="text-base font-bold">{title}</h2>
+      <div className="mt-5 space-y-4">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div className="mb-2 flex justify-between gap-3 text-xs">
+              <span>{r.label}</span>
+              <strong>{r.count}</strong>
             </div>
-            <div className="h-3 rounded-full bg-black/10">
-              <div className="h-3 rounded-full bg-leaf" style={{ width: `${Math.max((row.count / max) * 100, 6)}%` }} />
+            <div className="h-1.5 rounded-full bg-stone-100" aria-hidden="true">
+              <div
+                className="h-full rounded-full bg-leaf"
+                style={{ width: `${(r.count / max) * 100}%` }}
+              />
             </div>
           </div>
         ))}
-        {rows.length === 0 ? <p className="text-sm text-ink/50">Belum ada data.</p> : null}
+        {!rows.length ? (
+          <p className="text-sm text-stone-600">Belum ada data.</p>
+        ) : null}
       </div>
-    </div>
+    </Panel>
   );
 }
-
 export function AdminDashboard() {
-  const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [selected, setSelected] = useState<Submission | null>(null);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [needsLogin, setNeedsLogin] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [isLoggingIn, setLoggingIn] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [isResettingAttempt, setIsResettingAttempt] = useState(false);
-  const [resetMessage, setResetMessage] = useState("");
-
-  const query = useMemo(() => buildQuery(filters), [filters]);
-  const analytics = useMemo(() => {
-    const topRecommendations = submissions.map((submission) => submission.report.topRecommendation);
-    return {
-      total: submissions.length,
-      uniqueSchools: new Set(submissions.map((submission) => submission.school).filter(Boolean)).size,
-      avgFit: average(topRecommendations.map((recommendation) => recommendation.overallFitScore)),
-      avgAi: average(topRecommendations.map((recommendation) => recommendation.aiFutureResilienceScore)),
-      topMajors: topCounts(topRecommendations.map((recommendation) => recommendation.majorName)),
-      topClusters: topCounts(topRecommendations.map((recommendation) => recommendation.cluster)),
-      gender: topCounts(submissions.map((submission) => submission.answers.gender ?? "Belum ada data"), 5),
-      age: topCounts(submissions.map((submission) => submission.answers.age ?? "Belum ada data"), 10),
-      constraints: topCounts(submissions.flatMap((submission) => submission.answers.personalConstraints)),
-      activities: topCounts(submissions.flatMap((submission) => submission.answers.favoriteActivities)),
-      skills: topCounts(submissions.flatMap((submission) => submission.answers.skillStrengths))
-    };
-  }, [submissions]);
-
-  async function loadSubmissions(nextQuery = query) {
-    setIsLoading(true);
+  const [filters, setFilters] = useState<SubmissionFilters>({}),
+    [applied, setApplied] = useState<SubmissionFilters>({});
+  const [pageData, setPageData] = useState<AdminSubmissionPage | null>(null),
+    [selected, setSelected] = useState<Submission | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [needsLogin, setNeedsLogin] = useState<boolean | null>(null),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState("");
+  const [error, setError] = useState(""),
+    [message, setMessage] = useState(""),
+    [loginEmail, setLoginEmail] = useState(""),
+    [password, setPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState(""),
+    [resetTarget, setResetTarget] = useState("");
+  const generation = useRef(0),
+    returnId = useRef(""),
+    detailHeading = useRef<HTMLHeadingElement>(null),
+    resetting = useRef(false);
+  function revoke() {
+    generation.current++;
+    setPageData(null);
+    setSelected(null);
+    setLoading(false);
+    setDetailLoading(false);
+    setNeedsLogin(true);
+    setResetTarget("");
+    setResetEmail("");
+    setFilters({});
+    setApplied({});
+    setMessage("");
+    setError("");
+    returnId.current = "";
+    setPassword("");
+  }
+  async function load(
+    next: SubmissionFilters = applied,
+    page = pageData?.page ?? 1,
+  ) {
+    const id = ++generation.current;
+    setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/admin/submissions${nextQuery}`, {
-        credentials: "include"
-      });
-      const data = await response.json();
+      const { response, data } = await adminRequest(
+        "/api/admin/submissions" + buildQuery(next, page),
+        readAdminJson,
+      );
+      if (id !== generation.current) return;
       if (response.status === 401) {
-        setNeedsLogin(true);
+        revoke();
         return;
       }
-      if (!response.ok) throw new Error(data.error ?? "Gagal memuat submission.");
+      if (!response.ok) throw new Error(data.error ?? "Gagal memuat data.");
       setNeedsLogin(false);
-      setSubmissions(data.submissions);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Gagal memuat submission.");
+      setPageData(data as AdminSubmissionPage);
+      setApplied(next);
+    } catch (e) {
+      if (id === generation.current)
+        setError(e instanceof Error ? e.message : "Gagal memuat data.");
     } finally {
-      setIsLoading(false);
+      if (id === generation.current) setLoading(false);
     }
   }
-
-  useEffect(() => {
-    void loadSubmissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function loginAdmin() {
-    setLoggingIn(true);
+  async function openDetail(summary: AdminSubmissionSummary) {
+    const id = ++generation.current;
+    returnId.current = (document.activeElement as HTMLElement)?.id ?? "";
+    setDetailLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error ?? "Login admin gagal.");
-      setNeedsLogin(false);
-      setLoginPassword("");
-      await loadSubmissions("");
-    } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Login admin gagal.");
+      const { response, data } = await adminRequest(
+        "/api/admin/submissions/" + encodeURIComponent(summary.id),
+        readAdminJson,
+      );
+      if (id !== generation.current) return;
+      if (response.status === 401) {
+        revoke();
+        return;
+      }
+      if (!response.ok) throw new Error(data.error ?? "Gagal memuat laporan.");
+      setSelected(data.submission);
+    } catch (e) {
+      if (id === generation.current)
+        setError(e instanceof Error ? e.message : "Gagal memuat laporan.");
     } finally {
-      setLoggingIn(false);
+      if (id === generation.current) setDetailLoading(false);
     }
   }
-
-  async function logoutAdmin() {
-    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-    setNeedsLogin(true);
-    setSubmissions([]);
+  useEffect(() => {
+    void load({});
+    return () => {
+      generation.current++;
+    };
+  }, []);
+  useEffect(() => {
+    if (selected) {
+      detailHeading.current?.focus();
+      window.scrollTo({ top: 0 });
+    } else if (returnId.current) {
+      document.getElementById(returnId.current)?.focus();
+    }
+  }, [selected]);
+  const submissions = pageData?.submissions ?? [];
+  const analytics = pageData?.analytics ?? {
+    total: 0,
+    schools: 0,
+    fit: 0,
+    ai: 0,
+    charts: [],
+  };
+  const firstRow = pageData?.total ? (pageData.page - 1) * 50 + 1 : 0;
+  const lastRow = pageData ? Math.min(pageData.page * 50, pageData.total) : 0;
+  async function login() {
+    if (busy) return;
+    setBusy("login");
+    setError("");
+    const id = ++generation.current;
+    try {
+      const { response, data } = await adminRequest(
+        "/api/admin/login",
+        (r) => r.json().catch(() => ({})),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email: loginEmail, password }),
+        },
+      );
+      if (id !== generation.current) return;
+      if (!response.ok) throw new Error(data.error ?? "Login admin gagal.");
+      setPassword("");
+      setFilters({});
+      setApplied({});
+      setNeedsLogin(null);
+      await load({}, 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Login admin gagal.");
+    } finally {
+      setBusy("");
+    }
   }
-
+  async function logout() {
+    setBusy("logout");
+    revoke();
+    try {
+      const { response } = await adminRequest(
+        "/api/admin/logout",
+        async () => null,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+      if (!response.ok) throw new Error("Keluar belum berhasil. Coba lagi.");
+      revoke();
+      setMessage("");
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Keluar gagal.");
+    } finally {
+      setBusy("");
+    }
+  }
   async function exportCsv() {
-    const response = await fetch(`/api/admin/export${query}`, {
-      credentials: "include"
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error ?? "Export gagal.");
+    if (busy) return;
+    setBusy("export");
+    setError("");
+    const id = generation.current;
+    try {
+      const { response, data } = await adminRequest(
+        "/api/admin/export" + buildQuery(applied),
+        async (r) => (r.ok ? r.blob() : readAdminJson(r).catch(() => ({}))),
+      );
+      if (id !== generation.current) return;
+      if (response.status === 401) {
+        revoke();
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(data.error ?? "Ekspor gagal.");
+      }
+      downloadBlob(data, "project-nelly-submissions.csv");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ekspor gagal.");
+    } finally {
+      setBusy("");
     }
-    downloadBlob(await response.blob(), "project-nelly-submissions.csv");
   }
-
-  async function resetSubmissionAttempt(targetEmail = resetEmail) {
-    const email = targetEmail.trim().toLowerCase();
-    if (!email) {
-      setResetMessage("Masukkan email siswa yang attempt-nya ingin dihapus.");
+  function askReset(email: string) {
+    const clean = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+      setError("Masukkan email siswa yang valid.");
       return;
     }
-
-    const confirmed = window.confirm(`Hapus attempt untuk ${email}? Setelah dihapus, siswa bisa submit ulang.`);
-    if (!confirmed) return;
-
-    setIsResettingAttempt(true);
     setError("");
-    setResetMessage("");
+    setMessage("");
+    setResetTarget(clean);
+  }
+  async function reset() {
+    if (resetting.current) return;
+    resetting.current = true;
+    setBusy("reset");
+    setError("");
+    const id = generation.current;
     try {
-      const response = await fetch("/api/admin/submissions/reset", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email })
-      });
-      const data = (await response.json().catch(() => ({}))) as { deleted?: boolean; email?: string; error?: string };
+      const { response, data } = await adminRequest(
+        "/api/admin/submissions/reset",
+        (r) => readAdminJson(r).catch(() => ({})),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email: resetTarget }),
+        },
+      );
+      if (id !== generation.current) return;
       if (response.status === 401) {
-        setNeedsLogin(true);
+        revoke();
         return;
       }
-      if (!response.ok) throw new Error(data.error ?? "Gagal menghapus attempt.");
-
-      setResetMessage(
+      if (!response.ok)
+        throw new Error(data.error ?? "Gagal menghapus attempt.");
+      setMessage(
         data.deleted
-          ? `Attempt ${data.email ?? email} sudah dihapus. Siswa bisa mengisi ulang.`
-          : `Submission untuk ${data.email ?? email} tidak ditemukan.`
+          ? `Attempt ${data.email ?? resetTarget} sudah dihapus. Siswa dapat mengisi ulang.`
+          : "Submission tidak ditemukan.",
       );
+      setResetTarget("");
       setResetEmail("");
-      if (selected?.email.toLowerCase() === email) setSelected(null);
-      await loadSubmissions();
-    } catch (resetError) {
-      setError(resetError instanceof Error ? resetError.message : "Gagal menghapus attempt.");
+      if (selected?.email === resetTarget) setSelected(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menghapus attempt.");
     } finally {
-      setIsResettingAttempt(false);
+      resetting.current = false;
+      setBusy("");
     }
   }
-
-  if (needsLogin) {
+  if (needsLogin === null)
     return (
-      <div className="mx-auto max-w-md rounded-md border border-black/10 bg-white p-6 shadow-soft">
-        <Badge tone="green">Admin</Badge>
-        <h1 className="mt-3 text-2xl font-bold text-ink">Login Admin</h1>
-        <p className="mt-2 text-sm leading-6 text-ink/65">
-          Masukkan email dan password admin untuk membuka dashboard analytics.
+      <Panel>
+        {error ? (
+          <>
+            <StatusMessage tone="error">{error}</StatusMessage>
+            <Button className="mt-4" onClick={() => load()}>
+              Coba lagi
+            </Button>
+          </>
+        ) : (
+          <StatusMessage>Memeriksa akses admin…</StatusMessage>
+        )}
+      </Panel>
+    );
+  if (needsLogin)
+    return (
+      <Panel className="mx-auto max-w-md">
+        <p className="eyebrow">Khusus admin / guru BK</p>
+        <h1 className="section-heading mt-4">Masuk ruang konselor</h1>
+        <p className="mt-4 text-sm leading-7 text-stone-600">
+          Gunakan akun admin untuk melihat data siswa dan mendampingi langkah
+          mereka.
         </p>
-        <div className="mt-6 space-y-4">
+        <form
+          className="mt-6 space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void login();
+          }}
+        >
           <Field label="Email admin">
             <Input
+              type="email"
+              autoComplete="username"
               value={loginEmail}
-              placeholder="email admin"
-              onChange={(event) => setLoginEmail(event.target.value)}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              required
             />
           </Field>
           <Field label="Password">
             <Input
               type="password"
-              value={loginPassword}
-              placeholder="Password admin"
-              onChange={(event) => setLoginPassword(event.target.value)}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </Field>
-          {error ? <div className="rounded-md border border-coral/30 bg-coral/10 p-3 text-sm text-ink">{error}</div> : null}
-          <Button className="w-full" onClick={loginAdmin} disabled={isLoggingIn}>
-            {isLoggingIn ? "Memeriksa..." : "Masuk Dashboard"}
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+          <Button type="submit" disabled={!!busy} className="w-full">
+            {busy === "login" ? "Memeriksa…" : "Masuk dashboard"}
+          </Button>
+        </form>
+      </Panel>
+    );
+  if (selected)
+    return (
+      <div className="min-w-0 space-y-6">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => setSelected(null)}>
+            <ArrowLeft size={16} />
+            Kembali ke dashboard
+          </Button>
+          <Button variant="secondary" onClick={logout} disabled={!!busy}>
+            Keluar admin
           </Button>
         </div>
+        <Panel>
+          <h2 ref={detailHeading} tabIndex={-1} className="text-lg font-bold">
+            Detail asesmen siswa
+          </h2>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            {[
+              ["Email", selected.email],
+              [
+                "Gender / umur",
+                `${selected.answers.gender || "Belum tercatat"} / ${selected.answers.age || "—"}`,
+              ],
+              ["Jurusan sekolah", formatSchoolMajor(selected.answers)],
+              ["Status", selected.status],
+              [
+                "Narasi",
+                narrativeLabel(selected.narrativeStatus, selected.report?.narrativeVersion),
+              ],
+              ["Versi skor", scoringVersionLabel(selected.report?.scoringVersion)],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-xs text-stone-600">{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {selected.narrativeError ? (
+            <p className="mt-4 text-xs text-red-800">
+              {selected.narrativeError}
+            </p>
+          ) : null}
+        </Panel>
+        {selected.report ? (
+          <ResultsView submission={selected} compact />
+        ) : (
+          <StatusMessage>Laporan belum tersedia.</StatusMessage>
+        )}
       </div>
     );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div className="min-w-0 space-y-6">
+      <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <Badge tone="green">Admin</Badge>
-          <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">Submission Siswa</h1>
-          <p className="mt-2 text-sm text-ink/65">Review hasil pilot dan export CSV untuk analisis sekolah.</p>
+          <p className="eyebrow">Ruang konselor / dashboard admin</p>
+          <h1 className="section-heading mt-3">Pahami arah siswa.</h1>
+          <p className="mt-3 text-sm text-stone-600">
+            Cari seluruh rekaman asesmen. Ringkasan dan CSV mengikuti pencarian
+            serta filter yang diterapkan.
+          </p>
         </div>
-        <Button onClick={exportCsv}>
-          <Download className="h-4 w-4" />
-          Export CSV
-        </Button>
-        <Button variant="secondary" onClick={logoutAdmin}>
-          Logout Admin
-        </Button>
-      </div>
-
-      <section className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 font-bold text-ink">
-          <Filter className="h-4 w-4" />
-          Filter
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <Field label="Sekolah">
-            <Input value={filters.school} onChange={(event) => setFilters({ ...filters, school: event.target.value })} />
-          </Field>
-          <Field label="Kelas">
-            <Input value={filters.className} onChange={(event) => setFilters({ ...filters, className: event.target.value })} />
-          </Field>
-          <Field label="Top recommendation">
-            <Input
-              value={filters.topRecommendation}
-              onChange={(event) => setFilters({ ...filters, topRecommendation: event.target.value })}
-            />
-          </Field>
-          <Field label="Cluster">
-            <Input value={filters.cluster} onChange={(event) => setFilters({ ...filters, cluster: event.target.value })} />
-          </Field>
-          <Field label="Status">
-            <Input value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} placeholder="completed" />
-          </Field>
-          <Field label="Dari tanggal">
-            <Input type="date" value={filters.dateFrom} onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })} />
-          </Field>
-          <Field label="Sampai tanggal">
-            <Input type="date" value={filters.dateTo} onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })} />
-          </Field>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Button onClick={() => loadSubmissions()}>
-            <Search className="h-4 w-4" />
-            Terapkan
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={exportCsv}
+            disabled={!!busy || loading || detailLoading}
+          >
+            <Download size={16} />
+            {busy === "export" ? "Mengunduh…" : "Ekspor CSV"}
           </Button>
+          <Button variant="secondary" onClick={logout} disabled={!!busy}>
+            Keluar admin
+          </Button>
+        </div>
+      </header>
+      {error && !resetTarget ? (
+        <StatusMessage tone="error">
+          {error}
+          <Button variant="secondary" className="ml-3" onClick={() => load()}>
+            Coba lagi
+          </Button>
+        </StatusMessage>
+      ) : null}
+      {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
+      {detailLoading ? <StatusMessage>Memuat laporan…</StatusMessage> : null}
+      <section className="panel" aria-labelledby="admin-filters-heading">
+        <h2
+          id="admin-filters-heading"
+          className="flex min-h-12 items-center gap-3 font-bold"
+        >
+          <Filter size={18} />
+          Pencarian dan filter asesmen
+        </h2>
+        <form
+          className="mt-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (loading || detailLoading || busy) return;
+            void load(filters, 1);
+          }}
+        >
+          <AdminFilters filters={filters} onChange={setFilters} />
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button type="submit" disabled={loading || detailLoading || !!busy}>
+              Cari
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={loading || detailLoading || !!busy}
+              onClick={() => {
+                setFilters({});
+                void load({}, 1);
+              }}
+            >
+              Bersihkan filter
+            </Button>
+          </div>
+        </form>
+      </section>
+      <section
+        aria-label="Ringkasan asesmen"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      >
+        {[
+          ["Asesmen sesuai filter", analytics.total],
+          ["Sekolah unik", analytics.schools],
+          ["Rata-rata fit", analytics.fit],
+          ["Rata-rata ketahanan AI", analytics.ai],
+        ].map(([label, value]) => (
+          <Panel key={label}>
+            <p className="text-xs text-stone-600">{label}</p>
+            <p className="mt-3 text-3xl font-bold">{value}</p>
+          </Panel>
+        ))}
+      </section>
+      <section className="min-w-0" aria-busy={loading || detailLoading}>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">Data asesmen</h2>
+          <span className="text-xs text-stone-600" role="status">
+            {loading
+              ? "Memuat…"
+              : `${firstRow}–${lastRow} dari ${pageData?.total ?? 0} rekaman`}
+          </span>
+        </div>
+        <SubmissionList
+          submissions={submissions}
+          busy={!!busy || loading || detailLoading}
+          onSelect={openDetail}
+          onReset={askReset}
+        />
+        <nav
+          aria-label="Halaman asesmen"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3"
+        >
           <Button
             variant="secondary"
-            onClick={() => {
-              setFilters(initialFilters);
-              void loadSubmissions("");
-            }}
+            aria-label="Halaman sebelumnya"
+            disabled={
+              loading ||
+              detailLoading ||
+              !!busy ||
+              !pageData ||
+              pageData.page <= 1
+            }
+            onClick={() => load(applied, (pageData?.page ?? 1) - 1)}
           >
-            Reset
+            Sebelumnya
           </Button>
+          <p className="text-sm">
+            Halaman {pageData?.page ?? 1} dari {pageData?.totalPages ?? 1}
+          </p>
+          <Button
+            variant="secondary"
+            aria-label="Halaman berikutnya"
+            disabled={
+              loading ||
+              detailLoading ||
+              !!busy ||
+              !pageData ||
+              pageData.page >= pageData.totalPages
+            }
+            onClick={() => load(applied, (pageData?.page ?? 1) + 1)}
+          >
+            Berikutnya
+          </Button>
+        </nav>
+      </section>
+      <section className="panel" aria-labelledby="admin-analytics-heading">
+        <h2 id="admin-analytics-heading" className="text-lg font-bold">
+          Analitik siswa
+        </h2>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {analytics.charts.map((c) => (
+            <Chart key={c.title} {...c} />
+          ))}
         </div>
       </section>
-
-      <section className="rounded-md border border-coral/20 bg-white p-4 shadow-soft">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="mb-2 flex items-center gap-2 font-bold text-ink">
-              <Trash2 className="h-4 w-4 text-coral" />
-              Hapus Attempt Siswa
-            </div>
-            <p className="text-sm leading-6 text-ink/65">
-              Gunakan ini jika siswa salah isi atau perlu mengulang. Submission lama akan dihapus dari database sehingga email tersebut bisa submit lagi.
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+      <section className="panel" aria-labelledby="admin-reset-heading">
+        <h2
+          id="admin-reset-heading"
+          className="flex min-h-12 items-center gap-3 text-sm font-bold"
+        >
+          <Trash2 size={17} />
+          Hapus attempt melalui email
+        </h2>
+        <p className="my-4 text-sm leading-7 text-stone-600">
+          Menghapus submission lama agar siswa dapat mengisi ulang. Tindakan ini
+          tidak dapat dibatalkan.
+        </p>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            askReset(resetEmail);
+          }}
+        >
+          <Field label="Email siswa">
             <Input
               type="email"
               value={resetEmail}
-              placeholder="email siswa"
-              onChange={(event) => setResetEmail(event.target.value)}
-              className="sm:min-w-72"
+              onChange={(e) => setResetEmail(e.target.value)}
+              required
             />
-            <Button variant="danger" onClick={() => resetSubmissionAttempt()} disabled={isResettingAttempt}>
-              <Trash2 className="h-4 w-4" />
-              {isResettingAttempt ? "Menghapus..." : "Hapus Attempt"}
-            </Button>
-          </div>
-        </div>
-        {resetMessage ? <p className="mt-3 text-sm font-semibold text-ink/70">{resetMessage}</p> : null}
+          </Field>
+          <Button
+            variant="danger"
+            type="submit"
+            disabled={!!busy || loading || detailLoading}
+          >
+            Hapus attempt
+          </Button>
+        </form>
       </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Total submissions", analytics.total],
-          ["Sekolah unik", analytics.uniqueSchools],
-          ["Rata-rata fit", analytics.avgFit],
-          ["Rata-rata AI resilience", analytics.avgAi]
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
-            <div className="text-xs font-semibold uppercase text-ink/55">{label}</div>
-            <div className="mt-2 text-3xl font-black text-ink">{value}</div>
+      <ConfirmDialog
+        open={!!resetTarget}
+        title="Hapus attempt siswa?"
+        confirmLabel="Ya, hapus attempt"
+        busy={busy === "reset"}
+        onClose={() => {
+          setResetTarget("");
+          setError("");
+        }}
+        onConfirm={reset}
+      >
+        <p>
+          Submission untuk <strong>{resetTarget}</strong> akan dihapus permanen.
+          Siswa dapat mengisi ulang setelahnya.
+        </p>
+        {error ? (
+          <div className="mt-4">
+            <StatusMessage tone="error">{error}</StatusMessage>
           </div>
-        ))}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <BarChart title="Count Gender" rows={analytics.gender} />
-        <BarChart title="Count Umur" rows={analytics.age} />
-        <BarChart title="Top Rekomendasi" rows={analytics.topMajors} />
-        {[
-          ["Top 10 cluster", analytics.topClusters],
-          ["Constraint umum", analytics.constraints],
-          ["Aktivitas umum", analytics.activities],
-          ["Skill umum", analytics.skills]
-        ].map(([title, rows]) => (
-          <div key={String(title)} className="rounded-md border border-black/10 bg-white p-4 shadow-soft">
-            <h2 className="font-bold text-ink">{String(title)}</h2>
-            <div className="mt-3 space-y-2">
-              {(rows as { label: string; count: number }[]).map((row) => (
-                <div key={row.label} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate text-ink/70">{row.label}</span>
-                  <Badge tone="neutral">{row.count}</Badge>
-                </div>
-              ))}
-              {(rows as unknown[]).length === 0 ? <p className="text-sm text-ink/50">Belum ada data.</p> : null}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {error ? <div className="rounded-md border border-coral/30 bg-coral/10 p-4 text-sm text-ink">{error}</div> : null}
-
-      <section className="overflow-hidden rounded-md border border-black/10 bg-white shadow-soft">
-        <div className="border-b border-black/10 px-4 py-3 text-sm font-semibold text-ink">
-          {isLoading ? "Memuat..." : `${submissions.length} submission`}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-black/[0.03] text-xs uppercase text-ink/55">
-              <tr>
-                <th className="px-4 py-3">Tanggal</th>
-                <th className="px-4 py-3">Nama</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Gender</th>
-                <th className="px-4 py-3">Umur</th>
-                <th className="px-4 py-3">Sekolah</th>
-                <th className="px-4 py-3">Kelas</th>
-                <th className="px-4 py-3">Jurusan sekolah</th>
-                <th className="px-4 py-3">Top Major</th>
-                <th className="px-4 py-3">Top Career Direction</th>
-                <th className="px-4 py-3">Top Cluster</th>
-                <th className="px-4 py-3">Fit</th>
-                <th className="px-4 py-3">AI</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Narasi</th>
-                <th className="px-4 py-3">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-black/10">
-              {submissions.map((submission) => (
-                <tr key={submission.id} className="align-top">
-                  <td className="px-4 py-3 text-ink/65">{formatDateTime(submission.createdAt)}</td>
-                  <td className="px-4 py-3 font-semibold text-ink">
-                    {submission.fullName}
-                  </td>
-                  <td className="px-4 py-3 text-ink/70">{submission.email}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.answers.gender ?? "-"}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.answers.age ?? "-"}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.school}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.className}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.answers.currentSchoolMajor}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-semibold text-ink">{submission.report.topRecommendation.majorName}</div>
-                  </td>
-                  <td className="max-w-72 px-4 py-3 text-ink/70">{submission.report.topRecommendation.careerDirection}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.cluster}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.overallFitScore}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.report.topRecommendation.aiFutureResilienceScore}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.status}</td>
-                  <td className="px-4 py-3 text-ink/70">{submission.narrativeStatus ?? "skipped"}</td>
-                  <td className="space-y-2 px-4 py-3">
-                    <Button variant="secondary" onClick={() => setSelected(submission)}>
-                      View
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => resetSubmissionAttempt(submission.email)}
-                      disabled={isResettingAttempt}
-                      title="Hapus attempt agar siswa bisa submit ulang"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Hapus
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {selected ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
-          <div className="mx-auto max-w-5xl rounded-md bg-white p-4 shadow-soft">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="rounded-md bg-[#FFF7ED] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink/60">
-                Narrative source: {selected.report.narrative?.source ?? "heuristic"} | {selected.report.narrativeVersion} | status:{" "}
-                {selected.narrativeStatus ?? "skipped"}
-                {selected.narrativeError ? ` | error: ${selected.narrativeError}` : ""}
-              </div>
-              <Button variant="secondary" onClick={() => setSelected(null)}>
-                Tutup
-              </Button>
-            </div>
-            <ResultsView submission={selected} compact />
-          </div>
-        </div>
-      ) : null}
+        ) : null}
+      </ConfirmDialog>
     </div>
   );
 }
