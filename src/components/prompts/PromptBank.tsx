@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Compass, GraduationCap, BriefcaseBusiness, FolderOpen, ClipboardCheck, MessagesSquare } from "lucide-react";
 import { aiPrompts, promptCategories, type PromptCategoryId, type PromptField } from "../../../data/aiPrompts";
 import { fillPrompt, PROMPT_FIELD_MAX, type PromptValues } from "@/lib/prompts/fill";
 import { PromptItem } from "./PromptItem";
@@ -40,11 +40,12 @@ export function PromptBank({ initial }: { initial: PromptValues }) {
     <div className="space-y-3">
       {promptCategories.map(cat => {
         const items = aiPrompts.filter(p => p.category === cat.id);
+        const CategoryIcon = ({ diri: Compass, jurusan: GraduationCap, karier: BriefcaseBusiness, portofolio: FolderOpen, seleksi: ClipboardCheck, orangtua: MessagesSquare })[cat.id];
         return <details key={cat.id} open={cat.id === suggested} className="group panel min-w-0" data-category={cat.id}>
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf">
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-lg font-bold"><span className="text-leaf">{cat.step}</span> · {cat.title}</span>
+                <span className="inline-flex min-w-0 items-center gap-3 text-lg font-bold"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-leaf"><CategoryIcon size={20} aria-hidden="true" /></span><span><span className="text-leaf">{cat.step}</span> · {cat.title}</span></span>
                 {cat.id === suggested ? <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-900">Cocok untukmu sekarang</span> : null}
               </span>
               <span className="mt-1 block text-sm text-stone-600">{cat.intro}</span>
