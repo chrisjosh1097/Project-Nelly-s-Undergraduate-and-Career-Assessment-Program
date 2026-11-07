@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Compass, Layers, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { JourneyDecoration } from "@/components/ui/JourneyDecoration";
 export default function LandingPage() {
   return (
     <div>
@@ -28,7 +29,8 @@ export default function LandingPage() {
             Universitas atau vokasi · 10 rekomendasi · Penjelasan transparan
           </p>
         </div>
-        <div className="hero-art">
+        <div className="hero-art decorated-hero">
+          <JourneyDecoration />
           <div className="hero-preview">
             <div className="eyebrow flex items-center justify-between gap-3">
               Contoh hasil <Compass size={25} className="text-leaf" />
@@ -82,10 +84,10 @@ export default function LandingPage() {
               body: "Eksplorasi karier dan unduh laporan untuk diskusi bersama guru BK.",
             },
           ].map((item, i) => (
-            <article className="panel" key={item.title}>
+            <article className={`panel journey-feature journey-feature-${i + 1}`} key={item.title}>
               <div className="mb-7 flex items-center justify-between">
-                <span className="eyebrow">0{i + 1}</span>
-                <item.icon size={22} className="text-leaf" aria-hidden="true" />
+                <span className="journey-step">0{i + 1}</span>
+                <span className="journey-icon"><item.icon size={24} aria-hidden="true" /></span>
               </div>
               <h3 className="text-xl font-bold">{item.title}</h3>
               <p className="mt-3 text-sm leading-7 text-stone-600">

@@ -1,4 +1,5 @@
 import { formatSchoolMajor } from "@/lib/assessment/schoolMajorDisplay";
+import { PencilLine } from "lucide-react";
 import type { StudentAnswer } from "@/lib/types";
 import { getAssessmentSteps, assessmentSections } from "@/lib/assessment/steps";
 import { educationPathwayLabel } from "@/lib/assessment/pathways";
@@ -72,6 +73,7 @@ export function AssessmentReview({
                           aria-label={`Ubah ${s.title}`}
                           onClick={() => onEdit(key)}
                         >
+                          <PencilLine size={16} aria-hidden="true" />
                           Ubah
                         </Button>
                       ) : null}

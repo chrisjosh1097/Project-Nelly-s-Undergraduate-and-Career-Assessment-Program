@@ -221,6 +221,18 @@ button:disabled {
   background: #fff0e8;
   padding: 60px 28px 30px;
 }
+.decorated-hero { position: relative; isolation: isolate; overflow: hidden; }
+.journey-decoration { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+.journey-decoration svg { width: 100%; height: 100%; }
+.decorated-hero .hero-preview { position: relative; }
+.decorated-hero .hero-note { position: relative; }
+.journey-feature { position: relative; border-top: 3px solid #dcb29b; background: linear-gradient(150deg, #fffaf5, #fff 65%); }
+.journey-feature-2 { border-top-color: #bc340e; }
+.journey-feature-3 { border-top-color: #191817; }
+.journey-step { font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -0.06em; color: #9b6c52; }
+.journey-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 17px; background: #fff0e8; color: #bc340e; transform: rotate(-6deg); }
+.journey-feature-2 .journey-icon { background: #bc340e; color: #fff; transform: rotate(5deg); }
+.journey-feature-3 .journey-icon { background: #191817; color: #fff0e8; transform: rotate(-4deg); }
 .hero-preview {
   background: white;
   border: 1px solid var(--line);
