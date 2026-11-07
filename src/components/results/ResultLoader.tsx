@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, RefreshCw, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ResultsView } from "./ResultsView";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -94,6 +95,7 @@ function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
             setRetry((v) => v + 1);
           }}
         >
+          <RotateCcw size={16} aria-hidden="true" />
           Coba lagi
         </Button>
       </Panel>
@@ -109,7 +111,7 @@ function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
           className="touch-link rounded-full bg-leaf px-6 text-white hover:bg-orange-800"
           href="/assessment"
         >
-          Mulai asesmen
+          Mulai asesmen <ArrowRight size={16} aria-hidden="true" />
         </Link>
       </Panel>
     );
@@ -120,6 +122,7 @@ function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
           Jawaban tersimpan. Laporan sedang diproses; jangan kirim ulang.
         </StatusMessage>
         <Button className="mt-5" onClick={() => setRetry((v) => v + 1)}>
+          <RefreshCw size={16} aria-hidden="true" />
           Periksa lagi
         </Button>
       </Panel>
@@ -155,6 +158,7 @@ function AccountResults({ alreadySubmitted }: { alreadySubmitted: boolean }) {
             className="ml-3"
             onClick={() => setRetry((v) => v + 1)}
           >
+            <RotateCcw size={16} aria-hidden="true" />
             Coba lagi
           </Button>
         </StatusMessage>

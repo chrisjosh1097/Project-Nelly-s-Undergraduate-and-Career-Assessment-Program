@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ExternalLink, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, RotateCcw, Search } from "lucide-react";
 import { CampusDegree, CampusPlace, CampusStats } from "./CampusRowMeta";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
@@ -146,7 +146,7 @@ export function CampusSearch({ initial }: { initial?: Partial<CampusFilters> }) 
     <section aria-label="Hasil pencarian kampus" aria-busy={state.status === "loading"} className="min-w-0 space-y-3">
       {state.status === "error" ? <StatusMessage tone="error">
         <span className="block">Data kampus belum bisa dimuat.</span>
-        <Button variant="secondary" className="mt-3" onClick={() => setAttempt((n) => n + 1)}>Coba lagi</Button>
+        <Button variant="secondary" className="mt-3" onClick={() => setAttempt((n) => n + 1)}><RotateCcw size={16} aria-hidden="true" />Coba lagi</Button>
       </StatusMessage> : null}
       {state.status === "loading" ? <p className="text-sm text-stone-600" role="status">Memuat data kampus…</p> : null}
       {data && !data.total ? <p className="panel text-sm leading-6 text-stone-700">Belum ada yang cocok. Coba kata lain, misalnya &quot;teknik mesin&quot;.</p> : null}
@@ -167,9 +167,9 @@ export function CampusSearch({ initial }: { initial?: Partial<CampusFilters> }) 
           </li>)}
         </ul>
         <nav aria-label="Halaman hasil" className="flex items-center justify-between gap-3">
-          <Button variant="secondary" disabled={data.page <= 1} onClick={() => update({ page: data.page - 1 })}>Sebelumnya</Button>
+          <Button variant="secondary" disabled={data.page <= 1} onClick={() => update({ page: data.page - 1 })}><ChevronLeft size={16} aria-hidden="true" />Sebelumnya</Button>
           <span className="text-sm tabular-nums text-stone-700">{data.page} / {lastPage}</span>
-          <Button variant="secondary" disabled={data.page >= lastPage} onClick={() => update({ page: data.page + 1 })}>Berikutnya</Button>
+          <Button variant="secondary" disabled={data.page >= lastPage} onClick={() => update({ page: data.page + 1 })}>Berikutnya<ChevronRight size={16} aria-hidden="true" /></Button>
         </nav>
       </> : null}
       <p className="text-xs leading-5 text-stone-600">{data?.source || FALLBACK_SOURCE}</p>

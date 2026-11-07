@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, RotateCcw } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
@@ -235,6 +235,7 @@ export function AssessmentForm() {
       <Panel>
         <StatusMessage tone="error">{error}</StatusMessage>
         <Button className="mt-5" onClick={() => setRetry((v) => v + 1)}>
+          <RotateCcw size={16} aria-hidden="true" />
           Coba lagi
         </Button>
       </Panel>
