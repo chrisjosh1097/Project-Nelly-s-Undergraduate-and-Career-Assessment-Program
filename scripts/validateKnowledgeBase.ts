@@ -22,7 +22,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { campusMajorMap } from "../data/campusMajorMap";
 import { programsForRule } from "../src/lib/campus/catalog";
-import { problemAreaOptionTags } from "../src/lib/assessment/options";
+import { favoriteSubjectOptions, legacyFavoriteSubjectOptions, problemAreaOptionTags } from "../src/lib/assessment/options";
+import { subjectChoiceByOption } from "../src/lib/assessment/subjectChoices";
+import { subjectTextRules } from "../src/lib/assessment/subjectText";
 
 /** Every major must share a tag with at least one current problem-area option. */
 export function validateProblemAreaReachability(): ValidationIssue[] {
@@ -454,6 +456,18 @@ export function validateKnowledgeBase(): ValidationIssue[] {
       }
     }
   }
+
+  for (const option of [...favoriteSubjectOptions, ...legacyFavoriteSubjectOptions]) {
+    if (option === "Lainnya") continue;
+    const choice = subjectChoiceByOption[option];
+    const ids = choice ? [choice.primaryId, choice.specificityId].filter(Boolean) as string[] : [];
+    if (!choice || ids.some((id) => !subjectIds.has(id)))
+      issues.push({ path: `subjectOption.${option}`, message: "Opsi mata pelajaran tidak terpetakan ke subject valid." });
+  }
+  for (const rule of subjectTextRules)
+    for (const id of rule.ids)
+      if (!subjectIds.has(id))
+        issues.push({ path: `subjectText.${rule.phrases[0]}`, message: `Subject regex tidak valid: ${id}.` });
 
   for (const sample of sampleScoringExamples) {
     for (const id of sample.subjectIds)

@@ -1,3 +1,4 @@
+import type { SubjectChoice } from "@/lib/assessment/subjectChoices";
 export type EducationPathway = "university" | "vocational" | "exploring";
 
 export type SchoolMajor =
@@ -73,6 +74,8 @@ export interface NormalizedStudentAnswer {
   className: string;
   currentSchoolMajor: SchoolMajor;
   favoriteSubjectIds: string[];
+  /** v3.3.0: one scoring slot per subject checkbox (plus recognized Lainnya text). */
+  favoriteSubjectChoices?: SubjectChoice[];
   favoriteSubjectsOther: string;
   interestIds: string[];
   skillIds: string[];

@@ -3,6 +3,7 @@ import {
   collegePathPreferenceOptions,
   favoriteActivityOptions,
   favoriteSubjectOptions,
+  legacyFavoriteSubjectOptions,
   genderOptions,
   personalConstraintOptions,
   problemAreaOptions,
@@ -75,7 +76,7 @@ export const studentAnswerSchema = z
     ),
     currentSchoolMajorOther: optionalText("Jurusan sekolah lainnya", 2, 60),
     favoriteSubjects: optionArray(
-      favoriteSubjectOptions,
+      [...favoriteSubjectOptions, ...legacyFavoriteSubjectOptions],
       "mata pelajaran",
       assessmentMultiSelectLimits.favoriteSubjects,
     ),
