@@ -115,7 +115,7 @@ Each checkbox becomes **one choice**, which has a single `primaryId` and an opti
 - **Matcher.** Lives in `src/lib/recommendation/aspirationAliases.ts`.
   - Text is normalized and tokenized on Unicode letters and digits.
   - Phrases are matched as token sequences, longest first, and never overlap.
-  - A match is skipped if one of the 3 preceding tokens is a negation: `bukan`, `tidak`, `tdk`, `ga`, `gak`, `nggak`, `enggak`, `jangan`, `selain`, `kecuali`.
+  - A match is skipped if a negation appears earlier in the same clause scope (see **Clauses and negation**: scope ends at `, ; . / ( )` or a conjunction such as `tapi`/`dan`/`atau`). Negations: `bukan`, `tidak`, `tdk`, `ga`, `gak`, `nggak`, `enggak`, `jangan`, `selain`, `kecuali`.
   - Context exclusions apply. For example, `hukum` followed by `newton`, `fisika`, `alam`, `kekekalan`, `ohm`, or `archimedes` is not a match.
   - No fuzzy matching.
 - **Aliases.**
