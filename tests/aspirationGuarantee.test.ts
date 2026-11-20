@@ -7,6 +7,7 @@ import {
   mentionsOfficialService,
   OFFICIAL_SERVICE_NOTE,
   softOnlyAspirationTerms,
+  catalogNameMismatches,
 } from "@/lib/recommendation/aspirationAliases";
 import type { StudentAnswer } from "@/lib/types";
 import { buildSubmission, techAnswer } from "./fixtures";
@@ -34,6 +35,11 @@ describe("explicit aspiration matcher", () => {
     ["Ahli Gizi", [["gizi"]]],
     ["gizi", [["gizi"]]],
     ["", []],
+    ["UI/UX Design Applied", [["uiux_design_applied"]]],
+    ["Desain UI / UX Terapan", [["uiux_design_applied"]]],
+    ["Teknik Mesin D3/D4", [["teknik_mesin_terapan"]]],
+    ["perawat/kesenian", [["keperawatan"]]],
+    ["psikiater", [["kedokteran"]]],
   ])("%s", (text, expected) => {
     expect(firstTier(text)).toEqual(expected);
   });
@@ -45,6 +51,15 @@ describe("explicit aspiration matcher", () => {
 
   it("lets a literal catalog name win over a grouped alias, with the group as fallback", () => {
     expect(matchExplicitAspirations("teknik mesin")[0].tiers).toEqual([["teknik_mesin"], ["teknik_mesin", "teknik_mesin_terapan"]]);
+  });
+
+  it("every usable catalog name reaches its own major", () => {
+    expect(catalogNameMismatches()).toEqual([]);
+  });
+
+  it("marks proxy aliases as related, not named", () => {
+    expect(matchExplicitAspirations("desain interior")[0].related).toEqual([true]);
+    expect(matchExplicitAspirations("arsitek")[0].related).toEqual([false]);
   });
 
   it("only targets real majors", () => {
@@ -130,6 +145,21 @@ describe("aspiration guarantee in generateRecommendations", () => {
   });
 });
 
+describe("aspiration match kinds", () => {
+  it("psikiater and dokter spesialis jiwa use one slot", () => {
+    const recs = generateRecommendations({ ...techAnswer, futureVision: "", dreamProfession: "dokter spesialis jiwa (psikiater)" }).recommendations;
+    expect(recs.filter((r) => r.aspirationMatch).map((r) => r.majorId)).toEqual(["kedokteran"]);
+  });
+
+  it("a proxy alias labels the major as related; a literal mention as named", () => {
+    const a = { ...techAnswer, futureVision: "" };
+    const proxy = generateRecommendations({ ...a, dreamProfession: "desainer interior" }).recommendations.find((r) => r.majorId === "arsitektur")!;
+    expect(proxy).toMatchObject({ aspirationMatch: true, aspirationMatchKind: "related" });
+    const named = generateRecommendations({ ...a, dreamProfession: "desainer interior atau arsitek" }).recommendations.find((r) => r.majorId === "arsitektur")!;
+    expect(named).toMatchObject({ aspirationMatch: true, aspirationMatchKind: "named" });
+  });
+});
+
 describe("aspiration badge in saved report outputs", () => {
   it("prints the badge in the PDF only for protected results; old reports stay unchanged", () => {
     const submission = buildSubmission({ ...techAnswer, dreamProfession: "" });
@@ -138,5 +168,9 @@ describe("aspiration badge in saved report outputs", () => {
     submission.report.recommendations[3].aspirationMatch = true;
     const after = buildSubmissionPdfTextSnapshot(submission);
     expect(after.match(/Disebut dalam cita-citamu/g)).toHaveLength(1);
+    submission.report.recommendations[3].aspirationMatchKind = "related";
+    const related = buildSubmissionPdfTextSnapshot(submission);
+    expect(related).not.toContain("Disebut dalam cita-citamu");
+    expect(related.match(/Terkait cita-citamu/g)).toHaveLength(1);
   });
 });

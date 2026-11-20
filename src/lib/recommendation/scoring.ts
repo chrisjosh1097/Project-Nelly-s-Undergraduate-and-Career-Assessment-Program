@@ -757,24 +757,32 @@ const MAX_PROTECTED_ASPIRATIONS = 3;
  * only already-eligible scored majors are considered.
  */
 export function protectedAspirationIds(scored: ScoredMajor[], dreamProfession: string) {
+  return [...protectedAspirations(scored, dreamProfession).keys()];
+}
+
+/** Protected major ID → match kind. A literal mention upgrades an earlier proxy match to "named". */
+function protectedAspirations(scored: ScoredMajor[], dreamProfession: string) {
   const scoredById = new Map(scored.map((item) => [item.major.id, item]));
-  const protectedIds: string[] = [];
+  const protectedIds = new Map<string, "named" | "related">();
   for (const match of matchExplicitAspirations(dreamProfession)) {
-    if (protectedIds.length >= MAX_PROTECTED_ASPIRATIONS) break;
-    for (const tier of match.tiers) {
+    for (const [tierIndex, tier] of match.tiers.entries()) {
       const best = tier
         .map((id) => scoredById.get(id))
         .filter((item): item is ScoredMajor => Boolean(item))
         .sort(compareScoredMajors)[0];
       if (!best) continue;
-      if (!protectedIds.includes(best.major.id)) protectedIds.push(best.major.id);
+      const kind = match.related[tierIndex] ? "related" : "named";
+      const id = best.major.id;
+      if (protectedIds.has(id)) { if (kind === "named") protectedIds.set(id, "named"); }
+      else if (protectedIds.size < MAX_PROTECTED_ASPIRATIONS) protectedIds.set(id, kind);
       break;
     }
   }
   return protectedIds;
 }
 
-function applyAspirationGuarantee(pool: ScoredMajor[], scored: ScoredMajor[], protectedIds: string[]) {
+function applyAspirationGuarantee(pool: ScoredMajor[], scored: ScoredMajor[], kinds: Map<string, "named" | "related">) {
+  const protectedIds = [...kinds.keys()];
   const result = pool.slice(0, 10);
   const scoredById = new Map(scored.map((item) => [item.major.id, item]));
   for (const id of protectedIds) {
@@ -790,7 +798,7 @@ function applyAspirationGuarantee(pool: ScoredMajor[], scored: ScoredMajor[], pr
     .sort(compareScoredMajors)
     .map((item) =>
       protectedIds.includes(item.major.id)
-        ? { ...item.recommendation, aspirationMatch: true }
+        ? { ...item.recommendation, aspirationMatch: true, aspirationMatchKind: kinds.get(item.major.id) }
         : item.recommendation,
     );
 }
@@ -807,8 +815,8 @@ export function generateRecommendations(
     .sort(compareScoredMajors);
 
   const pool = selectRecommendationPool(scored);
-  const protectedIds = protectedAspirationIds(scored, answer.dreamProfession ?? "");
-  const recommendations = applyAspirationGuarantee(pool, scored, protectedIds)
+  const protectedKinds = protectedAspirations(scored, answer.dreamProfession ?? "");
+  const recommendations = applyAspirationGuarantee(pool, scored, protectedKinds)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
 
   if (recommendations.length !== 10) {

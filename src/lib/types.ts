@@ -170,6 +170,8 @@ export interface RecommendationResult {
   aspirationReflection?: string;
   /** v3.3.0: kept in the top 10 because dreamProfession named this major. Absent on older reports. */
   aspirationMatch?: boolean;
+  /** v3.3.0: "named" = the student wrote this major/profession; "related" = closest catalog major for what they wrote. Absent = named. */
+  aspirationMatchKind?: "named" | "related";
   careerPathwayAdvice?: string[];
   careerCautions?: string[];
   relatedCareers: string[];

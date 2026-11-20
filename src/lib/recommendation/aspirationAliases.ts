@@ -12,6 +12,8 @@ export type AspirationMatch = {
   phrase: string;
   /** Candidate tiers: the first tier with an eligible major wins; within a tier the highest score wins. */
   tiers: string[][];
+  /** Per tier: true when the major is only a reviewed proxy (e.g. "desain interior" → Arsitektur), not what the student named. */
+  related: boolean[];
 };
 
 const NEGATIONS = new Set(["bukan", "tidak", "tdk", "ga", "gak", "nggak", "enggak", "engga", "jangan", "selain", "kecuali", "ogah"]);
@@ -35,16 +37,18 @@ const PRECEDING_EXCLUSIONS: Record<string, string[]> = {
 };
 
 /** Reviewed profession aliases → group of target major IDs. */
-export const curatedAspirationAliases: Array<{ phrases: string[]; targets: string[] }> = [
+export const curatedAspirationAliases: Array<{ phrases: string[]; targets: string[]; related?: true }> = [
   { phrases: ["arsitek", "architect"], targets: ["arsitektur"] },
-  { phrases: ["desain interior", "desainer interior", "interior designer"], targets: ["arsitektur"] },
+  { phrases: ["desain interior", "desainer interior", "interior designer"], targets: ["arsitektur"], related: true },
   { phrases: ["teknik komputer", "tekkom", "computer engineer"], targets: ["teknik_komputer"] },
   { phrases: ["teknik informatika", "programmer", "programer"], targets: ["informatika", "teknologi_rekayasa_perangkat_lunak"] },
   { phrases: ["software engineer", "software developer"], targets: ["software_engineering", "teknologi_rekayasa_perangkat_lunak"] },
   { phrases: ["dokter", "dokter umum", "dokter spesialis", "dokter bedah", "dokter forensik", "dokter anak", "dokter kandungan"], targets: ["kedokteran"] },
   { phrases: ["dokter gigi", "drg"], targets: ["kedokteran_gigi"] },
   { phrases: ["dokter hewan"], targets: ["kedokteran_hewan"] },
-  { phrases: ["psikolog", "psikiater"], targets: ["psikologi"] },
+  { phrases: ["psikolog"], targets: ["psikologi"] },
+  // A psychiatrist is a medical specialist: the route is Kedokteran, not Psikologi.
+  { phrases: ["psikiater", "dokter spesialis jiwa", "dokter jiwa"], targets: ["kedokteran"] },
   { phrases: ["apoteker"], targets: ["farmasi"] },
   { phrases: ["akuntan"], targets: ["akuntansi", "akuntansi_terapan"] },
   { phrases: ["aktuaris"], targets: ["aktuaria"] },
@@ -65,7 +69,7 @@ export const curatedAspirationAliases: Array<{ phrases: string[]; targets: strin
   { phrases: ["ilmu komunikasi"], targets: ["komunikasi"] },
   { phrases: ["public relation", "public relations"], targets: ["public_relations"] },
   { phrases: ["desain grafis", "graphic designer", "desainer grafis"], targets: ["desain_komunikasi_visual"] },
-  { phrases: ["teknisi pesawat"], targets: ["vokasi_teknik"] },
+  { phrases: ["teknisi pesawat"], targets: ["vokasi_teknik"], related: true },
 ];
 
 /** Broad careers: keep the existing soft boost, never guaranteed. Documented for reviewers/tests. */
@@ -83,10 +87,36 @@ export function aspirationTokens(value: string) {
     .filter(Boolean);
 }
 
-type Entry = { tokens: string[]; phrase: string; tiers: string[][] };
+type Entry = { tokens: string[]; phrase: string; tiers: string[][]; related: boolean[] };
+
+/**
+ * Slash pairs that are part of a catalog name (e.g. "UI/UX", "D3/D4"). Only these exact
+ * pairs are joined before clause splitting; every other slash still separates clauses.
+ */
+const SLASH_PAIR = /([\p{L}\p{N}]+)\s*\/\s*([\p{L}\p{N}]+)/gu;
+
+function catalogSlashPairs() {
+  const pairs = new Set<string>();
+  for (const major of knowledgeMajors)
+    for (const name of [major.name, ...major.alternativeNames])
+      for (const m of name.matchAll(SLASH_PAIR)) {
+        const pair = `${aspirationTokens(m[1]).join(" ")}/${aspirationTokens(m[2]).join(" ")}`;
+        // Two complete alternative names ("Entrepreneurship/Kewirausahaan") need no joining.
+        if (m[1].length <= 3 || m[2].length <= 3) pairs.add(pair);
+      }
+  return pairs;
+}
+
+let slashPairs: Set<string> | undefined;
+
+function joinCatalogSlashes(text: string) {
+  slashPairs ??= catalogSlashPairs();
+  return text.replace(SLASH_PAIR, (whole, left: string, right: string) =>
+    slashPairs!.has(`${aspirationTokens(left).join(" ")}/${aspirationTokens(right).join(" ")}`) ? `${left} ${right}` : whole);
+}
 
 function buildEntries(): Entry[] {
-  const byPhrase = new Map<string, { literal?: string; groups: string[][] }>();
+  const byPhrase = new Map<string, { literal?: string; groups: Array<{ targets: string[]; related: boolean }> }>();
   const slot = (phrase: string) => byPhrase.get(phrase) ?? byPhrase.set(phrase, { groups: [] }).get(phrase)!;
   for (const major of knowledgeMajors) {
     for (const name of [major.name, ...major.alternativeNames]) {
@@ -98,14 +128,15 @@ function buildEntries(): Entry[] {
     }
   }
   for (const alias of curatedAspirationAliases)
-    for (const raw of alias.phrases) slot(aspirationTokens(raw).join(" ")).groups.push(alias.targets);
+    for (const raw of alias.phrases) slot(aspirationTokens(raw).join(" ")).groups.push({ targets: alias.targets, related: Boolean(alias.related) });
 
   return [...byPhrase.entries()]
     .map(([phrase, { literal, groups }]) => ({
       phrase,
       tokens: phrase.split(" "),
       // Literal catalog name wins; grouped aliases are the fallback when it is ineligible.
-      tiers: [...(literal ? [[literal]] : []), ...groups.map((group) => (literal ? [...new Set([literal, ...group])] : group))],
+      tiers: [...(literal ? [[literal]] : []), ...groups.map((group) => (literal ? [...new Set([literal, ...group.targets])] : group.targets))],
+      related: [...(literal ? [false] : []), ...groups.map((group) => !literal && group.related)],
     }))
     .sort((a, b) => b.tokens.length - a.tokens.length);
 }
@@ -146,17 +177,30 @@ function matchClause(tokens: string[], list: Entry[]) {
 /** Explicit major mentions in first-mention order (phrases never cross punctuation). */
 export function matchExplicitAspirations(text: string): AspirationMatch[] {
   entries ??= buildEntries();
-  return (text ?? "")
+  return joinCatalogSlashes(text ?? "")
     .split(CLAUSE_SPLIT)
     .flatMap((clause) => matchClause(aspirationTokens(clause), entries!))
-    .map(({ entry }) => ({ phrase: entry.phrase, tiers: entry.tiers }));
+    .map(({ entry }) => ({ phrase: entry.phrase, tiers: entry.tiers, related: entry.related }));
+}
+
+/** Catalog names that are long enough to count but do not reach their own major (KB validation). */
+export function catalogNameMismatches() {
+  const issues: string[] = [];
+  for (const major of knowledgeMajors)
+    for (const name of [major.name, ...major.alternativeNames]) {
+      const phrase = aspirationTokens(name).join(" ");
+      if (!phrase || excludedCatalogNames.has(phrase) || (!phrase.includes(" ") && phrase.length < 4)) continue;
+      const hits = matchExplicitAspirations(name);
+      if (!hits.length || hits.some((hit) => !hit.tiers[0]?.includes(major.id))) issues.push(`${major.id}: ${name}`);
+    }
+  return issues;
 }
 
 const OFFICIAL_SERVICE_PHRASES = [
   "tni", "polri", "polisi", "polwan", "tentara", "militer", "akmil", "akpol", "aal", "aau", "kowad", "kowal", "kowau",
   "angkatan darat", "angkatan laut", "angkatan udara", "kedinasan", "sekolah kedinasan", "stan", "pknstan", "stis",
   "ipdn", "poltekip", "poltekim", "bmkg", "stmkg", "taruna", "abdi negara",
-].map((phrase) => ({ phrase, tokens: phrase.split(" "), tiers: [] as string[][] }))
+].map((phrase) => ({ phrase, tokens: phrase.split(" "), tiers: [] as string[][], related: [] as boolean[] }))
   .sort((a, b) => b.tokens.length - a.tokens.length);
 
 export const OFFICIAL_SERVICE_NOTE =

@@ -20,6 +20,15 @@ test("shows the aspiration badge on protected cards at 320px without overflow", 
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+test("a related proxy match is labelled as related, not named", async ({ mount, page }) => {
+  const value = structuredClone(submission);
+  value.report.recommendations[4].aspirationMatch = true;
+  value.report.recommendations[4].aspirationMatchKind = "related";
+  await mount(<ResultsView submission={value} />);
+  await expect(page.getByText("Terkait cita-citamu")).toHaveCount(1);
+  await expect(page.getByText("Disebut dalam cita-citamu")).toHaveCount(0);
+});
+
 test("old reports without the field show no aspiration badge", async ({ mount, page }) => {
   await mount(<ResultsView submission={submission} />);
   await expect(page.getByText("Disebut dalam cita-citamu")).toHaveCount(0);

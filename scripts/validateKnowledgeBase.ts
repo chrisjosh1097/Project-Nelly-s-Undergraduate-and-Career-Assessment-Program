@@ -25,7 +25,7 @@ import { programsForRule } from "../src/lib/campus/catalog";
 import { favoriteSubjectOptions, legacyFavoriteSubjectOptions, problemAreaOptionTags } from "../src/lib/assessment/options";
 import { subjectChoiceByOption } from "../src/lib/assessment/subjectChoices";
 import { subjectTextRules } from "../src/lib/assessment/subjectText";
-import { allAspirationTargetIds, curatedAspirationAliases } from "../src/lib/recommendation/aspirationAliases";
+import { allAspirationTargetIds, catalogNameMismatches, curatedAspirationAliases } from "../src/lib/recommendation/aspirationAliases";
 
 /** Every major must share a tag with at least one current problem-area option. */
 export function validateProblemAreaReachability(): ValidationIssue[] {
@@ -477,6 +477,8 @@ export function validateKnowledgeBase(): ValidationIssue[] {
         issues.push({ path: `aspirationAlias.${alias.phrases[0]}`, message: `Target alias cita-cita tidak dikenal: ${id}.` });
   for (const id of allAspirationTargetIds())
     if (!knownMajorIds.has(id)) issues.push({ path: `aspirationTarget.${id}`, message: "Target cita-cita tidak dikenal." });
+  for (const mismatch of catalogNameMismatches())
+    issues.push({ path: `aspirationCatalogName.${mismatch}`, message: "Nama katalog tidak mengarah ke jurusannya sendiri." });
 
   for (const sample of sampleScoringExamples) {
     for (const id of sample.subjectIds)

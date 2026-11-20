@@ -42,7 +42,7 @@ function reportBlocks(submission: Submission): Block[] {
   };
   const fitLine = (r: RecommendationResult) => {
     const fit = fitContextFor(r);
-    const named = r.aspirationMatch ? " Disebut dalam cita-citamu." : "";
+    const named = !r.aspirationMatch ? "" : r.aspirationMatchKind === "related" ? " Terkait cita-citamu." : " Disebut dalam cita-citamu.";
     return `Kecocokan profil: ${scoreText(r.overallFitScore)} - ${fit.interpretation}. Label laporan tersimpan: ${r.fitLabel}.${named}`;
   };
   const careers = (r: RecommendationResult) => cleanLines(r.nicheCareerPaths).length ? cleanLines(r.nicheCareerPaths) : cleanLines(r.relatedCareers);
