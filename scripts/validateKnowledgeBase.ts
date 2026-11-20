@@ -25,6 +25,7 @@ import { programsForRule } from "../src/lib/campus/catalog";
 import { favoriteSubjectOptions, legacyFavoriteSubjectOptions, problemAreaOptionTags } from "../src/lib/assessment/options";
 import { subjectChoiceByOption } from "../src/lib/assessment/subjectChoices";
 import { subjectTextRules } from "../src/lib/assessment/subjectText";
+import { allAspirationTargetIds, curatedAspirationAliases } from "../src/lib/recommendation/aspirationAliases";
 
 /** Every major must share a tag with at least one current problem-area option. */
 export function validateProblemAreaReachability(): ValidationIssue[] {
@@ -468,6 +469,14 @@ export function validateKnowledgeBase(): ValidationIssue[] {
     for (const id of rule.ids)
       if (!subjectIds.has(id))
         issues.push({ path: `subjectText.${rule.phrases[0]}`, message: `Subject regex tidak valid: ${id}.` });
+
+  const knownMajorIds = new Set(majors.map((major) => major.id));
+  for (const alias of curatedAspirationAliases)
+    for (const id of alias.targets)
+      if (!knownMajorIds.has(id))
+        issues.push({ path: `aspirationAlias.${alias.phrases[0]}`, message: `Target alias cita-cita tidak dikenal: ${id}.` });
+  for (const id of allAspirationTargetIds())
+    if (!knownMajorIds.has(id)) issues.push({ path: `aspirationTarget.${id}`, message: "Target cita-cita tidak dikenal." });
 
   for (const sample of sampleScoringExamples) {
     for (const id of sample.subjectIds)

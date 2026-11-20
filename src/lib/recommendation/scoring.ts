@@ -1,3 +1,4 @@
+import { matchExplicitAspirations, mentionsOfficialService, OFFICIAL_SERVICE_NOTE } from "./aspirationAliases";
 import { scoreSubjectChoices } from "./subjectScore";
 import {
   careersById,
@@ -636,7 +637,7 @@ function validRecommendation(recommendation: RecommendationResult) {
   );
 }
 
-type ScoredMajor = {
+export type ScoredMajor = {
   major: KnowledgeMajor;
   recommendation: RecommendationResult;
 };
@@ -744,8 +745,54 @@ function selectRecommendationPool(
     addScoredRecommendation(selected, item);
   }
 
-  return Array.from(selected.values()).sort(compareScoredMajors)
-    .map((item) => item.recommendation);
+  return Array.from(selected.values()).sort(compareScoredMajors);
+}
+
+const MAX_PROTECTED_ASPIRATIONS = 3;
+
+/**
+ * v3.3.0: majors the student explicitly named in dreamProfession are guaranteed a
+ * top-10 place. Scores are never changed; a missing protected major replaces the
+ * lowest-ranked unprotected pick. Pathway eligibility is never overridden because
+ * only already-eligible scored majors are considered.
+ */
+export function protectedAspirationIds(scored: ScoredMajor[], dreamProfession: string) {
+  const scoredById = new Map(scored.map((item) => [item.major.id, item]));
+  const protectedIds: string[] = [];
+  for (const match of matchExplicitAspirations(dreamProfession)) {
+    if (protectedIds.length >= MAX_PROTECTED_ASPIRATIONS) break;
+    for (const tier of match.tiers) {
+      const best = tier
+        .map((id) => scoredById.get(id))
+        .filter((item): item is ScoredMajor => Boolean(item))
+        .sort(compareScoredMajors)[0];
+      if (!best) continue;
+      if (!protectedIds.includes(best.major.id)) protectedIds.push(best.major.id);
+      break;
+    }
+  }
+  return protectedIds;
+}
+
+function applyAspirationGuarantee(pool: ScoredMajor[], scored: ScoredMajor[], protectedIds: string[]) {
+  const result = pool.slice(0, 10);
+  const scoredById = new Map(scored.map((item) => [item.major.id, item]));
+  for (const id of protectedIds) {
+    if (result.some((item) => item.major.id === id)) continue;
+    const item = scoredById.get(id);
+    if (!item) continue;
+    const sorted = [...result].sort(compareScoredMajors);
+    const victim = [...sorted].reverse().find((candidate) => !protectedIds.includes(candidate.major.id));
+    if (!victim) break;
+    result.splice(result.indexOf(victim), 1, item);
+  }
+  return result
+    .sort(compareScoredMajors)
+    .map((item) =>
+      protectedIds.includes(item.major.id)
+        ? { ...item.recommendation, aspirationMatch: true }
+        : item.recommendation,
+    );
 }
 
 export function generateRecommendations(
@@ -759,8 +806,9 @@ export function generateRecommendations(
     .filter(({ recommendation }) => validRecommendation(recommendation))
     .sort(compareScoredMajors);
 
-  const recommendations = selectRecommendationPool(scored)
-    .slice(0, 10)
+  const pool = selectRecommendationPool(scored);
+  const protectedIds = protectedAspirationIds(scored, answer.dreamProfession ?? "");
+  const recommendations = applyAspirationGuarantee(pool, scored, protectedIds)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
 
   if (recommendations.length !== 10) {
@@ -777,6 +825,10 @@ export function generateRecommendations(
     scoringVersion: SCORING_VERSION,
     narrativeVersion: HEURISTIC_NARRATIVE_VERSION,
     ptnPtsVokasiAdvice: generatePtnPtsVokasiAdvice(answer),
-    answerPatternNotes: buildAnswerPatternNotes(answer),
+    answerPatternNotes: [
+      ...buildAnswerPatternNotes(answer),
+      // Report-level only: never added to per-card cautions.
+      ...(mentionsOfficialService(answer.dreamProfession ?? "") ? [OFFICIAL_SERVICE_NOTE] : []),
+    ],
   });
 }

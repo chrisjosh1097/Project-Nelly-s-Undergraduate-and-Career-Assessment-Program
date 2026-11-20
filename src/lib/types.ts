@@ -168,6 +168,8 @@ export interface RecommendationResult {
   nicheCareerPaths?: string[];
   careerPersonalizationReason?: string;
   aspirationReflection?: string;
+  /** v3.3.0: kept in the top 10 because dreamProfession named this major. Absent on older reports. */
+  aspirationMatch?: boolean;
   careerPathwayAdvice?: string[];
   careerCautions?: string[];
   relatedCareers: string[];
