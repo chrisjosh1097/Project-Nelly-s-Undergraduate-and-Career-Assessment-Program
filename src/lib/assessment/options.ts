@@ -13,20 +13,37 @@ export const schoolMajorOptions: SchoolMajor[] = [
   "Lainnya"
 ];
 
+// v3.3.0: every Kurikulum Merdeka SMA subject (Fase E/F) as an explicit option.
+// Advanced variants of IPA/IPS subjects fold into their base subject; non-English
+// foreign languages share one option. SMK subjects can still use "Lainnya".
 export const favoriteSubjectOptions = [
   "Matematika",
+  "Matematika Tingkat Lanjut",
   "Fisika",
-  "Biologi",
   "Kimia",
+  "Biologi",
+  "Informatika",
+  "Bahasa Indonesia",
+  "Bahasa Inggris",
+  "Bahasa Asing Lain (Jepang, Mandarin, Arab, Jerman, Korea, dll.)",
   "Ekonomi",
-  "Bahasa",
-  "Seni/Desain",
-  "Komputer/TIK",
-  "Olahraga",
+  "Akuntansi",
   "Sosiologi",
+  "Geografi",
   "Sejarah",
+  "Antropologi",
+  "Pendidikan Pancasila (PPKn)",
+  "Pendidikan Agama dan Budi Pekerti",
+  "Seni Rupa/Desain",
+  "Seni Musik",
+  "Seni Tari/Teater",
+  "PJOK (Olahraga)",
+  "Prakarya dan Kewirausahaan",
   "Lainnya"
 ];
+
+// Pre-v3.3.0 labels. Still valid so saved answers keep validating and scoring; not shown.
+export const legacyFavoriteSubjectOptions = ["Bahasa", "Seni/Desain", "Komputer/TIK", "Olahraga"];
 
 export const favoriteActivityOptions = [
   "Membuat desain/konten",

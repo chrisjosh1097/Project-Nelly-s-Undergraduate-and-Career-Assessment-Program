@@ -19,8 +19,8 @@ const education = "Pemerataan Pendidikan dan Literasi";
 const environment = "Lingkungan, Iklim, dan Kehidupan Laut";
 
 describe("problem areas v3.2.0", () => {
-  it("bumps the scoring version", () => {
-    expect(SCORING_VERSION).toBe("knowledge-base-heuristic-v3.2.0");
+  it("keeps a v3.x scoring version (v3.3.0 asserted in subjectV33.test.ts)", () => {
+    expect(SCORING_VERSION).toMatch(/^knowledge-base-heuristic-v3\.\d+\.\d+$/);
   });
 
   it("accepts 1-3 new labels, rejects 4 or duplicates, keeps legacy labels valid", () => {

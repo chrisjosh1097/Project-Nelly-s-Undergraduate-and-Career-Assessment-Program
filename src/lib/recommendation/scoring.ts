@@ -1,3 +1,5 @@
+import { matchExplicitAspirations, mentionsOfficialService, OFFICIAL_SERVICE_NOTE } from "./aspirationAliases";
+import { scoreSubjectChoices } from "./subjectScore";
 import {
   careersById,
   aiResilienceProfilesById,
@@ -28,7 +30,7 @@ import { aspirationFlags } from "@/lib/recommendation/aspirationThemes";
 import { eligibleMajors } from "@/lib/recommendation/eligibility";
 import { eligibleDegreeTypes } from "@/lib/assessment/pathways";
 
-export const SCORING_VERSION = "knowledge-base-heuristic-v3.2.0";
+export const SCORING_VERSION = "knowledge-base-heuristic-v3.3.0";
 
 const FLEXIBLE_FALLBACK_MAJOR_IDS = [
   "sistem_informasi",
@@ -368,8 +370,8 @@ export function calculateScoringBreakdown(
     normalized.skillIds,
     major.relatedSkills,
   );
-  const subjectScore = scoreWeightedTags(
-    normalized.favoriteSubjectIds,
+  const subjectScore = scoreSubjectChoices(
+    normalized.favoriteSubjectChoices ?? [],
     major.relatedSubjects,
   );
   const workStyleScore = scoreWorkStyle(
@@ -635,7 +637,7 @@ function validRecommendation(recommendation: RecommendationResult) {
   );
 }
 
-type ScoredMajor = {
+export type ScoredMajor = {
   major: KnowledgeMajor;
   recommendation: RecommendationResult;
 };
@@ -743,8 +745,62 @@ function selectRecommendationPool(
     addScoredRecommendation(selected, item);
   }
 
-  return Array.from(selected.values()).sort(compareScoredMajors)
-    .map((item) => item.recommendation);
+  return Array.from(selected.values()).sort(compareScoredMajors);
+}
+
+const MAX_PROTECTED_ASPIRATIONS = 3;
+
+/**
+ * v3.3.0: majors the student explicitly named in dreamProfession are guaranteed a
+ * top-10 place. Scores are never changed; a missing protected major replaces the
+ * lowest-ranked unprotected pick. Pathway eligibility is never overridden because
+ * only already-eligible scored majors are considered.
+ */
+export function protectedAspirationIds(scored: ScoredMajor[], dreamProfession: string) {
+  return [...protectedAspirations(scored, dreamProfession).keys()];
+}
+
+/** Protected major ID → match kind. A literal mention upgrades an earlier proxy match to "named". */
+function protectedAspirations(scored: ScoredMajor[], dreamProfession: string) {
+  const scoredById = new Map(scored.map((item) => [item.major.id, item]));
+  const protectedIds = new Map<string, "named" | "related">();
+  for (const match of matchExplicitAspirations(dreamProfession)) {
+    for (const [tierIndex, tier] of match.tiers.entries()) {
+      const best = tier
+        .map((id) => scoredById.get(id))
+        .filter((item): item is ScoredMajor => Boolean(item))
+        .sort(compareScoredMajors)[0];
+      if (!best) continue;
+      const kind = match.related[tierIndex] ? "related" : "named";
+      const id = best.major.id;
+      if (protectedIds.has(id)) { if (kind === "named") protectedIds.set(id, "named"); }
+      else if (protectedIds.size < MAX_PROTECTED_ASPIRATIONS) protectedIds.set(id, kind);
+      break;
+    }
+  }
+  return protectedIds;
+}
+
+function applyAspirationGuarantee(pool: ScoredMajor[], scored: ScoredMajor[], kinds: Map<string, "named" | "related">) {
+  const protectedIds = [...kinds.keys()];
+  const result = pool.slice(0, 10);
+  const scoredById = new Map(scored.map((item) => [item.major.id, item]));
+  for (const id of protectedIds) {
+    if (result.some((item) => item.major.id === id)) continue;
+    const item = scoredById.get(id);
+    if (!item) continue;
+    const sorted = [...result].sort(compareScoredMajors);
+    const victim = [...sorted].reverse().find((candidate) => !protectedIds.includes(candidate.major.id));
+    if (!victim) break;
+    result.splice(result.indexOf(victim), 1, item);
+  }
+  return result
+    .sort(compareScoredMajors)
+    .map((item) =>
+      protectedIds.includes(item.major.id)
+        ? { ...item.recommendation, aspirationMatch: true, aspirationMatchKind: kinds.get(item.major.id) }
+        : item.recommendation,
+    );
 }
 
 export function generateRecommendations(
@@ -758,8 +814,9 @@ export function generateRecommendations(
     .filter(({ recommendation }) => validRecommendation(recommendation))
     .sort(compareScoredMajors);
 
-  const recommendations = selectRecommendationPool(scored)
-    .slice(0, 10)
+  const pool = selectRecommendationPool(scored);
+  const protectedKinds = protectedAspirations(scored, answer.dreamProfession ?? "");
+  const recommendations = applyAspirationGuarantee(pool, scored, protectedKinds)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
 
   if (recommendations.length !== 10) {
@@ -776,6 +833,10 @@ export function generateRecommendations(
     scoringVersion: SCORING_VERSION,
     narrativeVersion: HEURISTIC_NARRATIVE_VERSION,
     ptnPtsVokasiAdvice: generatePtnPtsVokasiAdvice(answer),
-    answerPatternNotes: buildAnswerPatternNotes(answer),
+    answerPatternNotes: [
+      ...buildAnswerPatternNotes(answer),
+      // Report-level only: never added to per-card cautions.
+      ...(mentionsOfficialService(answer.dreamProfession ?? "") ? [OFFICIAL_SERVICE_NOTE] : []),
+    ],
   });
 }

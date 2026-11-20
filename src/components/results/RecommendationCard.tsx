@@ -67,6 +67,10 @@ function AskAi({ values }: { values: PromptValues }) {
   </details>;
 }
 
+export const ASPIRATION_MATCH_LABEL = "Disebut dalam cita-citamu";
+export const ASPIRATION_RELATED_LABEL = "Terkait cita-citamu";
+const aspirationLabel = (r: RecommendationResult) => r.aspirationMatchKind === "related" ? ASPIRATION_RELATED_LABEL : ASPIRATION_MATCH_LABEL;
+
 export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, promptValues, compare }: {
   recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; promptValues?: PromptValues; compare?: CompareControl;
 }) {
@@ -92,6 +96,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   </div>;
   const body = (
     <div className="min-w-0 space-y-5 pt-4 [overflow-wrap:anywhere]">
+      {expanded && r.aspirationMatch ? <Badge tone="green">{aspirationLabel(r)}</Badge> : null}
       {expanded && r.actionGuidance?.comparisonNote ? <p className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-700">{r.actionGuidance.comparisonNote}</p> : null}
       {!expanded ? <>
         <p className="text-sm leading-6 text-stone-600">{r.personalizedCareerDirection?.trim() || r.careerDirection}</p>
@@ -170,6 +175,7 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
         <span className="block text-xs leading-6 text-stone-600">Ketahanan AI {scoreText(r.aiFutureResilienceScore)} · {r.aiFutureResilienceLabel}</span>
         <span className="mt-1 flex flex-wrap gap-2">
           {cleanLines(r.degreeTypes).map(d => <Badge key={d}>{d}</Badge>)}
+          {r.aspirationMatch ? <Badge tone="green">{aspirationLabel(r)}</Badge> : null}
         </span>
         {fit.conflicts && fit.savedLabel ? <span className="mt-1 block text-xs leading-5 text-stone-600">Label laporan tersimpan: {fit.savedLabel}</span> : null}
         <span className="mt-2 block text-xs leading-5 text-stone-600">{comparisonSignalFor(r)}</span>

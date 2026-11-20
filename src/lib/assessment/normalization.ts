@@ -5,21 +5,12 @@ import {
   problemAreaOptionTags,
   usesRankedProblemAreas,
 } from "./options";
+import {
+  buildSubjectChoices,
+  subjectChoiceByOption,
+  subjectIdsFromChoices,
+} from "./subjectChoices";
 
-const subjectMap: Record<string, string> = {
-  Matematika: "mathematics",
-  Fisika: "physics",
-  Biologi: "biology",
-  Kimia: "chemistry",
-  Ekonomi: "economics",
-  Bahasa: "language",
-  "Seni/Desain": "arts_design",
-  "Komputer/TIK": "computer",
-  Olahraga: "sports",
-  Sosiologi: "sociology",
-  Sejarah: "history",
-  Lainnya: "other",
-};
 
 const interestMap: Record<string, string[]> = {
   "Membuat desain/konten": ["design_visual", "content_media"],
@@ -224,8 +215,9 @@ function inferTextSignals(answer: StudentAnswer): TextSignals {
   };
 }
 
+/** Primary subject ID for one option label ("other" for Lainnya/unknown). */
 export function normalizeSubjectAnswer(value: string) {
-  return subjectMap[value] ?? "other";
+  return subjectChoiceByOption[value]?.primaryId ?? "other";
 }
 
 export function normalizeInterestAnswer(value: string) {
@@ -277,6 +269,10 @@ export function normalizeStudentAnswer(
   );
   const textSignals = inferTextSignals(answer);
   const ranked = rankedProblemAreas(answer);
+  const subjectChoices = buildSubjectChoices(
+    answer.favoriteSubjects,
+    answer.favoriteSubjectsOther ?? "",
+  );
 
   return {
     ...(answer.educationPathway
@@ -289,9 +285,8 @@ export function normalizeStudentAnswer(
     school: answer.school,
     className: answer.className,
     currentSchoolMajor: answer.currentSchoolMajor,
-    favoriteSubjectIds: unique(
-      answer.favoriteSubjects.map(normalizeSubjectAnswer),
-    ),
+    favoriteSubjectIds: subjectIdsFromChoices(subjectChoices),
+    favoriteSubjectChoices: subjectChoices,
     favoriteSubjectsOther: answer.favoriteSubjectsOther,
     interestIds: unique([
       ...answer.favoriteActivities.flatMap(normalizeInterestAnswer),

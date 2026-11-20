@@ -1,3 +1,4 @@
+import type { SubjectChoice } from "@/lib/assessment/subjectChoices";
 export type EducationPathway = "university" | "vocational" | "exploring";
 
 export type SchoolMajor =
@@ -73,6 +74,8 @@ export interface NormalizedStudentAnswer {
   className: string;
   currentSchoolMajor: SchoolMajor;
   favoriteSubjectIds: string[];
+  /** v3.3.0: one scoring slot per subject checkbox (plus recognized Lainnya text). */
+  favoriteSubjectChoices?: SubjectChoice[];
   favoriteSubjectsOther: string;
   interestIds: string[];
   skillIds: string[];
@@ -165,6 +168,10 @@ export interface RecommendationResult {
   nicheCareerPaths?: string[];
   careerPersonalizationReason?: string;
   aspirationReflection?: string;
+  /** v3.3.0: kept in the top 10 because dreamProfession named this major. Absent on older reports. */
+  aspirationMatch?: boolean;
+  /** v3.3.0: "named" = the student wrote this major/profession; "related" = closest catalog major for what they wrote. Absent = named. */
+  aspirationMatchKind?: "named" | "related";
   careerPathwayAdvice?: string[];
   careerCautions?: string[];
   relatedCareers: string[];
