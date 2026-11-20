@@ -28,6 +28,12 @@ const CONTEXT_EXCLUSIONS: Record<string, string[]> = {
   hukum: ["newton", "fisika", "alam", "kekekalan", "ohm", "archimedes", "pascal", "kepler", "mendel", "kirchhoff", "termodinamika"],
 };
 
+/** Phrases before which a catalog token is not a field of study (e.g. "laporan keuangan"). */
+const PRECEDING_EXCLUSIONS: Record<string, string[]> = {
+  keuangan: ["laporan"],
+  komunikasi: ["speaking"],
+};
+
 /** Reviewed profession aliases → group of target major IDs. */
 export const curatedAspirationAliases: Array<{ phrases: string[]; targets: string[] }> = [
   { phrases: ["arsitek", "architect"], targets: ["arsitektur"] },
@@ -130,6 +136,7 @@ function matchClause(tokens: string[], list: Entry[]) {
       if (negated[i]) continue;
       const blockers = CONTEXT_EXCLUSIONS[entry.phrase];
       if (blockers && blockers.includes(tokens[i + n] ?? "")) continue;
+      if (PRECEDING_EXCLUSIONS[entry.phrase]?.includes(tokens[i - 1] ?? "")) continue;
       hits.push({ at: i, entry });
     }
   }

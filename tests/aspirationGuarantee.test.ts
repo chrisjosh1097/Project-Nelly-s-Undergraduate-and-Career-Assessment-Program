@@ -27,6 +27,8 @@ describe("explicit aspiration matcher", () => {
     ["bps dengan jurusan statistika dan sains data", [["statistika"], ["data_science"]]],
     ["Perencanaan Wilayah dan Kota", [["perencanaan_wilayah_kota"]]],
     ["paham hukum newton", []],
+    ["ahli pajak yang membuat laporan keuangan", []],
+    ["manajemen keuangan", [["manajemen"], ["keuangan"]]],
     ["hakim", [["hukum"]]],
     ["mau sampai sukses", []],
     ["Ahli Gizi", [["gizi"]]],
