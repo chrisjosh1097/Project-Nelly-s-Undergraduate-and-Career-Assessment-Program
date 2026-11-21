@@ -21,6 +21,7 @@ import type {
   TechComfort,
 } from "@/lib/types";
 import { clamp, roundScore, unique } from "@/lib/utils";
+import { AI_LABEL_THRESHOLDS, AI_WEIGHTS, FIT_LABEL_THRESHOLDS, FIT_WEIGHTS, labelFor } from "./scoringRubric";
 import { buildRecommendationNarrative, HEURISTIC_NARRATIVE_VERSION } from "@/lib/recommendation/narrative";
 import { generatePtnPtsVokasiAdvice } from "@/lib/recommendation/advice";
 import { scoreAspirationMajorIntent } from "@/lib/recommendation/aspirationIntent";
@@ -329,32 +330,17 @@ export function calculateAIFutureResilienceScore(profile: KnowledgeAIProfile) {
   )
     return 0;
 
-  return roundScore(
-    profile.humanInteraction * 0.15 +
-      profile.creativity * 0.12 +
-      profile.physicalPractical * 0.1 +
-      profile.ethicalJudgment * 0.12 +
-      profile.complexProblemSolving * 0.15 +
-      profile.professionalAccountability * 0.1 +
-      profile.aiAugmentationPotential * 0.12 +
-      profile.industryGrowth * 0.09 +
-      profile.nonRoutineWork * 0.05,
-  );
+  return roundScore(AI_WEIGHTS.reduce((sum, { key, weight }) => sum + profile[key] * weight, 0));
 }
 
 export function getAIFutureResilienceLabel(
   score: number,
 ): AIFutureResilienceLabel {
-  if (score >= 80) return "Tinggi";
-  if (score >= 60) return "Sedang";
-  return "Perlu Adaptasi Tinggi";
+  return labelFor(score, AI_LABEL_THRESHOLDS);
 }
 
 export function getFitLabel(score: number): FitLabel {
-  if (score >= 82) return "Sangat Cocok";
-  if (score >= 70) return "Cocok";
-  if (score >= 58) return "Cukup Cocok";
-  return "Perlu Dipertimbangkan Lagi";
+  return labelFor(score, FIT_LABEL_THRESHOLDS);
 }
 
 export function calculateScoringBreakdown(
@@ -419,12 +405,7 @@ export function calculateScoringBreakdown(
 
 export function calculateOverallFitScore(breakdown: ScoringBreakdown) {
   return roundScore(
-    breakdown.interestScore * 0.3 +
-      breakdown.skillScore * 0.25 +
-      breakdown.subjectScore * 0.15 +
-      breakdown.workStyleScore * 0.1 +
-      breakdown.problemAreaScore * 0.1 +
-      breakdown.constraintFitScore * 0.1 +
+    FIT_WEIGHTS.reduce((sum, { key, weight }) => sum + breakdown[key] * weight, 0) +
       (breakdown.aspirationMajorBoost ?? 0),
   );
 }
