@@ -36,7 +36,8 @@ export function replayAggregate(records: ReplayRecord[]): ReplaySummary {
       const report = generateRecommendations({ educationPathway: "exploring", ...record.answers });
       const ids = report.recommendations.map((r) => r.majorId);
       if (ids.length === 10) summary.withTenResults++;
-      if (record.storedTop10 && ids.some((id) => !record.storedTop10!.includes(id))) summary.top10Changed++;
+      // Ordered comparison: a rank-only change counts as changed.
+      if (record.storedTop10 && (record.storedTop10.length !== ids.length || ids.some((id, i) => record.storedTop10![i] !== id))) summary.top10Changed++;
       const guaranteed = report.recommendations.filter((r) => r.aspirationMatch);
       if (guaranteed.length) summary.usedGuarantee++;
       summary.guaranteedMajors += guaranteed.length;
@@ -51,6 +52,14 @@ export function replayAggregate(records: ReplayRecord[]): ReplaySummary {
 
 const input = process.argv[2];
 if (input && /replayAggregate\.ts$/.test(process.argv[1] ?? "")) {
-  const parsed = JSON.parse(readFileSync(input, "utf8")) as ReplayRecord[] | Record<string, ReplayRecord>;
+  let parsed: ReplayRecord[] | Record<string, ReplayRecord>;
+  try {
+    parsed = JSON.parse(readFileSync(input, "utf8"));
+    if (parsed === null || typeof parsed !== "object") throw new Error("shape");
+  } catch {
+    // Fixed message only: parse errors quote the private file contents.
+    console.error("Replay input could not be read or is not valid JSON.");
+    process.exit(1);
+  }
   console.log(JSON.stringify(replayAggregate(Array.isArray(parsed) ? parsed : Object.values(parsed)), null, 2));
 }

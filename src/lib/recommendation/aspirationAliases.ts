@@ -93,7 +93,9 @@ type Entry = { tokens: string[]; phrase: string; tiers: string[][]; related: boo
  * Slash pairs that are part of a catalog name (e.g. "UI/UX", "D3/D4"). Only these exact
  * pairs are joined before clause splitting; every other slash still separates clauses.
  */
-const SLASH_PAIR = /([\p{L}\p{N}]+)\s*\/\s*([\p{L}\p{N}]+)/gu;
+const SLASH_PAIR = /([\p{L}\p{N}]+)[ \t]*\/[ \t]*([\p{L}\p{N}]+)/gu;
+/** Every slash, inspected on its own: the words around it must not be consumed by a previous slash. */
+const EACH_SLASH = /(?<=([\p{L}\p{N}]+)[ \t]*)\/(?=[ \t]*([\p{L}\p{N}]+))/gu;
 
 function catalogSlashPairs() {
   const pairs = new Set<string>();
@@ -111,8 +113,9 @@ let slashPairs: Set<string> | undefined;
 
 function joinCatalogSlashes(text: string) {
   slashPairs ??= catalogSlashPairs();
-  return text.replace(SLASH_PAIR, (whole, left: string, right: string) =>
-    slashPairs!.has(`${aspirationTokens(left).join(" ")}/${aspirationTokens(right).join(" ")}`) ? `${left} ${right}` : whole);
+  // Only horizontal whitespace may sit inside a reviewed pair, so a newline still ends the clause.
+  return text.replace(EACH_SLASH, (slash, left: string, right: string) =>
+    slashPairs!.has(`${aspirationTokens(left).join(" ")}/${aspirationTokens(right).join(" ")}`) ? " " : slash);
 }
 
 function buildEntries(): Entry[] {
@@ -142,6 +145,11 @@ function buildEntries(): Entry[] {
 }
 
 let entries: Entry[] | undefined;
+
+/** Compatibility-fold and strip accents before slash/clause handling (fullwidth "／" → "/"); line breaks survive. */
+function foldText(text: string) {
+  return (text ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+}
 
 function negatedPositions(tokens: string[]) {
   const negated = new Array<boolean>(tokens.length).fill(false);
@@ -177,7 +185,7 @@ function matchClause(tokens: string[], list: Entry[]) {
 /** Explicit major mentions in first-mention order (phrases never cross punctuation). */
 export function matchExplicitAspirations(text: string): AspirationMatch[] {
   entries ??= buildEntries();
-  return joinCatalogSlashes(text ?? "")
+  return joinCatalogSlashes(foldText(text))
     .split(CLAUSE_SPLIT)
     .flatMap((clause) => matchClause(aspirationTokens(clause), entries!))
     .map(({ entry }) => ({ phrase: entry.phrase, tiers: entry.tiers, related: entry.related }));
@@ -207,7 +215,7 @@ export const OFFICIAL_SERVICE_NOTE =
   "Cita-citamu menyebut jalur kedinasan atau TNI/Polri. Jalur ini punya seleksi sendiri di luar pilihan jurusan. Cek syarat terbaru di situs resmi penyelenggaranya.";
 
 export function mentionsOfficialService(text: string) {
-  return (text ?? "").split(CLAUSE_SPLIT).some((clause) => matchClause(aspirationTokens(clause), OFFICIAL_SERVICE_PHRASES).length > 0);
+  return foldText(text).split(CLAUSE_SPLIT).some((clause) => matchClause(aspirationTokens(clause), OFFICIAL_SERVICE_PHRASES).length > 0);
 }
 
 /** Major IDs the matcher can produce, for KB validation. */

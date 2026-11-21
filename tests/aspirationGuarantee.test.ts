@@ -39,6 +39,10 @@ describe("explicit aspiration matcher", () => {
     ["Desain UI / UX Terapan", [["uiux_design_applied"]]],
     ["Teknik Mesin D3/D4", [["teknik_mesin_terapan"]]],
     ["perawat/kesenian", [["keperawatan"]]],
+    ["ÚI/ÚX Design Applied", [["uiux_design_applied"]]],
+    ["dokter／gigi", [["kedokteran"]]],
+    ["perawat/UI/UX Design Applied", [["keperawatan"], ["uiux_design_applied"]]],
+    ["Teknik Mesin D3/\nD4", [["teknik_mesin"]]],
     ["psikiater", [["kedokteran"]]],
   ])("%s", (text, expected) => {
     expect(firstTier(text)).toEqual(expected);
