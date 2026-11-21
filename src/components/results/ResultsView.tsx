@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Download, ArrowUpRight, Compass, Sparkles } from "lucide-react";
+import { Download, ArrowUpRight, Compass, Sparkles, Star } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -19,7 +19,7 @@ import { campusMajorMap } from "../../../data/campusMajorMap";
 import Link from "next/link";
 import { AspirationRoutesPanel, GuidanceTensions, StudentGuidanceSummary } from "./StudentGuidancePanel";
 import { createInstagramCardBlob } from "./shareCard";
-import { cleanLines, fitContextFor, scoreText } from "./resultPresentation";
+import { aspirationSpotlightFor, bestScoreOf, isScoreOrdered, CLOSE_GAP, cleanLines, fitContextFor, gapText, resultGroupsFor, scoreText } from "./resultPresentation";
 export function ResultsView({
   submission,
   compact = false,
@@ -59,9 +59,21 @@ export function ResultsView({
   const tensions = cleanLines(guidance?.tensions);
   const hasRoutes = !!guidance && (guidance.aspirationRoutes.length > 0 || guidance.glossary.length > 0);
   const hasAdvice = cleanLines(advice).length > 0;
+  // Display-only: stored order and scores are untouched; we only describe distance from the closest score.
+  // Unusual legacy order (a later item scoring higher) falls back to one list in stored order, without gap labels.
+  const ordered = isScoreOrdered(allRecommendations);
+  const best = ordered ? bestScoreOf(allRecommendations) : undefined;
+  const alternatives = submission.report.recommendations.filter(r => r.majorId !== top.majorId);
+  const closeOnes = best === undefined ? [] : alternatives.filter(r => best - r.overallFitScore <= CLOSE_GAP).slice(0, 2);
+  const groups = best === undefined
+    ? [{ id: "semua", title: "", hint: "", items: alternatives }]
+    : resultGroupsFor(alternatives, best);
+  const aspirationHits = allRecommendations.filter(r => r.aspirationMatch);
+  const anchorFor = (id: string) => (id === top.majorId ? "#rencana" : `#arah-${id}`);
   const topRule = campusMajorMap[top.majorId];
   const campusQuery = topRule && "include" in topRule ? topRule.include[0] : top.majorName;
   const jumpLinks = [
+    ...(aspirationHits.length ? [["cita-citamu", "Cita-citamu"]] : []),
     ["ringkasan", "Ringkasan"],
     ["rencana", "Rencana"],
     ...(hasRoutes ? [["cita-cita", "Cita-cita"]] : []),
@@ -137,9 +149,22 @@ export function ResultsView({
           {jumpLinks.map(([id, label]) => <li key={id} className="shrink-0"><a href={`#${id}`} className="flex min-h-11 items-center rounded-full px-2.5 text-sm font-semibold text-stone-700 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf">{label}</a></li>)}
         </ul>
       </nav> : null}
+      {aspirationHits.length ? <section id="cita-citamu" aria-labelledby="cita-citamu-heading" className="scroll-mt-16 min-w-0 rounded-[22px] border-2 border-orange-300 bg-orange-50/70 p-5 sm:p-6">
+        <h2 id="cita-citamu-heading" className="flex items-center gap-2 text-lg font-extrabold"><Star size={20} className="shrink-0 text-leaf" aria-hidden="true" />Cita-citamu ada di hasil ini</h2>
+        <ul className="mt-4 grid gap-3">
+          {aspirationHits.map(r => <li key={r.majorId} className="min-w-0 rounded-xl border border-orange-200 bg-white p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <a href={anchorFor(r.majorId)} className="touch-link -ml-1 rounded-lg px-1 text-base font-bold text-ink underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf">{r.majorName}</a>
+              <span className="text-sm font-bold tabular-nums text-leaf">Kecocokan {scoreText(r.overallFitScore)}</span>
+            </div>
+            <p className="mt-1 text-sm leading-6 text-stone-700">{aspirationSpotlightFor(r, best)}</p>
+          </li>)}
+        </ul>
+        <p className="mt-3 text-xs leading-5 text-stone-600">{best === undefined ? "Urutan di bawah bukan peringkat nilai." : "Urutan di bawah bukan peringkat nilai. Selisih beberapa poin berarti sama-sama cocok."}</p>
+      </section> : null}
       <section id="ringkasan" aria-label="Ringkasan arahmu" className="scroll-mt-16 min-w-0 overflow-hidden rounded-[22px] border border-stone-200 bg-white">
         <div className="bg-gradient-to-br from-orange-800 to-leaf p-5 text-white sm:p-6">
-          <p className="text-xs font-bold tracking-wide text-white">{String(top.rank).padStart(2, "0")} / Rekomendasi utama</p>
+          <p className="text-xs font-bold tracking-wide text-white">Paling dekat dengan jawabanmu</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h2 className="min-w-0 text-3xl font-extrabold sm:text-4xl">{top.majorName}</h2>
             {cleanLines(top.degreeTypes).map(degree => <CampusDegree key={degree} degree={degree} />)}
@@ -159,7 +184,13 @@ export function ResultsView({
             </div>
           </dl>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-orange-50">{fit.explanation}</p>
-          <p className="mt-3 text-xs leading-6 text-orange-100">Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan pekerjaan.</p>
+          {closeOnes.length ? <div className="mt-4 rounded-xl bg-white/10 p-3">
+            <p className="text-sm font-bold">Sama-sama dekat (selisih kecil, anggap setara):</p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {closeOnes.map(r => <li key={r.majorId}><a href={anchorFor(r.majorId)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-3 text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{r.majorName}<span className="text-xs font-normal text-stone-600">{gapText(r, best!)}</span></a></li>)}
+            </ul>
+          </div> : null}
+          <p className="mt-3 text-xs leading-6 text-orange-100">Skor kecocokan bukan peluang diterima. Ketahanan AI bukan jaminan pekerjaan. Urutan bukan peringkat nilai.</p>
         </div>
         <div className={`grid min-w-0 gap-6 p-5 sm:p-6 ${aspirations.length ? "lg:grid-cols-2" : ""}`}>
           <div className="min-w-0 space-y-5">
@@ -184,11 +215,18 @@ export function ResultsView({
       <div id="rencana" className="scroll-mt-16"><RecommendationCard recommendation={top} expanded workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} promptValues={compact ? undefined : promptValuesFor(submission.answers, top)} compare={compareFor(top.majorId)} /></div>
       {guidance && hasRoutes ? <div id="cita-cita" className="scroll-mt-16"><AspirationRoutesPanel guidance={guidance} /></div> : null}
       <section id="alternatif" className="scroll-mt-16">
-        <h2 className="section-heading mb-5">Arah lain untuk dijelajahi</h2>
-        <div className="grid gap-3">
-          {submission.report.recommendations.slice(1).map((r) => (
-            <RecommendationCard key={r.majorId} recommendation={r} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} compare={compareFor(r.majorId)} />
-          ))}
+        <h2 className="section-heading mb-2">Arah lain untuk dijelajahi</h2>
+        <p className="mb-5 text-sm leading-6 text-stone-600">{best === undefined ? "Urutan mengikuti laporan tersimpan dan bukan peringkat nilai." : "Dikelompokkan menurut selisih skor dari arah terdekat, bukan juara 1, 2, 3."}</p>
+        <div className="space-y-6">
+          {groups.map(g => <section key={g.id} aria-labelledby={g.title ? `grup-${g.id}` : undefined}>
+            {g.title ? <><h3 id={`grup-${g.id}`} className="text-base font-bold">{g.title}</h3>
+            <p className="mb-3 text-xs leading-5 text-stone-600">{g.hint}</p></> : null}
+            <div className="grid gap-3">
+              {g.items.map((r) => (
+                <RecommendationCard key={r.majorId} recommendation={r} bestScore={best} workStyle={submission.answers.workStyle} preferences={submission.answers.collegePathPreferences} compare={compareFor(r.majorId)} />
+              ))}
+            </div>
+          </section>)}
         </div>
       </section>
       {!compact ? <CompareTable selected={compared} /> : null}
