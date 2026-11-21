@@ -11,6 +11,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ResultsView } from "@/components/results/ResultsView";
 import { AdminFilters } from "./AdminFilters";
 import { SubmissionList } from "./SubmissionList";
+import { ScoringMatrixView } from "./ScoringMatrixView";
+import type { ScoringMatrix } from "@/lib/admin/scoringMatrix";
 import type { Submission } from "@/lib/types";
 import type {
   AdminSubmissionPage,
@@ -79,6 +81,35 @@ export function AdminDashboard() {
     returnId = useRef(""),
     detailHeading = useRef<HTMLHeadingElement>(null),
     resetting = useRef(false);
+  const [tab, setTab] = useState<"data" | "matrix">("data"),
+    [matrix, setMatrix] = useState<ScoringMatrix | null>(null),
+    [matrixError, setMatrixError] = useState(""),
+    matrixLoading = useRef(false);
+  async function loadMatrix() {
+    if (matrixLoading.current) return;
+    matrixLoading.current = true;
+    setMatrixError("");
+    try {
+      const { response, data } = await adminRequest(
+        "/api/admin/scoring-matrix",
+        readAdminJson,
+      );
+      if (response.status === 401) {
+        revoke();
+        return;
+      }
+      if (!response.ok) throw new Error(data.error ?? "Gagal memuat matriks.");
+      setMatrix(data as ScoringMatrix);
+    } catch (e) {
+      setMatrixError(e instanceof Error ? e.message : "Gagal memuat matriks.");
+    } finally {
+      matrixLoading.current = false;
+    }
+  }
+  function selectTab(next: "data" | "matrix") {
+    setTab(next);
+    if (next === "matrix" && !matrix) void loadMatrix();
+  }
   function revoke() {
     generation.current++;
     setPageData(null);
@@ -94,6 +125,8 @@ export function AdminDashboard() {
     setError("");
     returnId.current = "";
     setPassword("");
+    setTab("data");
+    setMatrix(null);
   }
   async function load(
     next: SubmissionFilters = applied,
@@ -380,9 +413,15 @@ export function AdminDashboard() {
               ["Status", selected.status],
               [
                 "Narasi",
-                narrativeLabel(selected.narrativeStatus, selected.report?.narrativeVersion),
+                narrativeLabel(
+                  selected.narrativeStatus,
+                  selected.report?.narrativeVersion,
+                ),
               ],
-              ["Versi skor", scoringVersionLabel(selected.report?.scoringVersion)],
+              [
+                "Versi skor",
+                scoringVersionLabel(selected.report?.scoringVersion),
+              ],
             ].map(([k, v]) => (
               <div key={k}>
                 <dt className="text-xs text-stone-600">{k}</dt>
@@ -436,155 +475,239 @@ export function AdminDashboard() {
         </StatusMessage>
       ) : null}
       {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-      {detailLoading ? <StatusMessage>Memuat laporan…</StatusMessage> : null}
-      <section className="panel" aria-labelledby="admin-filters-heading">
-        <h2
-          id="admin-filters-heading"
-          className="flex min-h-12 items-center gap-3 font-bold"
+      <div
+        role="tablist"
+        aria-label="Bagian dashboard"
+        className="flex gap-2 overflow-x-auto border-b border-stone-200"
+        onKeyDown={(e) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
+            return;
+          e.preventDefault();
+          const next =
+            e.key === "Home"
+              ? "data"
+              : e.key === "End"
+                ? "matrix"
+                : tab === "data"
+                  ? "matrix"
+                  : "data";
+          selectTab(next);
+          document.getElementById("admin-tab-" + next)?.focus();
+        }}
+      >
+        {(
+          [
+            ["data", "Data asesmen"],
+            ["matrix", "Matriks penilaian"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            id={"admin-tab-" + id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={"admin-panel-" + id}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => selectTab(id)}
+            className={
+              "-mb-px min-h-11 shrink-0 whitespace-nowrap border-b-2 px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 " +
+              (tab === id
+                ? "border-orange-600 text-stone-900"
+                : "border-transparent text-stone-600 hover:text-stone-900")
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "matrix" ? (
+        <div
+          role="tabpanel"
+          id="admin-panel-matrix"
+          aria-labelledby="admin-tab-matrix"
+          className="min-w-0"
         >
-          <Filter size={18} />
-          Pencarian dan filter asesmen
-        </h2>
-        <form
-          className="mt-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (loading || detailLoading || busy) return;
-            void load(filters, 1);
-          }}
+          {matrix ? (
+            <ScoringMatrixView matrix={matrix} />
+          ) : matrixError ? (
+            <StatusMessage tone="error">
+              {matrixError}
+              <Button
+                variant="secondary"
+                className="ml-3"
+                onClick={() => loadMatrix()}
+              >
+                Coba lagi
+              </Button>
+            </StatusMessage>
+          ) : (
+            <StatusMessage>Memuat matriks…</StatusMessage>
+          )}
+        </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id="admin-panel-data"
+          aria-labelledby="admin-tab-data"
+          className="min-w-0 space-y-6"
         >
-          <AdminFilters filters={filters} onChange={setFilters} />
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="submit" disabled={loading || detailLoading || !!busy}>
-              Cari
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={loading || detailLoading || !!busy}
-              onClick={() => {
-                setFilters({});
-                void load({}, 1);
+          {detailLoading ? (
+            <StatusMessage>Memuat laporan…</StatusMessage>
+          ) : null}
+          <section className="panel" aria-labelledby="admin-filters-heading">
+            <h2
+              id="admin-filters-heading"
+              className="flex min-h-12 items-center gap-3 font-bold"
+            >
+              <Filter size={18} />
+              Pencarian dan filter asesmen
+            </h2>
+            <form
+              className="mt-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (loading || detailLoading || busy) return;
+                void load(filters, 1);
               }}
             >
-              Bersihkan filter
-            </Button>
-          </div>
-        </form>
-      </section>
-      <section
-        aria-label="Ringkasan asesmen"
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
-      >
-        {[
-          ["Asesmen sesuai filter", analytics.total],
-          ["Sekolah unik", analytics.schools],
-          ["Rata-rata fit", analytics.fit],
-          ["Rata-rata ketahanan AI", analytics.ai],
-        ].map(([label, value]) => (
-          <Panel key={label}>
-            <p className="text-xs text-stone-600">{label}</p>
-            <p className="mt-3 text-3xl font-bold">{value}</p>
-          </Panel>
-        ))}
-      </section>
-      <section className="min-w-0" aria-busy={loading || detailLoading}>
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-bold">Data asesmen</h2>
-          <span className="text-xs text-stone-600" role="status">
-            {loading
-              ? "Memuat…"
-              : `${firstRow}–${lastRow} dari ${pageData?.total ?? 0} rekaman`}
-          </span>
-        </div>
-        <SubmissionList
-          submissions={submissions}
-          busy={!!busy || loading || detailLoading}
-          onSelect={openDetail}
-          onReset={askReset}
-        />
-        <nav
-          aria-label="Halaman asesmen"
-          className="mt-4 flex flex-wrap items-center justify-between gap-3"
-        >
-          <Button
-            variant="secondary"
-            aria-label="Halaman sebelumnya"
-            disabled={
-              loading ||
-              detailLoading ||
-              !!busy ||
-              !pageData ||
-              pageData.page <= 1
-            }
-            onClick={() => load(applied, (pageData?.page ?? 1) - 1)}
+              <AdminFilters filters={filters} onChange={setFilters} />
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Button
+                  type="submit"
+                  disabled={loading || detailLoading || !!busy}
+                >
+                  Cari
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={loading || detailLoading || !!busy}
+                  onClick={() => {
+                    setFilters({});
+                    void load({}, 1);
+                  }}
+                >
+                  Bersihkan filter
+                </Button>
+              </div>
+            </form>
+          </section>
+          <section
+            aria-label="Ringkasan asesmen"
+            className="grid grid-cols-2 gap-3 lg:grid-cols-4"
           >
-            Sebelumnya
-          </Button>
-          <p className="text-sm">
-            Halaman {pageData?.page ?? 1} dari {pageData?.totalPages ?? 1}
-          </p>
-          <Button
-            variant="secondary"
-            aria-label="Halaman berikutnya"
-            disabled={
-              loading ||
-              detailLoading ||
-              !!busy ||
-              !pageData ||
-              pageData.page >= pageData.totalPages
-            }
-            onClick={() => load(applied, (pageData?.page ?? 1) + 1)}
-          >
-            Berikutnya
-          </Button>
-        </nav>
-      </section>
-      <section className="panel" aria-labelledby="admin-analytics-heading">
-        <h2 id="admin-analytics-heading" className="text-lg font-bold">
-          Analitik siswa
-        </h2>
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {analytics.charts.map((c) => (
-            <Chart key={c.title} {...c} />
-          ))}
-        </div>
-      </section>
-      <section className="panel" aria-labelledby="admin-reset-heading">
-        <h2
-          id="admin-reset-heading"
-          className="flex min-h-12 items-center gap-3 text-sm font-bold"
-        >
-          <Trash2 size={17} />
-          Hapus attempt melalui email
-        </h2>
-        <p className="my-4 text-sm leading-7 text-stone-600">
-          Menghapus submission lama agar siswa dapat mengisi ulang. Tindakan ini
-          tidak dapat dibatalkan.
-        </p>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            askReset(resetEmail);
-          }}
-        >
-          <Field label="Email siswa">
-            <Input
-              type="email"
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              required
+            {[
+              ["Asesmen sesuai filter", analytics.total],
+              ["Sekolah unik", analytics.schools],
+              ["Rata-rata fit", analytics.fit],
+              ["Rata-rata ketahanan AI", analytics.ai],
+            ].map(([label, value]) => (
+              <Panel key={label}>
+                <p className="text-xs text-stone-600">{label}</p>
+                <p className="mt-3 text-3xl font-bold">{value}</p>
+              </Panel>
+            ))}
+          </section>
+          <section className="min-w-0" aria-busy={loading || detailLoading}>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <h2 className="text-xl font-bold">Data asesmen</h2>
+              <span className="text-xs text-stone-600" role="status">
+                {loading
+                  ? "Memuat…"
+                  : `${firstRow}–${lastRow} dari ${pageData?.total ?? 0} rekaman`}
+              </span>
+            </div>
+            <SubmissionList
+              submissions={submissions}
+              busy={!!busy || loading || detailLoading}
+              onSelect={openDetail}
+              onReset={askReset}
             />
-          </Field>
-          <Button
-            variant="danger"
-            type="submit"
-            disabled={!!busy || loading || detailLoading}
-          >
-            Hapus attempt
-          </Button>
-        </form>
-      </section>
+            <nav
+              aria-label="Halaman asesmen"
+              className="mt-4 flex flex-wrap items-center justify-between gap-3"
+            >
+              <Button
+                variant="secondary"
+                aria-label="Halaman sebelumnya"
+                disabled={
+                  loading ||
+                  detailLoading ||
+                  !!busy ||
+                  !pageData ||
+                  pageData.page <= 1
+                }
+                onClick={() => load(applied, (pageData?.page ?? 1) - 1)}
+              >
+                Sebelumnya
+              </Button>
+              <p className="text-sm">
+                Halaman {pageData?.page ?? 1} dari {pageData?.totalPages ?? 1}
+              </p>
+              <Button
+                variant="secondary"
+                aria-label="Halaman berikutnya"
+                disabled={
+                  loading ||
+                  detailLoading ||
+                  !!busy ||
+                  !pageData ||
+                  pageData.page >= pageData.totalPages
+                }
+                onClick={() => load(applied, (pageData?.page ?? 1) + 1)}
+              >
+                Berikutnya
+              </Button>
+            </nav>
+          </section>
+          <section className="panel" aria-labelledby="admin-analytics-heading">
+            <h2 id="admin-analytics-heading" className="text-lg font-bold">
+              Analitik siswa
+            </h2>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {analytics.charts.map((c) => (
+                <Chart key={c.title} {...c} />
+              ))}
+            </div>
+          </section>
+          <section className="panel" aria-labelledby="admin-reset-heading">
+            <h2
+              id="admin-reset-heading"
+              className="flex min-h-12 items-center gap-3 text-sm font-bold"
+            >
+              <Trash2 size={17} />
+              Hapus attempt melalui email
+            </h2>
+            <p className="my-4 text-sm leading-7 text-stone-600">
+              Menghapus submission lama agar siswa dapat mengisi ulang. Tindakan
+              ini tidak dapat dibatalkan.
+            </p>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                askReset(resetEmail);
+              }}
+            >
+              <Field label="Email siswa">
+                <Input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                />
+              </Field>
+              <Button
+                variant="danger"
+                type="submit"
+                disabled={!!busy || loading || detailLoading}
+              >
+                Hapus attempt
+              </Button>
+            </form>
+          </section>
+        </div>
+      )}
       <ConfirmDialog
         open={!!resetTarget}
         title="Hapus attempt siswa?"
