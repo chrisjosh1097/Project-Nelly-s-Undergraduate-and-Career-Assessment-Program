@@ -93,7 +93,9 @@ type Entry = { tokens: string[]; phrase: string; tiers: string[][]; related: boo
  * Slash pairs that are part of a catalog name (e.g. "UI/UX", "D3/D4"). Only these exact
  * pairs are joined before clause splitting; every other slash still separates clauses.
  */
-const SLASH_PAIR = /([\p{L}\p{N}]+)\s*\/\s*([\p{L}\p{N}]+)/gu;
+const SLASH_PAIR = /([\p{L}\p{N}]+)[ \t]*\/[ \t]*([\p{L}\p{N}]+)/gu;
+/** Every slash, inspected on its own: the words around it must not be consumed by a previous slash. */
+const EACH_SLASH = /(?<=([\p{L}\p{N}]+)[ \t]*)\/(?=[ \t]*([\p{L}\p{N}]+))/gu;
 
 function catalogSlashPairs() {
   const pairs = new Set<string>();
@@ -111,8 +113,9 @@ let slashPairs: Set<string> | undefined;
 
 function joinCatalogSlashes(text: string) {
   slashPairs ??= catalogSlashPairs();
-  return text.replace(SLASH_PAIR, (whole, left: string, right: string) =>
-    slashPairs!.has(`${aspirationTokens(left).join(" ")}/${aspirationTokens(right).join(" ")}`) ? `${left} ${right}` : whole);
+  // Only horizontal whitespace may sit inside a reviewed pair, so a newline still ends the clause.
+  return text.replace(EACH_SLASH, (slash, left: string, right: string) =>
+    slashPairs!.has(`${aspirationTokens(left).join(" ")}/${aspirationTokens(right).join(" ")}`) ? " " : slash);
 }
 
 function buildEntries(): Entry[] {
