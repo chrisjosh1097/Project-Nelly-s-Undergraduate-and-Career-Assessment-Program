@@ -146,6 +146,11 @@ function buildEntries(): Entry[] {
 
 let entries: Entry[] | undefined;
 
+/** Compatibility-fold and strip accents before slash/clause handling (fullwidth "／" → "/"); line breaks survive. */
+function foldText(text: string) {
+  return (text ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function negatedPositions(tokens: string[]) {
   const negated = new Array<boolean>(tokens.length).fill(false);
   let active = false;
@@ -180,7 +185,7 @@ function matchClause(tokens: string[], list: Entry[]) {
 /** Explicit major mentions in first-mention order (phrases never cross punctuation). */
 export function matchExplicitAspirations(text: string): AspirationMatch[] {
   entries ??= buildEntries();
-  return joinCatalogSlashes(text ?? "")
+  return joinCatalogSlashes(foldText(text))
     .split(CLAUSE_SPLIT)
     .flatMap((clause) => matchClause(aspirationTokens(clause), entries!))
     .map(({ entry }) => ({ phrase: entry.phrase, tiers: entry.tiers, related: entry.related }));
@@ -210,7 +215,7 @@ export const OFFICIAL_SERVICE_NOTE =
   "Cita-citamu menyebut jalur kedinasan atau TNI/Polri. Jalur ini punya seleksi sendiri di luar pilihan jurusan. Cek syarat terbaru di situs resmi penyelenggaranya.";
 
 export function mentionsOfficialService(text: string) {
-  return (text ?? "").split(CLAUSE_SPLIT).some((clause) => matchClause(aspirationTokens(clause), OFFICIAL_SERVICE_PHRASES).length > 0);
+  return foldText(text).split(CLAUSE_SPLIT).some((clause) => matchClause(aspirationTokens(clause), OFFICIAL_SERVICE_PHRASES).length > 0);
 }
 
 /** Major IDs the matcher can produce, for KB validation. */

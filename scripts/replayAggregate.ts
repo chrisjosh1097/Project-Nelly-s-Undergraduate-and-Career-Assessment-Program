@@ -55,6 +55,7 @@ if (input && /replayAggregate\.ts$/.test(process.argv[1] ?? "")) {
   let parsed: ReplayRecord[] | Record<string, ReplayRecord>;
   try {
     parsed = JSON.parse(readFileSync(input, "utf8"));
+    if (parsed === null || typeof parsed !== "object") throw new Error("shape");
   } catch {
     // Fixed message only: parse errors quote the private file contents.
     console.error("Replay input could not be read or is not valid JSON.");

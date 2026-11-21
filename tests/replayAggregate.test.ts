@@ -1,7 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { rmSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { replayAggregate } from "../scripts/replayAggregate";
 import { generateRecommendations } from "@/lib/recommendation";
@@ -30,10 +28,12 @@ describe("aggregate-only replay", () => {
     expect(replayAggregate([{ answers: techAnswer, storedTop10: [...ids].reverse() }]).top10Changed).toBe(1);
   });
 
-  it("prints a fixed diagnostic without file contents on malformed JSON", () => {
-    const dir = mkdtempSync(join(tmpdir(), "replay-"));
-    const file = join(dir, "bad.json");
-    writeFileSync(file, '[{"answers":{"fullName":"Synthetic Siti","email":"siti@example.test"}},]');
+  it.each([
+    ["malformed JSON", '[{"answers":{"fullName":"Synthetic Siti","email":"siti@example.test"}},]'],
+    ["valid JSON with the wrong shape", "null"],
+  ])("prints a fixed diagnostic without file contents on %s", (_label, content) => {
+    const file = "replay-input.tmp.json"; // repo-local, deleted below
+    writeFileSync(file, content);
     let output = "";
     try {
       execFileSync(process.execPath, ["--import", "tsx", "scripts/replayAggregate.ts", file], { encoding: "utf8", stdio: "pipe" });
@@ -42,7 +42,9 @@ describe("aggregate-only replay", () => {
       output = `${e.stdout ?? ""}${e.stderr ?? ""}`;
       expect(e.status).toBe(1);
     }
+    rmSync(file, { force: true });
     expect(output).toContain("Replay input could not be read");
+    expect(output).not.toContain(" at ");
     for (const leak of ["Synthetic", "siti@example.test", "fullName"]) expect(output).not.toContain(leak);
   }, 60_000);
 });
