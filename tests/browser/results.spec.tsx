@@ -225,7 +225,7 @@ test("saved summary, moderate fit, aspirations and component evidence are visibl
   const overview = page.getByRole("region", { name: "Ringkasan arahmu" });
   await expect(overview.getByText(value.report.narrative!.summary, { exact: true })).toBeVisible();
   await expect(overview.getByText("Kecocokan sedang", { exact: true })).toBeVisible();
-  await expect(overview.getByText("07 / Rekomendasi utama", { exact: true })).toBeVisible();
+  await expect(overview.getByText("Paling dekat dengan jawabanmu", { exact: true })).toBeVisible();
   await expect(overview.getByText(value.answers.dreamProfession, { exact: true })).toBeVisible();
   await expect(overview.getByText(value.answers.futureVision, { exact: true })).toBeVisible();
   await expect(page.getByText("Eksplorasi proyek mekanik sintetis.", { exact: true })).toHaveCount(1);
@@ -248,7 +248,8 @@ test("weak comparison is honest and saved order/ranks survive higher-score later
   const first = alternatives.first();
   const summary = first.locator(":scope > summary");
   await expect(summary).toContainText("Alternatif Sintetis 1");
-  await expect(summary).toContainText("09");
+  await expect(summary).not.toContainText("09");
+  await expect(summary).not.toContainText("Selisih");
   await expect(summary).toContainText("48/100");
   await expect(summary).toContainText("Alternatif eksplorasi");
   await expect(summary).toContainText("Perlu dilatih: Latih membaca gambar teknik.");

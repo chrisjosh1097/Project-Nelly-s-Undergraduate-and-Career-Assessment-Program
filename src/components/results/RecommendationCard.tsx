@@ -7,7 +7,7 @@ import { fillPrompt, promptBankHref, resultPrompts, type PromptValues } from "@/
 import { PromptItem } from "@/components/prompts/PromptItem";
 import { PROMPT_CAUTION } from "@/components/prompts/CopyPrompt";
 import { campusMajorMap } from "../../../data/campusMajorMap";
-import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, scoreText, visibleCareerCautions } from "./resultPresentation";
+import { cleanLines, comparisonSignalFor, componentEvidenceFor, fitContextFor, gapText, scoreText, visibleCareerCautions } from "./resultPresentation";
 import { CampusExamples } from "./CampusExamples";
 import { CompareToggle } from "./CompareMajors";
 
@@ -71,8 +71,10 @@ export const ASPIRATION_MATCH_LABEL = "Disebut dalam cita-citamu";
 export const ASPIRATION_RELATED_LABEL = "Terkait cita-citamu";
 const aspirationLabel = (r: RecommendationResult) => r.aspirationMatchKind === "related" ? ASPIRATION_RELATED_LABEL : ASPIRATION_MATCH_LABEL;
 
-export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, promptValues, compare }: {
+export function RecommendationCard({ recommendation: r, expanded = false, workStyle, preferences, promptValues, compare, bestScore }: {
   recommendation: RecommendationResult; expanded?: boolean; workStyle?: string; preferences?: string[]; promptValues?: PromptValues; compare?: CompareControl;
+  /** Closest score in the report; shows "Selisih X poin" instead of a rank number. */
+  bestScore?: number;
 }) {
   const [opened, setOpened] = useState(false);
   const compareButton = compare ? <CompareToggle recommendation={r} {...compare} /> : null;
@@ -163,15 +165,14 @@ export function RecommendationCard({ recommendation: r, expanded = false, workSt
   );
   return expanded ? <article className="panel min-w-0">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-xl font-bold">Kenali rekomendasi utamamu</h2>{compareButton}
+      <h2 className="text-xl font-bold">Kenali arah terdekatmu</h2>{compareButton}
     </div>{body}
-  </article> : <div className="panel min-w-0">
+  </article> : <div id={`arah-${r.majorId}`} className="panel min-w-0 scroll-mt-20">
   <details className="recommendation-details min-w-0" onToggle={(event) => { if (event.currentTarget.open) setOpened(true); }}>
     <summary className="flex min-h-14 items-start gap-3 rounded-lg [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf">
-      <span className="pt-1 text-xs font-bold tabular-nums text-leaf">{String(r.rank).padStart(2, "0")}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-base font-bold sm:text-lg">{r.majorName}</span>
-        <span className="mt-1 block text-xs leading-6 text-stone-700">Kecocokan {scoreText(r.overallFitScore)} · {fit.interpretation}</span>
+        <span className="mt-1 block text-xs leading-6 text-stone-700">Kecocokan {scoreText(r.overallFitScore)} · {fit.interpretation}{typeof bestScore === "number" ? <> · <strong className="font-semibold text-ink">{gapText(r, bestScore)}</strong></> : null}</span>
         <span className="block text-xs leading-6 text-stone-600">Ketahanan AI {scoreText(r.aiFutureResilienceScore)} · {r.aiFutureResilienceLabel}</span>
         <span className="mt-1 flex flex-wrap gap-2">
           {cleanLines(r.degreeTypes).map(d => <Badge key={d}>{d}</Badge>)}

@@ -65,3 +65,52 @@ export function visibleCareerCautions(r: RecommendationResult): string[] {
   const cautions = r.careerCautions ?? [];
   return r.actionGuidance?.aiNote ? cautions.filter(line => !GENERIC_CAREER_AI_CAUTIONS.includes(line.trim())) : cautions;
 }
+
+/** Display-only score bands relative to the closest result. Never re-sorts or rescores. */
+export const CLOSE_GAP = 5;
+export const EXPLORE_GAP = 12;
+
+export type ResultGroup = { id: "dekat" | "jelajah" | "tambahan"; title: string; hint: string; items: RecommendationResult[] };
+
+function finiteScore(r: RecommendationResult) {
+  return Number.isFinite(r.overallFitScore) ? r.overallFitScore : 0;
+}
+
+export function bestScoreOf(all: readonly RecommendationResult[]) {
+  return Math.max(0, ...all.map(finiteScore));
+}
+
+export function gapText(r: RecommendationResult, best: number) {
+  const gap = Math.max(0, best - finiteScore(r));
+  return gap === 0 ? "Skor paling dekat" : `Selisih ${gap} poin`;
+}
+
+/** Gap framing only makes sense when the stored order is non-increasing by score (always true for current reports). */
+export function isScoreOrdered(all: readonly RecommendationResult[]) {
+  return all.every((r, i) => i === 0 || finiteScore(r) <= finiteScore(all[i - 1]));
+}
+
+/** Groups alternatives (stored order kept inside each group) by distance from the best score. */
+export function resultGroupsFor(alternatives: readonly RecommendationResult[], best: number): ResultGroup[] {
+  const groups: ResultGroup[] = [
+    { id: "dekat", title: "Juga dekat dengan jawabanmu", hint: `Selisih ${CLOSE_GAP} poin atau kurang dari skor terdekat. Anggap setara.`, items: [] },
+    { id: "jelajah", title: "Layak dijelajahi", hint: "Cocok di beberapa bagian. Bandingkan kurikulumnya.", items: [] },
+    { id: "tambahan", title: "Opsi tambahan", hint: "Kecocokan lebih jauh, tetapi tetap boleh dipertimbangkan.", items: [] },
+  ];
+  for (const r of alternatives) {
+    const gap = best - finiteScore(r);
+    groups[gap <= CLOSE_GAP ? 0 : gap <= EXPLORE_GAP ? 1 : 2].items.push(r);
+  }
+  return groups.filter(g => g.items.length);
+}
+
+/** Aspiration spotlight copy. No probability claims; points to a concrete skill when the gap is wide. */
+export function aspirationSpotlightFor(r: RecommendationResult, best: number | undefined) {
+  if (best === undefined) return "Kamu menyebut arah ini. Bandingkan kurikulum dan langkahnya di kartu jurusan.";
+  const gap = Math.max(0, best - finiteScore(r));
+  const skill = cleanLines(r.actionGuidance?.skillTargets.map(t => t.gap) ?? r.skillGaps)[0];
+  if (gap === 0) return "Cita-citamu juga arah yang paling dekat dengan jawabanmu.";
+  if (gap <= CLOSE_GAP) return `Hanya selisih ${gap} poin dari arah terdekat. Artinya sama-sama cocok.`;
+  if (gap <= EXPLORE_GAP) return `Selisih ${gap} poin. Masih realistis.${skill ? ` Kuatkan dulu: ${skill}.` : ""}`;
+  return `Selisih ${gap} poin. Perlu persiapan lebih, tetapi tetap boleh dikejar.${skill ? ` Mulai dari: ${skill}.` : ""}`;
+}

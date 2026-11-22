@@ -2,8 +2,9 @@ import { careersById, type Major as KnowledgeMajor } from "../../../data";
 import type { StudentAnswer } from "@/lib/types";
 import { unique } from "@/lib/utils";
 
-const EXACT_PHRASE_BOOST = 6;
-const KEYWORD_PAIR_BOOST = 4;
+import { ASPIRATION_BOOSTS } from "./scoringRubric";
+const EXACT_PHRASE_BOOST = ASPIRATION_BOOSTS.exactPhrase;
+const KEYWORD_PAIR_BOOST = ASPIRATION_BOOSTS.keywordPair;
 const MIN_KEYWORD_PAIR_MATCHES = 2;
 
 type AspirationRule = {

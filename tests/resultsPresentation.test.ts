@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RecommendationResult, Submission } from "@/lib/types";
 import { ResultsView } from "@/components/results/ResultsView";
 import { RecommendationCard } from "@/components/results/RecommendationCard";
+import { aspirationSpotlightFor, gapText, resultGroupsFor } from "@/components/results/resultPresentation";
 
 // Rendering has no auth/network side effects; downloads remain user-triggered.
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -68,6 +69,54 @@ function freezeDeep(value: unknown) {
   }
 }
 
+describe("anti-rank framing (display only)", () => {
+  const base = syntheticSubmission().report.recommendations[0];
+  const rec = (id: string, score: number, extra: Partial<RecommendationResult> = {}): RecommendationResult =>
+    ({ ...structuredClone(base), majorId: id, majorName: "Jurusan " + id, overallFitScore: score, ...extra });
+  it("groups alternatives by distance from the best score, keeping stored order inside groups", () => {
+    const groups = resultGroupsFor([rec("a", 78), rec("b", 80), rec("c", 70), rec("d", 60)], 80);
+    expect(groups.map(g => [g.id, g.items.map(r => r.majorId)])).toEqual([
+      ["dekat", ["a", "b"]], ["jelajah", ["c"]], ["tambahan", ["d"]],
+    ]);
+  });
+  it("describes gaps and aspiration distance without probability claims", () => {
+    expect(gapText(rec("a", 80), 80)).toBe("Skor paling dekat");
+    expect(gapText(rec("a", 76), 80)).toBe("Selisih 4 poin");
+    expect(aspirationSpotlightFor(rec("a", 77), 80)).toMatch(/selisih 3 poin.*sama-sama cocok/i);
+    expect(aspirationSpotlightFor(rec("a", 60, { skillGaps: ["Latih gambar teknik"] }), 80)).toContain("Mulai dari: Latih gambar teknik");
+    expect(aspirationSpotlightFor(rec("a", 60), 80)).not.toMatch(/%|peluang/);
+  });
+  it("spotlights a named aspiration at a low position above the summary and leaves stored data untouched", () => {
+    const input = syntheticSubmission();
+    const top = input.report.recommendations[0];
+    input.report.recommendations = [top, ...Array.from({ length: 7 }, (_, i) => rec("alt" + i, 64 - i)),
+      rec("arsitektur", 55, { majorName: "Arsitektur", aspirationMatch: true, rank: 9 })];
+    const original = structuredClone(input);
+    freezeDeep(input);
+    const html = render(input);
+    expect(html).toContain("Cita-citamu ada di hasil ini");
+    expect(html.indexOf("Cita-citamu ada di hasil ini")).toBeLessThan(html.indexOf("Ringkasan arahmu"));
+    expect(html).toContain('href="#arah-arsitektur"');
+    expect(html).toContain("Selisih 10 poin");
+    expect(html).toContain("Juga dekat dengan jawabanmu");
+    expect(input).toEqual(original);
+  });
+  it("falls back to stored order without gap labels when a legacy report is not score-ordered", () => {
+    const input = syntheticSubmission();
+    const top = input.report.recommendations[0];
+    input.report.recommendations = [top, rec("low", 40), rec("high", 90, { aspirationMatch: true })];
+    const html = render(input);
+    expect(html).not.toContain("Selisih");
+    expect(html).not.toContain("Skor paling dekat");
+    expect(html).not.toContain("Juga dekat dengan jawabanmu");
+    expect(html.indexOf("Jurusan low")).toBeLessThan(html.indexOf('id="arah-high"'));
+    expect(html).toContain("Cita-citamu ada di hasil ini");
+  });
+  it("shows no spotlight without an aspiration match", () => {
+    expect(render()).not.toContain("Cita-citamu ada di hasil ini");
+  });
+});
+
 describe("saved results presentation", () => {
   it("renders the meaningful saved summary and aspirations before the evidence section", () => {
     const html = render();
@@ -96,9 +145,11 @@ describe("saved results presentation", () => {
     expect(html).toContain("Periksa persyaratan resmi profesi dan kerja di negara tujuan.");
     expect(html).not.toContain("0 poin");
   });
-  it("uses the stored top rank and does not repeat its career direction", () => {
+  it("labels the stored top as closest without a rank number and does not repeat its career direction", () => {
     const html = render();
-    expect(html).toContain("07 / Rekomendasi utama");
+    expect(html).toContain("Paling dekat dengan jawabanmu");
+    expect(html).not.toContain("Rekomendasi utama");
+    expect(html).not.toMatch(/>0[1-9]</);
     // The alternative has its own direction; give it a different saved value.
     const input = syntheticSubmission();
     input.report.recommendations[1].careerDirection = "Arah alternatif tersimpan.";
